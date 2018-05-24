@@ -80,6 +80,7 @@ public:
     int64_t nCreateTime; // 0 means unknown
     std::string hdKeypath; //optional HD/bip32 keypath
     CKeyID hdMasterKeyID; //id of the HD masterkey used to derive this key
+    CPubKey derivedPubKey; //derived pub key
 
     CKeyMetadata()
     {
@@ -101,6 +102,7 @@ public:
         {
             READWRITE(hdKeypath);
             READWRITE(hdMasterKeyID);
+            READWRITE(derivedPubKey);
         }
     }
 
@@ -110,6 +112,7 @@ public:
         nCreateTime = 0;
         hdKeypath.clear();
         hdMasterKeyID.SetNull();
+        derivedPubKey = CPubKey();
     }
 };
 

@@ -57,6 +57,9 @@ static CBlock CreateGenesisBlock(const Consensus::Params& params, const std::str
     genesis.vtx.push_back(MakeTransactionRef(std::move(txNew)));
     genesis.hashPrevBlock.SetNull();
     genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
+    if (GetBoolArg("-embedcontract", DEFAULT_EMBED_CONTRACT)) {
+        genesis.hashContract = GetGenesisContractHash();
+    }
     return genesis;
 }
 
@@ -139,6 +142,7 @@ protected:
         fMiningRequiresPeers = GetBoolArg("-fminingrequirespeers", false);
         fDefaultConsistencyChecks = GetBoolArg("-fdefaultconsistencychecks", true);
         fRequireStandard = GetBoolArg("-frequirestandard", false);
+        fEmbedContract = GetBoolArg("-embedcontract", DEFAULT_EMBED_CONTRACT);
         fMineBlocksOnDemand = GetBoolArg("-fmineblocksondemand", true);
         anyonecanspend_aremine = GetBoolArg("-anyonecanspendaremine", true);
     }
@@ -178,7 +182,7 @@ public:
         GenerateAssetEntropy(entropy,  COutPoint(uint256(commit), 0), parentGenesisBlockHash);
         CalculateAsset(consensus.pegged_asset, entropy);
 
-        genesis = CreateGenesisBlock(consensus, strNetworkID, 1296688602, genesisChallengeScript, 1);
+        genesis = CreateGenesisBlock(consensus, strNetworkID, 1514764800, genesisChallengeScript, 1);
         if (initialFreeCoins != 0) {
             AppendInitialIssuance(genesis, COutPoint(uint256(commit), 0), parentGenesisBlockHash, 100, initialFreeCoins/100, 0, 0, CScript() << OP_TRUE);
         }
@@ -202,6 +206,7 @@ public:
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,235);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,75);
         base58Prefixes[BLINDED_ADDRESS]= std::vector<unsigned char>(1,4);
+        base58Prefixes[EXTENDED_ADDRESS]= std::vector<unsigned char>(1,5);
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container<std::vector<unsigned char> >();
@@ -227,6 +232,7 @@ public:
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,0);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
         base58Prefixes[BLINDED_ADDRESS]= std::vector<unsigned char>(1,11);
+        base58Prefixes[EXTENDED_ADDRESS]= std::vector<unsigned char>(1,12);
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,128);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container<std::vector<unsigned char> >();
@@ -265,4 +271,4 @@ void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_
 {
     globalChainParams->UpdateBIP9Parameters(d, nStartTime, nTimeout);
 }
- 
+

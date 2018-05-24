@@ -200,7 +200,9 @@ UniValue getnewaddress(const JSONRPCRequest& request)
 
     pwalletMain->SetAddressBook(keyID, strAccount, "receive");
 
-    return CBitcoinAddress(keyID).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)))).ToString();
+    return !pwalletMain->GetDisableCt() ?
+        CBitcoinAddress(keyID).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)))).ToString() : 
+        CBitcoinAddress(keyID).ToString();
 }
 
 
@@ -211,7 +213,9 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false)
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
     }
 
-    return CBitcoinAddress(pubKey.GetID()).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(pubKey.GetID())));
+    return !pwalletMain->GetDisableCt() ?
+        CBitcoinAddress(pubKey.GetID()).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(pubKey.GetID()))).ToString() : 
+        CBitcoinAddress(pubKey.GetID()).ToString();
 }
 
 UniValue getaccountaddress(const JSONRPCRequest& request)
@@ -277,7 +281,9 @@ UniValue getrawchangeaddress(const JSONRPCRequest& request)
 
     CKeyID keyID = vchPubKey.GetID();
 
-    return CBitcoinAddress(keyID).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)))).ToString();
+    return !pwalletMain->GetDisableCt() ?
+        CBitcoinAddress(keyID).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)))).ToString() : 
+        CBitcoinAddress(keyID).ToString();
 }
 
 
@@ -389,7 +395,10 @@ UniValue getaddressesbyaccount(const JSONRPCRequest& request)
     BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& item, pwalletMain->mapAddressBook)
     {
         CBitcoinAddress address = item.first;
-        address.AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(item.first)));
+        if (!pwalletMain->GetDisableCt())
+        {
+            address.AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(item.first)));
+        }
         const string& strName = item.second.name;
         if (strName == strAccount)
             ret.push_back(address.ToString());
@@ -549,7 +558,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
     if (request.params.size() > 4)
         fSubtractFeeFromAmount = request.params[4].get_bool();
 
-    std::string strasset = "bitcoin";
+    std::string strasset = "CBT";
     if (request.params.size() > 5 && request.params[5].isStr()) {
         strasset = request.params[5].get_str();
     }
@@ -1154,7 +1163,7 @@ UniValue sendmany(const JSONRPCRequest& request)
     {
         CBitcoinAddress address(name_);
 
-        std::string strasset = "bitcoin";
+        std::string strasset = "CBT";
         if (!assets.isNull() && assets[name_].isStr()) {
             strasset = assets[name_].get_str();
         }
@@ -2078,7 +2087,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
             "      \"fee\": x.xxx,                     (numeric) The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the \n"
             "                                           'send' category of transactions.\n"
             "      \"abandoned\": xxx                  (bool) 'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
-            "                                           'send' category of transactions.\n"			
+            "                                           'send' category of transactions.\n"
             "    }\n"
             "    ,...\n"
             "  ],\n"
@@ -3801,7 +3810,8 @@ UniValue issueasset(const JSONRPCRequest& request)
         keyID = newKey.GetID();
         pwalletMain->SetAddressBook(keyID, "", "receive");
         assetAddr = CBitcoinAddress(keyID);
-        assetKey = pwalletMain->GetBlindingPubKey(GetScriptForDestination(assetAddr.Get()));
+        assetKey = !pwalletMain->GetDisableCt() ? 
+            pwalletMain->GetBlindingPubKey(GetScriptForDestination(assetAddr.Get())) : CPubKey();
     }
     if (nTokens > 0) {
         if (!pwalletMain->GetKeyFromPool(newKey))
@@ -3809,7 +3819,8 @@ UniValue issueasset(const JSONRPCRequest& request)
         keyID = newKey.GetID();
         pwalletMain->SetAddressBook(keyID, "", "receive");
         tokenAddr = CBitcoinAddress(keyID);
-        tokenKey = pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)));
+        tokenKey = !pwalletMain->GetDisableCt() ? 
+            pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID))) : CPubKey();
     }
 
     CWalletTx wtx;
@@ -3909,7 +3920,8 @@ UniValue reissueasset(const JSONRPCRequest& request)
     keyID = newKey.GetID();
     pwalletMain->SetAddressBook(keyID, "", "receive");
     assetAddr = CBitcoinAddress(keyID);
-    assetKey = pwalletMain->GetBlindingPubKey(GetScriptForDestination(assetAddr.Get()));
+    assetKey = !pwalletMain->GetDisableCt() ? 
+        pwalletMain->GetBlindingPubKey(GetScriptForDestination(assetAddr.Get())) : CPubKey();
 
     // Add destination for tokens we are moving
     if (!pwalletMain->GetKeyFromPool(newKey))
@@ -3917,7 +3929,8 @@ UniValue reissueasset(const JSONRPCRequest& request)
     keyID = newKey.GetID();
     pwalletMain->SetAddressBook(keyID, "", "receive");
     tokenAddr = CBitcoinAddress(keyID);
-    tokenKey = pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)));
+    tokenKey = !pwalletMain->GetDisableCt() ? 
+        pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID))) : CPubKey();
 
     // Attempt a send.
     CWalletTx wtx;
@@ -4061,6 +4074,9 @@ extern UniValue importprivkey(const JSONRPCRequest& request);
 extern UniValue importaddress(const JSONRPCRequest& request);
 extern UniValue importpubkey(const JSONRPCRequest& request);
 extern UniValue dumpwallet(const JSONRPCRequest& request);
+extern UniValue dumpderivedkeys(const JSONRPCRequest& request);
+extern UniValue getderivedkeys(const JSONRPCRequest& request);
+extern UniValue validatederivedkeys(const JSONRPCRequest& request);
 extern UniValue importwallet(const JSONRPCRequest& request);
 extern UniValue importprunedfunds(const JSONRPCRequest& request);
 extern UniValue removeprunedfunds(const JSONRPCRequest& request);
@@ -4084,6 +4100,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "dumpprivkey",              &dumpprivkey,              true,   {"address"}  },
     { "wallet",             "dumpissuanceblindingkey",  &dumpissuanceblindingkey,  true,   {"txid", "vin"} },
     { "wallet",             "dumpwallet",               &dumpwallet,               true,   {"filename"} },
+    { "wallet",             "dumpderivedkeys",          &dumpderivedkeys,          true,   {"filename"} },
+    { "wallet",             "validatederivedkeys",      &validatederivedkeys,      true,   {"filename"} },
     { "wallet",             "encryptwallet",            &encryptwallet,            true,   {"passphrase"} },
     { "wallet",             "claimpegin",               &claimpegin,               false,  {"bitcoinT", "txoutproof", "claim_script"} },
     { "wallet",             "createrawpegin",           &createrawpegin,           false,  {"bitcoinT", "txoutproof", "claim_script"} },
@@ -4091,6 +4109,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getaccount",               &getaccount,               true,   {"address"} },
     { "wallet",             "getaddressesbyaccount",    &getaddressesbyaccount,    true,   {"account"} },
     { "wallet",             "getbalance",               &getbalance,               false,  {"account","minconf","include_watchonly"} },
+    { "wallet",             "getderivedkeys",           &getderivedkeys,           true,   {} },
     { "wallet",             "getnewaddress",            &getnewaddress,            true,   {"account"} },
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getpeginaddress",          &getpeginaddress,          false,  {} },

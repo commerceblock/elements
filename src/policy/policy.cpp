@@ -7,6 +7,7 @@
 
 #include "policy/policy.h"
 
+#include "pubkey.h"
 #include "validation.h"
 #include "tinyformat.h"
 #include "util.h"
@@ -100,6 +101,38 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
 
     return true;
 }
+
+bool IsWhitelisted(const CTransaction& tx)
+{
+  //function that determines that all outputs of a transaction are P2PKH
+  //and all output addresses are present withing the whitelist database
+
+  txnouttype whichType;
+
+  BOOST_FOREACH(const CTxOut& txout, tx.vout) {
+
+    std::vector<std::vector<unsigned char> > vSolutions;
+    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+      return false;
+
+    //return false if not P2PKH or TX_FEE
+    if(!(whichType == TX_FEE || whichType == TX_PUBKEYHASH)) return false;
+    //skip whitelist check if TX_FEE
+    if(whichType == TX_FEE) continue;
+
+    CKeyID keyId;
+    keyId = CKeyID(uint160(vSolutions[0]));
+
+    // search in whitelist for the presence of qaddress: if not found return false                                                                    
+
+    if(!(std::binary_search(addressWhitelist.begin(),addressWhitelist.end(),keyId))) return false;
+
+  }
+
+  return true;
+
+}
+
 
 bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {

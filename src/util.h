@@ -17,6 +17,7 @@
 #include "compat.h"
 #include "tinyformat.h"
 #include "utiltime.h"
+#include "uint256.h"
 
 #include <atomic>
 #include <exception>
@@ -54,6 +55,7 @@ extern CTranslationInterface translationInterface;
 
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_PID_FILENAME;
+extern const char * const CONTRACT_FILE_PATH;
 
 /**
  * Translation function: Call Translate signal on UI interface, which returns a boost::optional result.
@@ -126,6 +128,9 @@ void OpenDebugLog();
 void OpenAuditLog();
 void ShrinkDebugFile();
 void runCommand(const std::string& strCommand);
+std::string GetContractFile();
+uint256 GetGenesisContractHash();
+uint256 GetContractHash();
 
 inline bool IsSwitchChar(char c)
 {
