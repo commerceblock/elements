@@ -383,6 +383,8 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-onion=<ip:port>", strprintf(_("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"));
     strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6 or onion)"));
     strUsage += HelpMessageOpt("-permitbaremultisig", strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
+    strUsage += HelpMessageOpt("-pkhwhitelist", strprintf(_("Enable node mempool address whitelisting (default: %u)"), DEFAULT_WHITELIST_CHECK));
+    strUsage += HelpMessageOpt("-issuanceblock", strprintf(_("Enable node mempool issuance transaction blocking (default: %u)"), DEFAULT_BLOCK_ISSUANCE));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>", strprintf(_("Listen for connections on <port> (default: %u)"), defaultChainParams->GetDefaultPort()));
     strUsage += HelpMessageOpt("-proxy=<ip:port>", _("Connect through SOCKS5 proxy"));
@@ -489,6 +491,8 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-blockmintxfee=<amt>", strprintf(_("Set lowest fee rate (in %s/kB) for transactions to be included in block creation. (default: %s)"), CURRENCY_UNIT, FormatMoney(DEFAULT_BLOCK_MIN_TX_FEE)));
     if (showDebug)
         strUsage += HelpMessageOpt("-blockversion=<n>", "Override block version to test forking scenarios");
+    strUsage += HelpMessageOpt("-embedcontract", _("Embed contract in the block header and address derivation"));
+    strUsage += HelpMessageOpt("-attestationhash", _("Embed the hash of the first attestation in the block header"));
 
     strUsage += HelpMessageGroup(_("RPC server options:"));
     strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands"));
@@ -1019,7 +1023,7 @@ bool AppInitParameterInteraction()
         nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
 
     policyAsset = CAsset(uint256S(GetArg("-feeasset", chainparams.GetConsensus().pegged_asset.GetHex())));
-    
+
     // Fee-per-kilobyte amount considered the same as "free"
     // If you are mining, be careful setting this:
     // if you set it to zero then
@@ -1068,6 +1072,8 @@ bool AppInitParameterInteraction()
         return false;
 #endif
 
+    fRequireWhitelistCheck = GetBoolArg("-pkhwhitelist", DEFAULT_WHITELIST_CHECK);
+    fblockissuancetx = GetBoolArg("-issuanceblock", DEFAULT_BLOCK_ISSUANCE);
     fIsBareMultisigStd = GetBoolArg("-permitbaremultisig", DEFAULT_PERMIT_BAREMULTISIG);
     fAcceptDatacarrier = GetBoolArg("-datacarrier", DEFAULT_ACCEPT_DATACARRIER);
     nMaxDatacarrierBytes = GetArg("-datacarriersize", nMaxDatacarrierBytes);

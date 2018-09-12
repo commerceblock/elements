@@ -78,6 +78,8 @@ bool fHavePruned = false;
 bool fPruneMode = false;
 bool fIsBareMultisigStd = DEFAULT_PERMIT_BAREMULTISIG;
 bool fRequireStandard = true;
+bool fRequireWhitelistCheck = DEFAULT_WHITELIST_CHECK;
+bool fblockissuancetx = DEFAULT_BLOCK_ISSUANCE;
 bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
 size_t nCoinCacheUsage = 5000 * 300;
@@ -88,6 +90,8 @@ uint256 hashAssumeValid;
 
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
+
+AWhitelist addressWhitelist;
 
 CTxMemPool mempool(::minRelayTxFee);
 
@@ -1078,6 +1082,19 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (fRequireStandard && !IsStandardTx(tx, reason))
         return state.DoS(0, false, REJECT_NONSTANDARD, reason);
 
+    // Accept only transactions that have P2PKH outputs with addresses in the whitelist
+    if (fRequireWhitelistCheck){
+      if(!IsWhitelisted(tx))
+      return state.DoS(0, false, REJECT_NONSTANDARD, "non-whitelisted-address");
+    }
+
+    // Accept only transactions that have no asset issuance inputs
+    if(fblockissuancetx){
+      if(GetNumIssuances(tx) > 0){
+	return state.DoS(0, false, REJECT_NONSTANDARD, "blocked-asset-issuance-txn");
+      }
+    }
+
     // Only accept nLockTime-using transactions that can be mined in the next
     // block; we don't want our mempool filled up with transactions that can't
     // be mined yet.
@@ -1184,7 +1201,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         if (!tx.HasValidFee())
             return state.DoS(0, false, REJECT_INVALID, "bad-fees");
-        CAmount nFees = tx.GetFee()[policyAsset];
+        CAmount nFees = tx.GetFee().begin()->second;
+        CAsset feeAsset = tx.GetFee().begin()->first;
 
         // nModifiedFees includes any fee deltas from PrioritiseTransaction
         CAmount nModifiedFees = nFees;
@@ -1210,7 +1228,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
         }
 
-        CTxMemPoolEntry entry(ptx, nFees, nAcceptTime, dPriority, chainActive.Height(),
+        CTxMemPoolEntry entry(ptx, nFees, feeAsset, nAcceptTime, dPriority, chainActive.Height(),
                               inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp, setPeginsSpent);
         unsigned int nSize = entry.GetTxSize();
 
@@ -1225,7 +1243,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
         if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
-            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d for asset %s", nFees, mempoolRejectFee, feeAsset.GetHex()));
         }
 
         // No transactions are allowed below minRelayTxFee except from disconnected blocks
@@ -1237,7 +1255,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         if (nAbsurdFee && nFees > nAbsurdFee)
             return state.Invalid(false,
                 REJECT_HIGHFEE, "absurdly-high-fee",
-                strprintf("%d > %d", nFees, nAbsurdFee));
+                strprintf("%d > %d for asset %s", nFees, nAbsurdFee, feeAsset.GetHex()));
 
         // Calculate in-mempool ancestors, up to a limit.
         CTxMemPool::setEntries setAncestors;
@@ -2769,7 +2787,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (!VerifyCoinbaseAmount(*(block.vtx[0]), blockReward))
         return state.DoS(100,
                          error("ConnectBlock(): coinbase pays too much (limit=%d)",
-                               blockReward[policyAsset]),
+                               blockReward.begin()->second),
                                REJECT_INVALID, "bad-cb-amount");
 
     if (!control.Wait())

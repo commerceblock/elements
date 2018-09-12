@@ -38,6 +38,8 @@ struct ChainTxData {
     double dTxRate;
 };
 
+static const bool DEFAULT_EMBED_CONTRACT = true;
+
 /**
  * CChainParams defines various tweakable parameters of a given instance of the
  * Bitcoin system. There are three: the main network on which people trade goods
@@ -52,6 +54,7 @@ public:
         PUBKEY_ADDRESS,
         SCRIPT_ADDRESS,
         BLINDED_ADDRESS,
+        EXTENDED_ADDRESS,
         SECRET_KEY,
         EXT_PUBLIC_KEY,
         EXT_SECRET_KEY,
@@ -72,12 +75,15 @@ public:
 
     const CBlock& GenesisBlock() const { return genesis; }
     const uint256 ParentGenesisBlockHash() const { return parentGenesisBlockHash; }
+    const uint256 AttestationHash() const { return attestationHash; }
     /** Make miner wait to have peers to avoid wasting work */
     bool MiningRequiresPeers() const { return fMiningRequiresPeers; }
     /** Default value for -checkmempool and -checkblockindex argument */
     bool DefaultConsistencyChecks() const { return fDefaultConsistencyChecks; }
     /** Policy: Filter transactions that do not match well-defined patterns */
     bool RequireStandard() const { return fRequireStandard; }
+    /** Configuration option to include the contract hash in block and address generation */
+    bool EmbedContract() const { return fEmbedContract; }
     uint64_t PruneAfterHeight() const { return nPruneAfterHeight; }
     /** Make miner stop after a block is found. In RPC, don't return until nGenProcLimit blocks are generated */
     bool MineBlocksOnDemand() const { return fMineBlocksOnDemand; }
@@ -104,12 +110,14 @@ protected:
     std::string strNetworkID;
     CBlock genesis;
     uint256 parentGenesisBlockHash;
+    uint256 attestationHash;
     CAmount initialFreeCoins;
     std::vector<SeedSpec6> vFixedSeeds;
     bool fMiningRequiresPeers;
     bool fDefaultConsistencyChecks;
     bool fRequireStandard;
     bool fMineBlocksOnDemand;
+    bool fEmbedContract;
     CCheckpointData checkpointData;
     ChainTxData chainTxData;
 };

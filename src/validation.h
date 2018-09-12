@@ -10,6 +10,7 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include "pubkey.h"
 #include "amount.h"
 #include "chain.h"
 #include "coins.h"
@@ -128,6 +129,9 @@ static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60;
 /** Maximum age of our tip in seconds for us to be considered current for fee estimation */
 static const int64_t MAX_FEE_ESTIMATION_TIP_AGE = 3 * 60 * 60;
 
+static const bool DEFAULT_WHITELIST_CHECK = false;
+static const bool DEFAULT_BLOCK_ISSUANCE = false;
+
 /** Default for -permitbaremultisig */
 static const bool DEFAULT_PERMIT_BAREMULTISIG = true;
 static const bool DEFAULT_CHECKPOINTS_ENABLED = true;
@@ -150,6 +154,10 @@ struct BlockHasher
     size_t operator()(const uint256& hash) const { return hash.GetCheapHash(); }
 };
 
+//whitelist address list
+typedef std::vector<CKeyID> AWhitelist;
+extern AWhitelist addressWhitelist;
+
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
 extern CTxMemPool mempool;
@@ -166,6 +174,8 @@ extern bool fReindex;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
 extern bool fIsBareMultisigStd;
+extern bool fRequireWhitelistCheck;
+extern bool fblockissuancetx;
 extern bool fRequireStandard;
 extern bool fCheckBlockIndex;
 extern bool fCheckpointsEnabled;
