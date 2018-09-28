@@ -111,20 +111,27 @@ class CTTest (BitcoinTestFramework):
         self.nodes[0].generate(10)
         self.sync_all()        
 
+        newadd = self.nodes[0].getnewaddress()
+        txidnew = self.nodes[0].sendtoaddress(newadd,Decimal('750.0')," "," ",False,asset2["asset"],True)
+        self.nodes[0].generate(10)
+        self.sync_all()
+
         #send some asset to a frozen output
 
         #find vout
         vout = 0
         found = False
-        isstx = self.nodes[0].getrawtransaction(asset2["txid"],True)
+        isstx = self.nodes[0].getrawtransaction(txidnew,True)
         for output in isstx["vout"]:
-            if output["asset"] == asset2["asset"]:
+            if output["asset"] == asset2["asset"] and output["value"] == Decimal('750.0'):
                 vout = output["n"]
+                found = True
+        assert(found)
 
         #create raw tx
         addr4 = self.nodes[2].getnewaddress()
         addrfrz = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
-        rawtx = self.nodes[0].createrawtransaction([{"txid":asset2["txid"],"vout":vout}],{addrfrz:Decimal('0.0001'),addr4:Decimal('799.9998'),"fee":Decimal("0.0001")},0,{addrfrz:asset2["asset"],addr4:asset2["asset"],"fee":asset2["asset"]})
+        rawtx = self.nodes[0].createrawtransaction([{"txid":txidnew,"vout":vout}],{addrfrz:Decimal('0.0001'),addr4:Decimal('749.9998'),"fee":Decimal("0.0001")},0,{addrfrz:asset2["asset"],addr4:asset2["asset"],"fee":asset2["asset"]})
         sigtx = self.nodes[0].signrawtransaction(rawtx)
 
         dec = self.nodes[0].decoderawtransaction(sigtx["hex"])
@@ -139,15 +146,14 @@ class CTTest (BitcoinTestFramework):
         iter = 0
         for assetstats in stats4:
             if asset2["asset"] == assetstats["asset"]:
-                assert_equal(assetstats["amountspendable"], Decimal('0.0001'))
-                assert_equal(assetstats["amountfrozen"], Decimal('799.9999'))
+                assert_equal(assetstats["amountspendable"], Decimal('50.0001'))
+                assert_equal(assetstats["amountfrozen"], Decimal('749.9999'))
                 iter +=1
             if asset2["token"] == assetstats["asset"]:
                 assert_equal(assetstats["amountspendable"], Decimal('1.0'))
                 assert_equal(assetstats["amountfrozen"], Decimal('0.0'))
                 iter +=1
         assert(iter == 2)        
-
 
 if __name__ == '__main__':
     CTTest ().main ()
