@@ -894,7 +894,7 @@ static bool GetAssetStats(CCoinsView *view, std::vector<CAssetStats> &stats)
 
 	  //check if asset type is already in the stats list
 	  bool addNewAsset = true;
-	  for(unsigned int it=0;it<stats.size();it++) {
+	  for(unsigned long it=0;it<stats.size();it++) {
 	    if(stats[it].nAsset == out.nAsset.GetAsset()){
 	      addNewAsset = false;
 	      if(frozenTx) {
@@ -1039,10 +1039,10 @@ UniValue getutxoassetinfo(const JSONRPCRequest& request)
             "[                     (json array of objects)\n"
             "  {\n"
             "    \"asset\":\"<asset>\",   (string) Asset type ID \n"
-	    "    \"assetamount\":\"X.XX\",     (numeric) The total amount of spendable asset.\n"
-            "    \"numoutputs\":\"n\",         (numeric) The number of spendable outputs of the asset.\n"
-	    "    \"frozenamount\":\"X.XX\",       (numeric) The total amount of frozen asset.\n"
-            "    \"numfrozen\":\"n\",          (numeric) The number of frozen outputs of the asset.\n"
+	    "    \"amountspendable\":\"X.XX\",     (numeric) The total amount of spendable asset.\n"
+            "    \"spendabletxouts\":\"n\",         (numeric) The number of spendable outputs of the asset.\n"
+	    "    \"amountfrozen\":\"X.XX\",       (numeric) The total amount of frozen asset.\n"
+            "    \"frozentxouts\":\"n\",          (numeric) The number of frozen outputs of the asset.\n"
             "  }\n"
             "  ,...\n"
             "]\n"
@@ -1056,7 +1056,7 @@ UniValue getutxoassetinfo(const JSONRPCRequest& request)
 
   std::vector<CAssetStats> stats;
   if (GetAssetStats(pcoinsTip, stats)) {
-    for(unsigned int it=0;it<stats.size();it++){
+    for(unsigned long it=0;it<stats.size();it++){
       UniValue item(UniValue::VOBJ);
       item.push_back(Pair("asset",stats[it].nAsset.GetHex()));
       item.push_back(Pair("spendabletxouts",stats[it].nSpendableOutputs));
