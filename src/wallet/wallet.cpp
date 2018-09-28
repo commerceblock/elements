@@ -116,10 +116,13 @@ CPubKey CWallet::GenerateNewKey()
     metadata.derivedPubKey = pubKeyPreTweak;
 
     if (Params().EmbedContract()) {
-        // use the active block contract hash to generate keys - if this is not available use the genesis block contract
-        uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetGenesisContractHash(); // for BIP-175
-        pubKeyPreTweak.AddTweakToPubKey((unsigned char*)contract.begin()); //tweak pubkey for reverse testing
-        secret.AddTweakToPrivKey((unsigned char*)contract.begin()); //do actual tweaking of private key
+        // use the active block contract hash to generate keys - if this is not available use the local contract
+        uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash(); // for BIP-175
+        if (!contract.IsNull())
+        {
+            pubKeyPreTweak.AddTweakToPubKey((unsigned char*)contract.begin()); //tweak pubkey for reverse testing
+            secret.AddTweakToPrivKey((unsigned char*)contract.begin()); //do actual tweaking of private key
+        }
     }
 
     CPubKey pubkey = secret.GetPubKey();
@@ -2069,7 +2072,7 @@ uint256 CWalletTx::GetIssuanceBlindingFactor(unsigned int vinIndex, bool fIssuan
     }
     const std::vector<unsigned char>& rangeproof = wit.vtxinwit.size() <= vinIndex ? std::vector<unsigned char>() : (fIssuanceToken ? wit.vtxinwit[vinIndex].vchInflationKeysRangeproof : wit.vtxinwit[vinIndex].vchIssuanceAmountRangeproof);
     unsigned int mapValueInd = GetPseudoInputOffset(vinIndex, fIssuanceToken)+tx->vout.size();
-  if (issuance.assetBlindingNonce.IsNull()) {
+  if (!issuance.IsReissuance()) {
         uint256 entropy;
         GenerateAssetEntropy(entropy, tx->vin[vinIndex].prevout, issuance.assetEntropy);
         if (fIssuanceToken) {
@@ -2103,7 +2106,7 @@ CAmount CWalletTx::GetIssuanceAmount(unsigned int vinIndex, bool fIssuanceToken)
     }
     unsigned int mapValueInd = GetPseudoInputOffset(vinIndex, fIssuanceToken)+tx->vout.size();
     const std::vector<unsigned char>& rangeproof = wit.vtxinwit.size() <= vinIndex ? std::vector<unsigned char>() : (fIssuanceToken ? wit.vtxinwit[vinIndex].vchInflationKeysRangeproof : wit.vtxinwit[vinIndex].vchIssuanceAmountRangeproof);
-    if (issuance.assetBlindingNonce.IsNull()) {
+    if (!issuance.IsReissuance()) {
         uint256 entropy;
         GenerateAssetEntropy(entropy, tx->vin[vinIndex].prevout, issuance.assetEntropy);
         CalculateReissuanceToken(token, entropy, issuance.nAmount.IsCommitment());
@@ -3042,6 +3045,11 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         coin.first->GetOutputAsset(coin.second) == *reissuanceToken) {
                         reissuanceIndex = txNew.vin.size()-1;
                         tokenBlinding = coin.first->GetOutputAssetBlindingFactor(coin.second);
+
+                        if (tokenBlinding.IsNull()) // issuance was unblinded
+                        {
+                            tokenBlinding = CAssetIssuance::UNBLINDED_REISSUANCE_NONCE;
+                        }
                     }
                 }
 
@@ -4746,7 +4754,7 @@ std::map<uint256, std::pair<CAsset, CAsset> > CWallet::GetReissuanceTokenTypes()
                     continue;
                 }
                 // Only looking at initial issuances
-                if (issuance.assetBlindingNonce.IsNull()) {
+                if (!issuance.IsReissuance()) {
                     GenerateAssetEntropy(entropy, pcoin->tx->vin[vinIndex].prevout, issuance.assetEntropy);
                     CalculateAsset(asset, entropy);
                     // TODO handle the case with null nAmount (not decided yet)
