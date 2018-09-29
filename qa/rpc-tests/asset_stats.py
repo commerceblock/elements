@@ -111,6 +111,8 @@ class CTTest (BitcoinTestFramework):
         self.nodes[0].generate(10)
         self.sync_all()        
 
+        print(asset2)
+
         newadd = self.nodes[0].getnewaddress()
         txidnew = self.nodes[0].sendtoaddress(newadd,Decimal('750.0')," "," ",False,asset2["asset"],True)
         self.nodes[0].generate(10)
@@ -128,6 +130,9 @@ class CTTest (BitcoinTestFramework):
                 found = True
         assert(found)
 
+        print(isstx)
+        print(str(vout))
+
         #create raw tx
         addr4 = self.nodes[2].getnewaddress()
         addrfrz = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
@@ -136,13 +141,24 @@ class CTTest (BitcoinTestFramework):
 
         dec = self.nodes[0].decoderawtransaction(sigtx["hex"])
 
+        print(dec)
+
         sendtx = self.nodes[0].sendrawtransaction(sigtx["hex"])
+
+        print(sendtx)
+
+        memp = self.nodes[0].getrawmempool()
+
+        print(memp)
 
         self.nodes[0].generate(10)
         self.sync_all()
 
         #check asset report amounts
         stats4 = self.nodes[2].getutxoassetinfo()
+
+        print(stats4)
+
         iter = 0
         for assetstats in stats4:
             if asset2["asset"] == assetstats["asset"]:
