@@ -111,8 +111,6 @@ class CTTest (BitcoinTestFramework):
         self.nodes[0].generate(10)
         self.sync_all()        
 
-        print(asset2)
-
         newadd = self.nodes[0].getnewaddress()
         txidnew = self.nodes[0].sendtoaddress(newadd,Decimal('750.0')," "," ",False,asset2["asset"],True)
         self.nodes[0].generate(10)
@@ -130,9 +128,6 @@ class CTTest (BitcoinTestFramework):
                 found = True
         assert(found)
 
-        print(isstx)
-        print(str(vout))
-
         #create raw tx
         addr4 = self.nodes[2].getnewaddress()
         addrfrz = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
@@ -144,12 +139,6 @@ class CTTest (BitcoinTestFramework):
         print(dec)
 
         sendtx = self.nodes[0].sendrawtransaction(sigtx["hex"])
-
-        print(sendtx)
-
-        memp = self.nodes[0].getrawmempool()
-
-        print(memp)
 
         self.nodes[0].generate(10)
         self.sync_all()
@@ -169,7 +158,7 @@ class CTTest (BitcoinTestFramework):
                 assert_equal(assetstats["amountspendable"], Decimal('1.0'))
                 assert_equal(assetstats["amountfrozen"], Decimal('0.0'))
                 iter +=1
-        assert(iter == 2)        
+        assert(iter == 2)
 
 if __name__ == '__main__':
     CTTest ().main ()

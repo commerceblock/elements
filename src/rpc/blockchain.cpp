@@ -879,7 +879,7 @@ static bool GetAssetStats(CCoinsView *view, std::vector<CAssetStats> &stats)
       for (unsigned int i=0; i<coins.vout.size(); i++) {
 	const CTxOut &out = coins.vout[i];
 
-	//check if tx is flagged frozen (i.e. first input is zero address)
+	//check if the tx is flagged frozen (i.e. one output is a zero address)
 	txnouttype whichType;
 	std::vector<std::vector<unsigned char> > vSolutions;
 	Solver(out.scriptPubKey, whichType, vSolutions);
@@ -888,6 +888,11 @@ static bool GetAssetStats(CCoinsView *view, std::vector<CAssetStats> &stats)
 	  keyId = CKeyID(uint160(vSolutions[0]));
 	  if(keyId == frzId) frozenTx = true;
 	}
+      }
+
+      //loop over all vouts within a single transaction
+      for (unsigned int i=0; i<coins.vout.size(); i++) {
+        const CTxOut &out = coins.vout[i];
 	
 	//null vouts are spent
 	if (!out.IsNull()) {
