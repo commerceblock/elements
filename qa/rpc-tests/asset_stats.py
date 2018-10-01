@@ -6,7 +6,7 @@
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
-class CTTest (BitcoinTestFramework):
+class AssetStatsTest (BitcoinTestFramework):
 
     def __init__(self):
         super().__init__()
@@ -134,10 +134,6 @@ class CTTest (BitcoinTestFramework):
         rawtx = self.nodes[0].createrawtransaction([{"txid":txidnew,"vout":vout}],{addrfrz:Decimal('0.0001'),addr4:Decimal('749.9998'),"fee":Decimal("0.0001")},0,{addrfrz:asset2["asset"],addr4:asset2["asset"],"fee":asset2["asset"]})
         sigtx = self.nodes[0].signrawtransaction(rawtx)
 
-        dec = self.nodes[0].decoderawtransaction(sigtx["hex"])
-
-        print(dec)
-
         sendtx = self.nodes[0].sendrawtransaction(sigtx["hex"])
 
         self.nodes[0].generate(10)
@@ -145,8 +141,6 @@ class CTTest (BitcoinTestFramework):
 
         #check asset report amounts
         stats4 = self.nodes[2].getutxoassetinfo()
-
-        print(stats4)
 
         iter = 0
         for assetstats in stats4:
@@ -161,4 +155,4 @@ class CTTest (BitcoinTestFramework):
         assert(iter == 2)
 
 if __name__ == '__main__':
-    CTTest ().main ()
+    AssetStatsTest ().main ()

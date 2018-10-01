@@ -795,13 +795,12 @@ struct CCoinsStats
 
 struct CAssetStats
 {
-  CAsset nAsset;
-  uint64_t nSpendableOutputs;
-  uint64_t nFrozenOutputs;
-  CAmount nSpendableAmount;
-  CAmount nFrozenAmount;
+    uint64_t nSpendableOutputs;
+    uint64_t nFrozenOutputs;
+    CAmount nSpendableAmount;
+    CAmount nFrozenAmount;
 
-  CAssetStats() : nSpendableOutputs(0), nFrozenOutputs(0), nSpendableAmount(0), nFrozenAmount(0) {}
+    CAssetStats() : nSpendableOutputs(0), nFrozenOutputs(0), nSpendableAmount(0), nFrozenAmount(0) {}
 };
 
 //! Calculate statistics about the unspent transaction output set
@@ -846,104 +845,73 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
     return true;
 }
 
-static bool GetAssetStats(CCoinsView *view, std::vector<CAssetStats> &stats)
+static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
 {
-  std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
+    std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
 
-  CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-  uint256 hashBlock = pcursor->GetBestBlock();
-  {
-    LOCK(cs_main);
-  }
-  ss << hashBlock;
-  uint64_t nTransactions = 0;
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    uint256 hashBlock = pcursor->GetBestBlock();
+    {
+        LOCK(cs_main);
+    }
+    ss << hashBlock;
 
-  //set freeze-flag key
-  uint160 frzInt;
-  frzInt.SetHex("0x0000000000000000000000000000000000000000");
-  CKeyID frzId;
-  frzId = CKeyID(frzInt);
+    //set freeze-flag key
+    uint160 frzInt;
+    frzInt.SetHex("0x0000000000000000000000000000000000000000");
+    CKeyID frzId;
+    frzId = CKeyID(frzInt);
 
   //main loop over coins (transactions with > 0 unspent outputs
-  while (pcursor->Valid()) {
-    boost::this_thread::interruption_point();
-    uint256 key;
-    CCoins coins;
-    if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
-
-      nTransactions++;
-      ss << key;
-      bool frozenTx = false;
-
-      //loop over vouts within a single transaction
-      for (unsigned int i=0; i<coins.vout.size(); i++) {
-	const CTxOut &out = coins.vout[i];
-
-	//check if the tx is flagged frozen (i.e. one output is a zero address)
-	txnouttype whichType;
-	std::vector<std::vector<unsigned char> > vSolutions;
-	Solver(out.scriptPubKey, whichType, vSolutions);
-	if(whichType == TX_PUBKEYHASH) {
-	  CKeyID keyId;
-	  keyId = CKeyID(uint160(vSolutions[0]));
-	  if(keyId == frzId) frozenTx = true;
-	}
-      }
-
-      //loop over all vouts within a single transaction
-      for (unsigned int i=0; i<coins.vout.size(); i++) {
-        const CTxOut &out = coins.vout[i];
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        uint256 key;
+        CCoins coins;
+        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
+            ss << key;
+            bool frozenTx = false;
+      
+	    //loop over vouts within a single transaction
+	    for (unsigned int i=0; i<coins.vout.size(); i++) {
+	        const CTxOut &out = coins.vout[i];
 	
-	//null vouts are spent
-	if (!out.IsNull()) {
-
-	  //check if asset type is already in the stats list
-	  bool addNewAsset = true;
-	  for(unsigned long it=0;it<stats.size();it++) {
-	    if(stats[it].nAsset == out.nAsset.GetAsset()){
-	      addNewAsset = false;
-	      if(frozenTx) {
-		stats[it].nFrozenOutputs++;
-		if (out.nValue.IsExplicit())
-		  stats[it].nFrozenAmount += out.nValue.GetAmount();
-	      } else {
-		stats[it].nSpendableOutputs++;
-                if (out.nValue.IsExplicit())
-                  stats[it].nSpendableAmount += out.nValue.GetAmount();
-	      }
+		//check if the tx is flagged frozen (i.e. one output is a zero address)
+		txnouttype whichType;
+		std::vector<std::vector<unsigned char> > vSolutions;
+		Solver(out.scriptPubKey, whichType, vSolutions);
+		if(whichType == TX_PUBKEYHASH) {
+		  CKeyID keyId;
+		  keyId = CKeyID(uint160(vSolutions[0]));
+		  if(keyId == frzId) frozenTx = true;
+		}
 	    }
-	  }
-	  if(addNewAsset) {
-	    CAssetStats newAsset;
-	    newAsset.nAsset = out.nAsset.GetAsset();
-	    if(frozenTx) {
-	      newAsset.nFrozenOutputs = 1;
-	      newAsset.nSpendableOutputs = 0;
-	      if (out.nValue.IsExplicit()) {
-		newAsset.nFrozenAmount = out.nValue.GetAmount();
-		newAsset.nSpendableAmount = 0;
-	      }
-	    } else {
-	      newAsset.nSpendableOutputs = 1;
-	      newAsset.nFrozenOutputs = 0;
-	      if (out.nValue.IsExplicit()) {
-		newAsset.nSpendableAmount = out.nValue.GetAmount();
-		newAsset.nFrozenAmount = 0;
-	      }      
+      
+	    //loop over all vouts within a single transaction
+	    for (unsigned int i=0; i<coins.vout.size(); i++) {
+	        const CTxOut &out = coins.vout[i];
+	
+		//null vouts are spent
+		if (!out.IsNull()) {
+		    ss << VARINT(i+1);
+		    ss << out;
+		    if(frozenTx) {
+		        stats[out.nAsset.GetAsset()].nFrozenOutputs++;
+			if (out.nValue.IsExplicit())
+			    stats[out.nAsset.GetAsset()].nFrozenAmount += out.nValue.GetAmount();
+		    } else {
+		        stats[out.nAsset.GetAsset()].nSpendableOutputs++;
+			if (out.nValue.IsExplicit())
+			    stats[out.nAsset.GetAsset()].nSpendableAmount += out.nValue.GetAmount();
+		    }
+		}
 	    }
-	    stats.push_back(newAsset);
-	  }
-	  ss << VARINT(i+1);
-	  ss << out;
+	    ss << VARINT(0);
+	} else {
+	  return error("%s: unable to read value", __func__);
 	}
-      }
-      ss << VARINT(0);
-    } else {
-      return error("%s: unable to read value", __func__);
+	pcursor->Next();
     }
-    pcursor->Next();
-  }
-  return true;
+    return true;
 }
 
 UniValue pruneblockchain(const JSONRPCRequest& request)
@@ -1035,8 +1003,8 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
 
 UniValue getutxoassetinfo(const JSONRPCRequest& request)
 {
-  if (request.fHelp || request.params.size() != 0)
-    throw runtime_error(
+    if (request.fHelp || request.params.size() != 0)
+        throw runtime_error(
             "getassetstats\n"
             "\nReturns a summary of the total amounts of unspent assets in the UTXO set\n"
             "Note this call may take some time.\n"
@@ -1056,24 +1024,24 @@ UniValue getutxoassetinfo(const JSONRPCRequest& request)
             + HelpExampleRpc("getassetstats", "")
 			);
 
-  UniValue ret(UniValue::VARR);
-  FlushStateToDisk();
+    UniValue ret(UniValue::VARR);
+    FlushStateToDisk();
 
-  std::vector<CAssetStats> stats;
-  if (GetAssetStats(pcoinsTip, stats)) {
-    for(unsigned long it=0;it<stats.size();it++){
-      UniValue item(UniValue::VOBJ);
-      item.push_back(Pair("asset",stats[it].nAsset.GetHex()));
-      item.push_back(Pair("spendabletxouts",stats[it].nSpendableOutputs));
-      item.push_back(Pair("amountspendable",ValueFromAmount(stats[it].nSpendableAmount)));
-      item.push_back(Pair("frozentxouts",stats[it].nFrozenOutputs));
-      item.push_back(Pair("amountfrozen",ValueFromAmount(stats[it].nFrozenAmount)));
-      ret.push_back(item);
+    std::map<CAsset,CAssetStats> stats;
+    if (GetAssetStats(pcoinsTip, stats)) {
+        for(auto const& asset : stats){
+	    UniValue item(UniValue::VOBJ);
+	    item.push_back(Pair("asset",asset.first.GetHex()));
+	    item.push_back(Pair("spendabletxouts",asset.second.nSpendableOutputs));
+	    item.push_back(Pair("amountspendable",ValueFromAmount(asset.second.nSpendableAmount)));
+	    item.push_back(Pair("frozentxouts",asset.second.nFrozenOutputs));
+	    item.push_back(Pair("amountfrozen",ValueFromAmount(asset.second.nFrozenAmount)));
+	    ret.push_back(item);
+	}
+    } else {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
     }
-  } else {
-    throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
-  }
-  return ret;
+    return ret;
 }
 
 UniValue gettxout(const JSONRPCRequest& request)
