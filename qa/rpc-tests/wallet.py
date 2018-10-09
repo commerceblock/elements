@@ -195,8 +195,6 @@ class WalletTest (BitcoinTestFramework):
         #submit signed transaction to network
         submit = self.nodes[1].sendrawtransaction(signed_tx["hex"])
 
-        print(submit)
-
         #confirm transaction accepted by mempool 
         mempool_tx = self.nodes[1].getrawmempool()
         assert_equal(mempool_tx[0],submit)
