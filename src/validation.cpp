@@ -44,7 +44,6 @@
 
 #include <atomic>
 #include <sstream>
-
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/filesystem.hpp>
@@ -64,7 +63,6 @@
  */
 
 CCriticalSection cs_main;
-
 BlockMap mapBlockIndex;
 CChain chainActive;
 CBlockIndex *pindexBestHeader = NULL;
@@ -87,16 +85,12 @@ bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
 size_t nCoinCacheUsage = 5000 * 300;
 uint64_t nPruneTarget = 0;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
-
 uint256 hashAssumeValid;
-
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
-
 AWhitelist addressWhitelist;
 AWhitelist addressBurnlist;
 AWhitelist addressFreezelist;
-
 CTxMemPool mempool(::minRelayTxFee);
 
 static void CheckBlockIndex(const Consensus::Params& consensusParams);
