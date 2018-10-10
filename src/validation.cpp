@@ -1226,7 +1226,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         int64_t nSigOpsCost = GetTransactionSigOpCost(tx, view, STANDARD_SCRIPT_VERIFY_FLAGS);
 
-        if (!tx.HasValidFee() && tx.vin[0].assetIssuance.IsNull())
+        if (!tx.HasValidFee())
             return state.DoS(0, false, REJECT_INVALID, "bad-fees");
         CAmount nFees = tx.GetFee().begin()->second;
         CAsset feeAsset = tx.GetFee().begin()->first;
@@ -1279,7 +1279,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
         }
 
-        if (nAbsurdFee && nFees > nAbsurdFee && tx.vin[0].assetIssuance.IsNull())
+        if (nAbsurdFee && nFees > nAbsurdFee)
             return state.Invalid(false,
                 REJECT_HIGHFEE, "absurdly-high-fee",
                 strprintf("%d > %d for asset %s", nFees, nAbsurdFee, feeAsset.GetHex()));
@@ -1938,7 +1938,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
         }
 
         // Tally transaction fees
-        if (!tx.HasValidFee() && tx.vin[0].assetIssuance.IsNull()) {
+        if (!tx.HasValidFee()) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
         }
         if (fScriptChecks && !VerifyAmounts(inputs, tx, pvChecks, cacheStore)) {
