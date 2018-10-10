@@ -93,6 +93,7 @@ class RawIssuance (BitcoinTestFramework):
         #create an unsigned raw issuance transaction
         issuance_tx = self.nodes[1].createrawissuance(asset_addr,10.0,token_addr,1.0,multisig["address"],1.0000,'1',pa_txid,str(vout))
 
+
         #node1 partially sign transaction
         partial_signed = self.nodes[0].signrawtransaction(issuance_tx["rawtx"],[{"txid":pa_txid,"vout":vout,"scriptPubKey":script_pk,"redeemScript":multisig["redeemScript"]}],[privkey_node1])
         assert(not partial_signed["complete"])
