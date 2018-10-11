@@ -363,6 +363,7 @@ libbitcoin_util_a_SOURCES = \
   random.cpp \
   rpc/protocol.cpp \
   support/cleanse.cpp \
+  statsd_client.cpp \
   sync.cpp \
   threadinterrupt.cpp \
   uint256.cpp \
