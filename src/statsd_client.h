@@ -18,9 +18,6 @@
 #include <time.h>
 #include <unistd.h>
 
-static std::string g_host = "127.0.0.1";
-static int g_port = 8125;
-
 namespace statsd {
 
 struct _StatsdClientData {

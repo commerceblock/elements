@@ -2,6 +2,9 @@
 
 #include "statsd_client.h"
 
+static std::string g_host = "127.0.0.1";
+static int g_port = 8125;
+
 using namespace std;
 
 namespace statsd {
