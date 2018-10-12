@@ -42,6 +42,8 @@
 #include "versionbits.h"
 #include "warnings.h"
 
+#include "statsd_client.h"
+
 #include <atomic>
 #include <sstream>
 #include <boost/algorithm/string/replace.hpp>
@@ -512,61 +514,49 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
     return nSigOps;
 }
 
-
-
-
-
-bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
-{
-    // Basic checks that don't depend on any context
-    if (tx.vin.empty())
-        return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
-    if (tx.vout.empty())
-        return state.DoS(10, false, REJECT_INVALID, "bad-txns-vout-empty");
+bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs) {
+  statsd::StatsdClient statsClient;
+  boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
+  // Basic checks that don't depend on any context
+  if (tx.vin.empty())
+    return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
+  if (tx.vout.empty())
+    return state.DoS(10, false, REJECT_INVALID, "bad-txns-vout-empty");
     // Size limits (this doesn't take the witness into account, as that hasn't been checked for malleability)
-    if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) > MAX_BLOCK_BASE_SIZE)
-        return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
-
-    // Check for negative or overflow output values
-    for (const auto& txout : tx.vout)
-    {
-        if (!txout.nValue.IsValid())
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-amount-invalid");
-        if (!txout.nValue.IsExplicit())
-            continue;
-        // Each output is turned into a value commitment, no overflow detection needed
-        if (!MoneyRange(txout.nValue.GetAmount()))
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
-    }
-
-    // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock
-    if (fCheckDuplicateInputs) {
-        std::set<COutPoint> vInOutPoints;
-        for (const auto& txin : tx.vin)
-        {
-            if (!vInOutPoints.insert(txin.prevout).second)
-                return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
-        }
-    }
-
-    if (tx.IsCoinBase())
-    {
-        // Coinbase transactions may not have eccessive scriptSigs or any fee outputs
-        if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
-            return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
-
-        for (unsigned int i = 0; i < tx.vout.size(); i++)
-            if (tx.vout[i].IsFee())
-                return state.DoS(100, false, REJECT_INVALID, "bad-cb-fee");
-    }
-    else
-    {
-        for (const auto& txin : tx.vin)
-            if (txin.prevout.IsNull())
-                return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
-    }
-
-    return true;
+  if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) > MAX_BLOCK_BASE_SIZE)
+    return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
+  // Check for negative or overflow output values
+  for (const auto& txout : tx.vout) {
+    if (!txout.nValue.IsValid())
+      return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-amount-invalid");
+    if (!txout.nValue.IsExplicit())
+      continue;
+    // Each output is turned into a value commitment, no overflow detection needed
+    if (!MoneyRange(txout.nValue.GetAmount()))
+      return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+  }
+  // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock
+  if (fCheckDuplicateInputs) {
+    std::set<COutPoint> vInOutPoints;
+    for (const auto& txin : tx.vin)
+      if (!vInOutPoints.insert(txin.prevout).second)
+        return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
+  }
+  if (tx.IsCoinBase()) {
+    // Coinbase transactions may not have eccessive scriptSigs or any fee outputs
+    if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
+      return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
+    for (unsigned int i = 0; i < tx.vout.size(); i++)
+      if (tx.vout[i].IsFee())
+        return state.DoS(100, false, REJECT_INVALID, "bad-cb-fee");
+  } else
+    for (const auto& txin : tx.vin)
+      if (txin.prevout.IsNull())
+        return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
+  boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
+  boost::posix_time::time_duration diff = finish - start;
+  statsClient.timing("timing.CheckTransaction", diff.total_milliseconds(), 1.0f);
+  return true;
 }
 
 namespace {
