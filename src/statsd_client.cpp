@@ -65,8 +65,6 @@ int StatsdClient::init() {
   d->sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (d->sock == -1) {
     snprintf(d->errmsg, sizeof(d->errmsg), "could not create socket, err=%m");
-    printf("????????????????????????????????????????????????\n");
-
     return -1;
   }
   memset(&d->server, 0, sizeof(d->server));
@@ -80,7 +78,6 @@ int StatsdClient::init() {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
     ret = getaddrinfo(d->host.c_str(), NULL, &hints, &result);
-    printf("111111111111111111111111111111111111111111111111111\n");
     if (ret) {
       snprintf(d->errmsg, sizeof(d->errmsg), "getaddrinfo fail, error=%d, msg=%s", ret, gai_strerror(ret));
       return -2;
