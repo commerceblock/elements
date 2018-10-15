@@ -49,8 +49,10 @@ inline bool should_send(float sample_rate) {
 
 void StatsdClient::config(const string& host, int port, const string& ns) {
   d->ns = ns;
-  d->host = host;
-  d->port = port;
+  g_host = host;
+  g_port = port;
+  d->host = g_host;
+  d->port = g_port;
   d->init = false;
   if (d->sock >= 0)
     close(d->sock);
