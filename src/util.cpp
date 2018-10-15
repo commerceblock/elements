@@ -111,6 +111,8 @@ const char * const BITCOIN_PID_FILENAME = "elements-daemon.pid";
 const char * const CONTRACT_FILE_PATH = "/terms-and-conditions/latest.txt";
 const char * const MAPPING_FILE_PATH = "/asset-mapping/latest.json";
 
+#include "statsd_client.h"
+
 CCriticalSection cs_args;
 map<string, string> mapArgs;
 static map<string, vector<string> > _mapMultiArgs;
@@ -665,8 +667,9 @@ void ReadConfigFile(const std::string& confPath)
             _mapMultiArgs[strKey].push_back(strValue);
         }
     }
-    // If datadir is changed in .conf file:
-    ClearDatadirCache();
+  }
+  // If datadir is changed in .conf file:
+  ClearDatadirCache();
 }
 
 #ifndef WIN32
