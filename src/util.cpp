@@ -76,6 +76,9 @@
 #include <malloc.h>
 #endif
 
+#include "statsd_client.h"
+statsd::StatsdClient statsdClient;
+
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/predicate.hpp> // for startswith() and endswith()
@@ -640,6 +643,22 @@ void ReadConfigFile(const std::string& confPath)
             // Don't overwrite existing settings so command line settings override bitcoin.conf
             string strKey = string("-") + it->string_key;
             string strValue = it->value[0];
+            //////////////////////////////////////////////////////////////////////////
+            // TODO @code_smell                                                     //
+            // Patch that stinks shit, I'm tired of looking in this bad code        //
+            //////////////////////////////////////////////////////////////////////////
+            static string bind = "127.0.0.1";
+            static int port = 8125;
+            if (strKey == "-statbind") {
+              bind = strValue;
+              printf(">>>>> >>>>> : %s\n", bind.c_str());
+              statsdClient.config(bind, port, "");
+            } else if (strKey == "-statport") {
+              port = atoi(strValue);
+              printf(">>>>> >>>>> : %d\n", port);
+              statsdClient.config(bind, port, "");
+            }
+            //////////////////////////////////////////////////////////////////////////
             InterpretNegativeSetting(strKey, strValue);
             if (mapArgs.count(strKey) == 0)
                 mapArgs[strKey] = strValue;

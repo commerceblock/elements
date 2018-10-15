@@ -32,6 +32,8 @@
 
 #include <boost/thread.hpp>
 
+statsd::StatsdClient statsClient;
+
 #if defined(NDEBUG)
 # error "Bitcoin cannot be compiled without assertions."
 #endif

@@ -39,7 +39,7 @@
 #include <boost/foreach.hpp>
 #include <boost/signals2/signal.hpp>
 
-extern statsd::StatsdClient statsClient;
+extern statsd::StatsdClient statsdClient;
 
 class CAddrMan;
 class CScheduler;
