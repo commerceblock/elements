@@ -667,7 +667,6 @@ void ReadConfigFile(const std::string& confPath)
             _mapMultiArgs[strKey].push_back(strValue);
         }
     }
-  }
   // If datadir is changed in .conf file:
   ClearDatadirCache();
 }
