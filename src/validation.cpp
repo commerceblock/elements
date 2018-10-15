@@ -3987,6 +3987,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
 static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex)
 {
+    boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
     AssertLockHeld(cs_main);
     // Check for duplicate
     uint256 hash = block.GetHash();
@@ -4030,7 +4031,9 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
         *ppindex = pindex;
 
     CheckBlockIndex(chainparams.GetConsensus());
-
+    boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
+    boost::posix_time::time_duration diff = finish - start;
+    statsClient.timing("timing.AcceptBlock", diff.total_milliseconds(), 1.0f);
     return true;
 }
 
