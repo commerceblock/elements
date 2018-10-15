@@ -42,6 +42,8 @@
 #include "versionbits.h"
 #include "warnings.h"
 
+#include "statsd_client.h"
+
 #include <atomic>
 #include <sstream>
 #include <boost/algorithm/string/replace.hpp>
