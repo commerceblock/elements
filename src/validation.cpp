@@ -516,7 +516,7 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
 
 bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
 {
-    boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
+    boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
@@ -1529,7 +1529,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
                         bool* pfMissingInputs, std::list<CTransactionRef>* plTxnReplaced,
                         bool fOverrideMempoolLimit, const CAmount nAbsurdFee)
 {
-  boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
+  boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
   bool retrn = AcceptToMemoryPoolWithTime(pool, state, tx, fLimitFree, pfMissingInputs, GetTime(), plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee);
   boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
   boost::posix_time::time_duration diff = finish - start;
@@ -1946,7 +1946,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
 bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheStore, PrecomputedTransactionData& txdata, std::set<std::pair<uint256, COutPoint> >& setPeginsSpent, std::vector<CCheck*> *pvChecks)
 {
-    boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
+    boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
     if (!tx.IsCoinBase())
     {
         if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs), setPeginsSpent, pvChecks, cacheStore, fScriptChecks))
@@ -3745,7 +3745,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
 
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot)
 {
-  boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
+  boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
   // These are checks that are independent of context.
   if (block.fChecked)
     return true;
@@ -3987,7 +3987,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
 static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex)
 {
-    boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
+    boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
     AssertLockHeld(cs_main);
     // Check for duplicate
     uint256 hash = block.GetHash();
@@ -4059,7 +4059,7 @@ bool ProcessNewBlockHeaders(const std::vector<CBlockHeader>& headers, CValidatio
 /** Store block on disk. If dbp is non-NULL, the file is known to already reside on disk */
 static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const CDiskBlockPos* dbp, bool* fNewBlock)
 {
-  boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
+  boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
   const CBlock& block = *pblock;
   if (fNewBlock)
     *fNewBlock = false;
