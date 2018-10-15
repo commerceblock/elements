@@ -71,7 +71,7 @@ static const uint64_t RANDOMIZER_ID_LOCALHOSTNONCE = 0xd93e69e2bbfa5735ULL; // S
 //
 // Global state variables
 //
-statsd::StatsdClient statsClient;
+statsd::StatsdClient statsClient0;
 //
 bool fDiscover = true;
 bool fListen = true;
@@ -372,7 +372,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char* pszDest, bool fCo
     CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, pszDest ? pszDest : "", false);
     pnode->nServicesExpected = ServiceFlags(addrConnect.nServices & nRelevantServices);
     pnode->AddRef();
-    statsClient.inc("peers.connect", 1.0f);
+    statsClient0.inc("peers.connect", 1.0f);
     return pnode;
   } else if (!proxyConnectionFailed) {
     // If connecting to the node failed, and failure is not caused by a problem connecting to
@@ -405,7 +405,7 @@ void CNode::CloseSocketDisconnect()
   if (hSocket != INVALID_SOCKET) {
     LogPrint("net", "disconnecting peer=%d\n", id);
     CloseSocket(hSocket);
-    statsClient.inc("peers.disconnect", 1.0f);
+    statsClient0.inc("peers.disconnect", 1.0f);
   }
 }
 
@@ -1074,7 +1074,7 @@ void CConnman::ThreadSocketHandler()
       nPrevNodeCount = vNodesSize;
       if (clientInterface)
         clientInterface->NotifyNumConnectionsChanged(nPrevNodeCount);
-      statsClient.gauge("peers.totalConnections", nPrevNodeCount, 1.0f);
+      statsClient0.gauge("peers.totalConnections", nPrevNodeCount, 1.0f);
     }
     //
     // Find which sockets have data to receive
@@ -2245,16 +2245,16 @@ void CConnman::RecordBytesRecv(uint64_t bytes)
 {
   LOCK(cs_totalBytesRecv);
   nTotalBytesRecv += bytes;
-  statsClient.count("bandwidth.bytesReceived", bytes, 1.0f);
-  statsClient.gauge("bandwidth.totalBytesReceived", nTotalBytesRecv, 1.0f);
+  statsClient0.count("bandwidth.bytesReceived", bytes, 1.0f);
+  statsClient0.gauge("bandwidth.totalBytesReceived", nTotalBytesRecv, 1.0f);
 }
 
 void CConnman::RecordBytesSent(uint64_t bytes)
 {
   LOCK(cs_totalBytesSent);
   nTotalBytesSent += bytes;
-  statsClient.count("bandwidth.bytesSent", bytes, 1.0f);
-  statsClient.gauge("bandwidth.totalBytesSent", nTotalBytesSent, 1.0f);
+  statsClient0.count("bandwidth.bytesSent", bytes, 1.0f);
+  statsClient0.gauge("bandwidth.totalBytesSent", nTotalBytesSent, 1.0f);
   uint64_t now = GetTime();
   if (nMaxOutboundCycleStartTime + nMaxOutboundTimeframe < now) {
     // timeframe expired, reset cycle
@@ -2474,7 +2474,7 @@ bool CConnman::NodeFullyConnected(const CNode* pnode)
 
 void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
 {
-  statsClient.inc("message.sent." + msg.command, 1.0f);
+  statsClient0.inc("message.sent." + msg.command, 1.0f);
   size_t nMessageSize = msg.data.size();
   size_t nTotalSize = nMessageSize + CMessageHeader::HEADER_SIZE;
   LogPrint("net", "sending %s (%d bytes) peer=%d\n", SanitizeString(msg.command.c_str()), nMessageSize, pnode->id);

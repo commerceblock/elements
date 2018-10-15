@@ -216,6 +216,7 @@ libbitcoin_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
+  statsd_client.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
@@ -344,6 +345,7 @@ libbitcoin_common_a_SOURCES = \
   script/sign.cpp \
   script/standard.cpp \
   warnings.cpp \
+  statsd_client.cpp \
   $(BITCOIN_CORE_H)
 
 # util: shared between all executables.
@@ -362,8 +364,8 @@ libbitcoin_util_a_SOURCES = \
   compat/strnlen.cpp \
   random.cpp \
   rpc/protocol.cpp \
-  support/cleanse.cpp \
   statsd_client.cpp \
+  support/cleanse.cpp \
   sync.cpp \
   threadinterrupt.cpp \
   uint256.cpp \
@@ -371,7 +373,6 @@ libbitcoin_util_a_SOURCES = \
   utilmoneystr.cpp \
   utilstrencodings.cpp \
   utiltime.cpp \
-	statsd_client.cpp \
   $(BITCOIN_CORE_H)
 
 if GLIBC_BACK_COMPAT

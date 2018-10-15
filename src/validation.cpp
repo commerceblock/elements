@@ -63,7 +63,7 @@
 /**
  * Global state
  */
-statsd::StatsdClient statsClient;
+statsd::StatsdClient statsClient2;
 CCriticalSection cs_main;
 BlockMap mapBlockIndex;
 CChain chainActive;
@@ -566,7 +566,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     }
     boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("timing.CheckTransaction", diff.total_milliseconds(), 1.0f);
+    statsClient2.timing("timing.CheckTransaction", diff.total_milliseconds(), 1.0f);
     return true;
 }
 
@@ -1533,7 +1533,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
   bool retrn = AcceptToMemoryPoolWithTime(pool, state, tx, fLimitFree, pfMissingInputs, GetTime(), plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee);
   boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
   boost::posix_time::time_duration diff = finish - start;
-  statsClient.timing("timing.AcceptToMemoryPool", diff.total_milliseconds(), 1.0f);
+  statsClient2.timing("timing.AcceptToMemoryPool", diff.total_milliseconds(), 1.0f);
   return retrn;
 }
 
@@ -1799,7 +1799,7 @@ void CheckForkWarningConditionsOnNewFork(CBlockIndex* pindexNewForkTip)
 
 void static InvalidChainFound(CBlockIndex* pindexNew)
 {
-    statsClient.inc("warnings.InvalidBlockFound", 1.0f);
+    statsClient2.inc("warnings.InvalidBlockFound", 1.0f);
     if (!pindexBestInvalid || pindexNew->nChainWork > pindexBestInvalid->nChainWork)
         pindexBestInvalid = pindexNew;
     LogPrintf("%s: invalid block=%s  height=%d  log2_work=%.8g  date=%s\n", __func__,
@@ -1815,7 +1815,7 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
 }
 
 void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state) {
-  statsClient.inc("warnings.InvalidBlockFound", 1.0f);
+  statsClient2.inc("warnings.InvalidBlockFound", 1.0f);
   if (!state.CorruptionPossible()) {
     pindex->nStatus |= BLOCK_FAILED_VALID;
     setDirtyBlockIndex.insert(pindex);
@@ -2012,7 +2012,7 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
     }
     boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("timing.CheckInputs", diff.total_milliseconds(), 1.0f);
+    statsClient2.timing("timing.CheckInputs", diff.total_milliseconds(), 1.0f);
     return true;
 }
 
@@ -3792,7 +3792,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     block.fChecked = true;
   boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
   boost::posix_time::time_duration diff = finish - start;
-  statsClient.timing("timing.CheckBlock", diff.total_milliseconds(), 1.0f);
+  statsClient2.timing("timing.CheckBlock", diff.total_milliseconds(), 1.0f);
   return true;
 }
 
@@ -4033,7 +4033,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     CheckBlockIndex(chainparams.GetConsensus());
     boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("timing.AcceptBlock", diff.total_milliseconds(), 1.0f);
+    statsClient2.timing("timing.AcceptBlock", diff.total_milliseconds(), 1.0f);
     return true;
 }
 
@@ -4137,7 +4137,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     FlushStateToDisk(state, FLUSH_STATE_NONE); // we just allocated more disk space for block files
   boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
   boost::posix_time::time_duration diff = finish - start;
-  statsClient.timing("timing.AcceptBlock", diff.total_milliseconds(), 1.0f);
+  statsClient2.timing("timing.AcceptBlock", diff.total_milliseconds(), 1.0f);
   return true;
 }
 
