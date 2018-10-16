@@ -1825,63 +1825,63 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
   }
 }
 
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
-{
-    // mark inputs spent
-    if (!tx.IsCoinBase()) {
-        txundo.vprevout.reserve(tx.vin.size());
-        for (unsigned int i = 0; i < tx.vin.size(); i++) {
-            const CTxIn &txin = tx.vin[i];
-            if (txin.m_is_pegin) {
-                    std::pair<uint256, COutPoint> outpoint = std::make_pair(uint256(tx.wit.vtxinwit[i].m_pegin_witness.stack[2]), txin.prevout);
-                    inputs.SetWithdrawSpent(outpoint, true);
-                    // Dummy undo
-                    txundo.vprevout.push_back(CTxInUndo());
-
-            } else {
-                CCoinsModifier coins = inputs.ModifyCoins(txin.prevout.hash);
-                unsigned nPos = txin.prevout.n;
-
-                if (nPos >= coins->vout.size() || coins->vout[nPos].IsNull())
-                    assert(false);
-
-                // mark an outpoint spent, and construct undo information
-                txundo.vprevout.push_back(CTxInUndo(coins->vout[nPos]));
-                coins->Spend(nPos);
-                if (coins->vout.size() == 0) {
-                    CTxInUndo& undo = txundo.vprevout.back();
-                    undo.nHeight = coins->nHeight;
-                    undo.fCoinBase = coins->fCoinBase;
-                    undo.nVersion = coins->nVersion;
-                }
-            }
+void UpdateCoins(const CTransaction &tx, CCoinsViewCache &inputs,
+                 CTxUndo &txundo, int nHeight) {
+  // mark inputs spent
+  if (!tx.IsCoinBase()) {
+    txundo.vprevout.reserve(tx.vin.size());
+    for (unsigned int i = 0; i < tx.vin.size(); i++) {
+      const CTxIn &txin = tx.vin[i];
+      if (txin.m_is_pegin) {
+        std::pair<uint256, COutPoint> outpoint = std::make_pair(
+            uint256(tx.wit.vtxinwit[i].m_pegin_witness.stack[2]), txin.prevout);
+        inputs.SetWithdrawSpent(outpoint, true);
+        // Dummy undo
+        txundo.vprevout.push_back(CTxInUndo());
+      } else {
+        CCoinsModifier coins = inputs.ModifyCoins(txin.prevout.hash);
+        unsigned nPos = txin.prevout.n;
+        if (nPos >= coins->vout.size() || coins->vout[nPos].IsNull())
+          assert(false);
+        // mark an outpoint spent, and construct undo information
+        txundo.vprevout.push_back(CTxInUndo(coins->vout[nPos]));
+        coins->Spend(nPos);
+        if (coins->vout.size() == 0) {
+          CTxInUndo &undo = txundo.vprevout.back();
+          undo.nHeight = coins->nHeight;
+          undo.fCoinBase = coins->fCoinBase;
+          undo.nVersion = coins->nVersion;
         }
+      }
     }
-    // add outputs
-    inputs.ModifyNewCoins(tx.GetHash(), tx.IsCoinBase())->FromTx(tx, nHeight);
-    statsClient.gauge("transactions.txInUTXOSet", inputs.GetCacheSize(), 0.1f);
+  }
+  // add outputs
+  inputs.ModifyNewCoins(tx.GetHash(), tx.IsCoinBase())->FromTx(tx, nHeight);
+  statsClient.gauge("transactions.txInUTXOSet", inputs.GetCacheSize(), 0.1f);
 }
 
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
-{
-    CTxUndo txundo;
-    UpdateCoins(tx, inputs, txundo, nHeight);
+void UpdateCoins(const CTransaction &tx, CCoinsViewCache &inputs, int nHeight) {
+  CTxUndo txundo;
+  UpdateCoins(tx, inputs, txundo, nHeight);
 }
 
 bool CScriptCheck::operator()() {
-    const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
-    const CScriptWitness *witness = (nIn < ptxTo->wit.vtxinwit.size()) ? &ptxTo->wit.vtxinwit[nIn].scriptWitness : NULL;
-    if (!VerifyScript(scriptSig, scriptPubKey, witness, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, amount, cacheStore, *txdata), &error)) {
-        return false;
-    }
-    return true;
+  const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
+  const CScriptWitness *witness = (nIn < ptxTo->wit.vtxinwit.size())
+                                      ? &ptxTo->wit.vtxinwit[nIn].scriptWitness
+                                      : NULL;
+  if (!VerifyScript(scriptSig, scriptPubKey, witness, nFlags,
+                    CachingTransactionSignatureChecker(ptxTo, nIn, amount,
+                                                       cacheStore, *txdata),
+                    &error))
+    return false;
+  return true;
 }
 
-int GetSpendHeight(const CCoinsViewCache& inputs)
-{
-    LOCK(cs_main);
-    CBlockIndex* pindexPrev = mapBlockIndex.find(inputs.GetBestBlock())->second;
-    return pindexPrev->nHeight + 1;
+int GetSpendHeight(const CCoinsViewCache &inputs) {
+  LOCK(cs_main);
+  CBlockIndex *pindexPrev = mapBlockIndex.find(inputs.GetBestBlock())->second;
+  return pindexPrev->nHeight + 1;
 }
 
 namespace Consensus {
