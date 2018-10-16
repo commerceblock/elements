@@ -32,7 +32,7 @@
 
 #include <boost/thread.hpp>
 
-statsd::StatsdClient statsClient1;
+extern statsd::StatsdClient statsClient;
 
 #if defined(NDEBUG)
 # error "Bitcoin cannot be compiled without assertions."
@@ -724,10 +724,10 @@ void Misbehaving(NodeId pnode, int howmuch)
     {
         LogPrintf("%s: %s peer=%d (%d -> %d) BAN THRESHOLD EXCEEDED\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior);
         state->fShouldBan = true;
-        statsClient1.inc("misbehavior.banned", 1.0);
+        statsClient.inc("misbehavior.banned", 1.0);
     } else {
         LogPrintf("%s: %s peer=%d (%d -> %d)\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior);
-        statsClient1.count("misbehavior.amount", howmuch, 1.0);
+        statsClient.count("misbehavior.amount", howmuch, 1.0);
     }
 }
 
@@ -1166,7 +1166,7 @@ inline void static SendBlockTransactions(const CBlock& block, const BlockTransac
 }
 
 bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CConnman& connman, const std::atomic<bool>& interruptMsgProc)  {
-  statsClient1.inc("message.received." + strCommand, 1.0f);
+  statsClient.inc("message.received." + strCommand, 1.0f);
   LogPrint("net", "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->id);
   if (IsArgSet("-dropmessagestest") && GetRand(GetArg("-dropmessagestest", 0)) == 0) {
     LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");

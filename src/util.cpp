@@ -77,7 +77,8 @@
 #endif
 
 #include "statsd_client.h"
-statsd::StatsdClient statsdClient2;
+
+statsd::StatsdClient statsClient;
 
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string/join.hpp>
@@ -653,10 +654,10 @@ void ReadConfigFile(const std::string& confPath)
             static int port = 8125;
             if (strKey == "-statbind") {
               bind = strValue;
-              statsdClient2.config(bind, port, "");
+              statsClient.config(bind, port, "");
             } else if (strKey == "-statport") {
               port = atoi(strValue);
-              statsdClient2.config(bind, port, "");
+              statsClient.config(bind, port, "");
             }
             //////////////////////////////////////////////////////////////////////////
             InterpretNegativeSetting(strKey, strValue);

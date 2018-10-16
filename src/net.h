@@ -16,6 +16,7 @@
 #include "netaddress.h"
 #include "protocol.h"
 #include "random.h"
+#include "util.h"
 #include "statsd_client.h"
 #include "streams.h"
 #include "sync.h"

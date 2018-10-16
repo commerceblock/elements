@@ -18,6 +18,7 @@
 #include "tinyformat.h"
 #include "utiltime.h"
 #include "uint256.h"
+#include "statsd_client.h"
 
 #include <atomic>
 #include <exception>
