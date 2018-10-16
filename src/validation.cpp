@@ -2989,7 +2989,7 @@ void PruneAndFlush() {
 /** Update chainActive and related internal data structures. */
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams& chainParams) {
     chainActive.SetTip(pindexNew);
-    statsClient.gauge("blocks.currentHeight", chainActive.Heigh(), 1.0f);
+    statsClient.gauge("blocks.currentHeight", chainParams.Heigh(), 1.0f);
     // New best block
     mempool.AddTransactionsUpdated(1);
 
