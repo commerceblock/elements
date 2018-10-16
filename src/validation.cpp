@@ -3411,24 +3411,22 @@ static bool ActivateBestChainStep(CValidationState &state,
 }
 
 static void NotifyHeaderTip() {
-    bool fNotify = false;
-    bool fInitialBlockDownload = false;
-    static CBlockIndex* pindexHeaderOld = NULL;
-    CBlockIndex* pindexHeader = NULL;
-    {
-        LOCK(cs_main);
-        pindexHeader = pindexBestHeader;
-
-        if (pindexHeader != pindexHeaderOld) {
-            fNotify = true;
-            fInitialBlockDownload = IsInitialBlockDownload();
-            pindexHeaderOld = pindexHeader;
-        }
+  bool fNotify = false;
+  bool fInitialBlockDownload = false;
+  static CBlockIndex *pindexHeaderOld = NULL;
+  CBlockIndex *pindexHeader = NULL;
+  {
+    LOCK(cs_main);
+    pindexHeader = pindexBestHeader;
+    if (pindexHeader != pindexHeaderOld) {
+      fNotify = true;
+      fInitialBlockDownload = IsInitialBlockDownload();
+      pindexHeaderOld = pindexHeader;
     }
-    // Send block tip changed notifications without cs_main
-    if (fNotify) {
-        uiInterface.NotifyHeaderTip(fInitialBlockDownload, pindexHeader);
-    }
+  }
+  // Send block tip changed notifications without cs_main
+  if (fNotify)
+    uiInterface.NotifyHeaderTip(fInitialBlockDownload, pindexHeader);
 }
 
 /**
@@ -3436,90 +3434,86 @@ static void NotifyHeaderTip() {
  * or an activated best chain. pblock is either NULL or a pointer to a block
  * that is already loaded (to avoid loading it again from disk).
  */
-bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock) {
-    // Note that while we're often called here from ProcessNewBlock, this is
-    // far from a guarantee. Things in the P2P/RPC will often end up calling
-    // us in the middle of ProcessNewBlock - do not assume pblock is set
-    // sanely for performance or correctness!
-    boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
-    CBlockIndex *pindexMostWork = NULL;
-    CBlockIndex *pindexNewTip = NULL;
-    do {
-        boost::this_thread::interruption_point();
-        if (ShutdownRequested())
-            break;
-
-        const CBlockIndex *pindexFork;
-        ConnectTrace connectTrace;
-        bool fInitialDownload;
-        {
-            LOCK(cs_main);
-            { // TODO: Tempoarily ensure that mempool removals are notified before
-              // connected transactions.  This shouldn't matter, but the abandoned
-              // state of transactions in our wallet is currently cleared when we
-              // receive another notification and there is a race condition where
-              // notification of a connected conflict might cause an outside process
-              // to abandon a transaction and then have it inadvertantly cleared by
-              // the notification that the conflicted transaction was evicted.
-            MemPoolConflictRemovalTracker mrt(mempool);
-            CBlockIndex *pindexOldTip = chainActive.Tip();
-            if (pindexMostWork == NULL) {
-                pindexMostWork = FindMostWorkChain();
-            }
-
-            // Whether we have anything to do at all.
-            if (pindexMostWork == NULL || pindexMostWork == chainActive.Tip())
-                return true;
-
-            bool fInvalidFound = false;
-            std::shared_ptr<const CBlock> nullBlockPtr;
-            if (!ActivateBestChainStep(state, chainparams, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace))
-                return false;
-
-            if (fInvalidFound) {
-                // Wipe cache, we may need another branch now.
-                pindexMostWork = NULL;
-            }
-            pindexNewTip = chainActive.Tip();
-            pindexFork = chainActive.FindFork(pindexOldTip);
-            fInitialDownload = IsInitialBlockDownload();
-
-            // throw all transactions though the signal-interface
-
-            } // MemPoolConflictRemovalTracker destroyed and conflict evictions are notified
-
-            // Transactions in the connnected block are notified
-            for (const auto& pair : connectTrace.blocksConnected) {
-                assert(pair.second);
-                const CBlock& block = *(pair.second);
-                for (unsigned int i = 0; i < block.vtx.size(); i++)
-                    GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
-            }
+bool ActivateBestChain(CValidationState &state, const CChainParams &chainparams,
+                       std::shared_ptr<const CBlock> pblock) {
+  // Note that while we're often called here from ProcessNewBlock, this is
+  // far from a guarantee. Things in the P2P/RPC will often end up calling
+  // us in the middle of ProcessNewBlock - do not assume pblock is set
+  // sanely for performance or correctness!
+  boost::posix_time::ptime start =
+      boost::posix_time::microsec_clock::local_time();
+  CBlockIndex *pindexMostWork = NULL;
+  CBlockIndex *pindexNewTip = NULL;
+  do {
+    boost::this_thread::interruption_point();
+    if (ShutdownRequested())
+      break;
+    const CBlockIndex *pindexFork;
+    ConnectTrace connectTrace;
+    bool fInitialDownload;
+    {
+      LOCK(cs_main);
+      { // TODO: Tempoarily ensure that mempool removals are notified before
+        // connected transactions.  This shouldn't matter, but the abandoned
+        // state of transactions in our wallet is currently cleared when we
+        // receive another notification and there is a race condition where
+        // notification of a connected conflict might cause an outside process
+        // to abandon a transaction and then have it inadvertantly cleared by
+        // the notification that the conflicted transaction was evicted.
+        MemPoolConflictRemovalTracker mrt(mempool);
+        CBlockIndex *pindexOldTip = chainActive.Tip();
+        if (pindexMostWork == NULL)
+          pindexMostWork = FindMostWorkChain();
+        // Whether we have anything to do at all.
+        if (pindexMostWork == NULL || pindexMostWork == chainActive.Tip())
+          return true;
+        bool fInvalidFound = false;
+        std::shared_ptr<const CBlock> nullBlockPtr;
+        if (!ActivateBestChainStep(state, chainparams, pindexMostWork,
+                                   pblock && pblock->GetHash() ==
+                                                 pindexMostWork->GetBlockHash()
+                                       ? pblock
+                                       : nullBlockPtr,
+                                   fInvalidFound, connectTrace))
+          return false;
+        if (fInvalidFound) {
+          // Wipe cache, we may need another branch now.
+          pindexMostWork = NULL;
         }
-        // When we reach this point, we switched to a new tip (stored in pindexNewTip).
-
-        // Notifications/callbacks that can run without cs_main
-
-        // Notify external listeners about the new tip.
-        GetMainSignals().UpdatedBlockTip(pindexNewTip, pindexFork, fInitialDownload);
-
-        // Always notify the UI if a new block tip was connected
-        if (pindexFork != pindexNewTip) {
-            uiInterface.NotifyBlockTip(fInitialDownload, pindexNewTip);
-        }
-    } while (pindexNewTip != pindexMostWork);
-    CheckBlockIndex(chainparams.GetConsensus());
-    boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
-    boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("ActivateBestChain_ms", diff.total_milliseconds(), 1.0f);
-    // Write changes periodically to disk, after relay.
-    if (!FlushStateToDisk(state, FLUSH_STATE_PERIODIC)) {
-        return false;
+        pindexNewTip = chainActive.Tip();
+        pindexFork = chainActive.FindFork(pindexOldTip);
+        fInitialDownload = IsInitialBlockDownload();
+        // throw all transactions though the signal-interface
+      } // MemPoolConflictRemovalTracker destroyed and conflict evictions are
+        // notified
+      // Transactions in the connnected block are notified
+      for (const auto &pair : connectTrace.blocksConnected) {
+        assert(pair.second);
+        const CBlock &block = *(pair.second);
+        for (unsigned int i = 0; i < block.vtx.size(); i++)
+          GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
+      }
     }
-
-    return true;
+    // When we reach this point, we switched to a new tip (stored in
+    // pindexNewTip).
+    // Notifications/callbacks that can run without cs_main
+    // Notify external listeners about the new tip.
+    GetMainSignals().UpdatedBlockTip(pindexNewTip, pindexFork,
+                                     fInitialDownload);
+    // Always notify the UI if a new block tip was connected
+    if (pindexFork != pindexNewTip)
+      uiInterface.NotifyBlockTip(fInitialDownload, pindexNewTip);
+  } while (pindexNewTip != pindexMostWork);
+  CheckBlockIndex(chainparams.GetConsensus());
+  boost::posix_time::ptime finish =
+      boost::posix_time::microsec_clock::local_time();
+  boost::posix_time::time_duration diff = finish - start;
+  statsClient.timing("ActivateBestChain_ms", diff.total_milliseconds(), 1.0f);
+  // Write changes periodically to disk, after relay.
+  if (!FlushStateToDisk(state, FLUSH_STATE_PERIODIC))
+    return false;
+  return true;
 }
-
 
 bool PreciousBlock(CValidationState& state, const CChainParams& params, CBlockIndex *pindex)
 {
