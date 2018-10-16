@@ -1533,7 +1533,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
   bool retrn = AcceptToMemoryPoolWithTime(pool, state, tx, fLimitFree, pfMissingInputs, GetTime(), plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee);
   boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
   boost::posix_time::time_duration diff = finish - start;
-  statsClient.timing("timing.AcceptToMemoryPool", diff.total_milliseconds(), 1.0f);
+  statsClient.timing("AcceptToMemoryPool_ms", diff.total_milliseconds(), 1.0f);
+  statsClient.gauge("transactions.txInMemoryPool", pool.size(), 0.1f);
   return retrn;
 }
 
