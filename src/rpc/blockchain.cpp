@@ -845,302 +845,291 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
     return true;
 }
 
-static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
-{
-    std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
-
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    uint256 hashBlock = pcursor->GetBestBlock();
-    {
-        LOCK(cs_main);
-    }
-    ss << hashBlock;
-
-    //set freeze-flag key
-    uint160 frzInt;
-    frzInt.SetHex("0x0000000000000000000000000000000000000000");
-    CKeyID frzId;
-    frzId = CKeyID(frzInt);
-
-  //main loop over coins (transactions with > 0 unspent outputs
-    while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
-        uint256 key;
-        CCoins coins;
-        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
-            ss << key;
-            bool frozenTx = false;
-
-	    //loop over vouts within a single transaction
-	    for (unsigned int i=0; i<coins.vout.size(); i++) {
-	        const CTxOut &out = coins.vout[i];
-
-		//check if the tx is flagged frozen (i.e. one output is a zero address)
-		txnouttype whichType;
-		std::vector<std::vector<unsigned char> > vSolutions;
-		Solver(out.scriptPubKey, whichType, vSolutions);
-		if(whichType == TX_PUBKEYHASH) {
-		  CKeyID keyId;
-		  keyId = CKeyID(uint160(vSolutions[0]));
-		  if(keyId == frzId) frozenTx = true;
-		}
-	    }
-
-	    //loop over all vouts within a single transaction
-	    for (unsigned int i=0; i<coins.vout.size(); i++) {
-	        const CTxOut &out = coins.vout[i];
-
-		//null vouts are spent
-		if (!out.IsNull()) {
-		    ss << VARINT(i+1);
-		    ss << out;
-		    if(frozenTx) {
-		        stats[out.nAsset.GetAsset()].nFrozenOutputs++;
-			if (out.nValue.IsExplicit())
-			    stats[out.nAsset.GetAsset()].nFrozenAmount += out.nValue.GetAmount();
-		    } else {
-		        stats[out.nAsset.GetAsset()].nSpendableOutputs++;
-			if (out.nValue.IsExplicit())
-			    stats[out.nAsset.GetAsset()].nSpendableAmount += out.nValue.GetAmount();
-		    }
-		}
-	    }
-	    ss << VARINT(0);
-	} else {
-	  return error("%s: unable to read value", __func__);
-	}
-	pcursor->Next();
-    }
-    return true;
-}
-
-UniValue pruneblockchain(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw runtime_error(
-            "pruneblockchain\n"
-            "\nArguments:\n"
-            "1. \"height\"       (numeric, required) The block height to prune up to. May be set to a discrete height, or a unix timestamp\n"
-            "                  to prune blocks whose block time is at least 2 hours older than the provided timestamp.\n"
-            "\nResult:\n"
-            "n    (numeric) Height of the last block pruned.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("pruneblockchain", "1000")
-            + HelpExampleRpc("pruneblockchain", "1000"));
-
-    if (!fPruneMode)
-        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Cannot prune blocks because node is not in prune mode.");
-
-    LOCK(cs_main);
-
-    int heightParam = request.params[0].get_int();
-    if (heightParam < 0)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative block height.");
-
-    // Height value more than a billion is too high to be a block height, and
-    // too low to be a block time (corresponds to timestamp from Sep 2001).
-    if (heightParam > 1000000000) {
-        // Add a 2 hour buffer to include blocks which might have had old timestamps
-        CBlockIndex* pindex = chainActive.FindEarliestAtLeast(heightParam - 7200);
-        if (!pindex) {
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Could not find block with at least the specified timestamp.");
-        }
-        heightParam = pindex->nHeight;
-    }
-
-    unsigned int height = (unsigned int) heightParam;
-    unsigned int chainHeight = (unsigned int) chainActive.Height();
-    if (chainHeight < Params().PruneAfterHeight())
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Blockchain is too short for pruning.");
-    else if (height > chainHeight)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Blockchain is shorter than the attempted prune height.");
-    else if (height > chainHeight - MIN_BLOCKS_TO_KEEP) {
-        LogPrint("rpc", "Attempt to prune blocks close to the tip.  Retaining the minimum number of blocks.");
-        height = chainHeight - MIN_BLOCKS_TO_KEEP;
-    }
-
-    PruneBlockFilesManual(height);
-    return uint64_t(height);
-}
-
-UniValue gettxoutsetinfo(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 0)
-        throw runtime_error(
-            "gettxoutsetinfo\n"
-            "\nReturns statistics about the unspent transaction output set.\n"
-            "Note this call may take some time.\n"
-            "\nResult:\n"
-            "{\n"
-            "  \"height\":n,     (numeric) The current block height (index)\n"
-            "  \"bestblock\": \"hex\",   (string) the best block hash hex\n"
-            "  \"transactions\": n,      (numeric) The number of transactions\n"
-            "  \"txouts\": n,            (numeric) The number of output transactions\n"
-            "  \"bytes_serialized\": n,  (numeric) The serialized size\n"
-            "  \"hash_serialized\": \"hash\",   (string) The serialized hash\n"
-            "}\n"
-            "\nExamples:\n"
-            + HelpExampleCli("gettxoutsetinfo", "")
-            + HelpExampleRpc("gettxoutsetinfo", "")
-        );
-
-    UniValue ret(UniValue::VOBJ);
-
-    CCoinsStats stats;
-    FlushStateToDisk();
-    if (GetUTXOStats(pcoinsTip, stats)) {
-        ret.push_back(Pair("height", (int64_t)stats.nHeight));
-        ret.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
-        ret.push_back(Pair("transactions", (int64_t)stats.nTransactions));
-        ret.push_back(Pair("txouts", (int64_t)stats.nTransactionOutputs));
-        ret.push_back(Pair("bytes_serialized", (int64_t)stats.nSerializedSize));
-        ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
-        statsClient.gauge("utxoset.tx", stats.nTransactions, 1.0f);
-        statsClient.gauge("utxoset.txOutputs", stats.nTransactionOutputs, 1.0f);
-        statsClient.gauge("utxoset.dbSizeBytes", stats.nSerializedSize, 1.0f);
-        statsClient.gauge("utxoset.blockHeight", stats.nHeight, 1.0f);
-        statsClient.gauge("utxoset.totalBTCAmount", (double)stats.nTotalAmount / (double)COIN, 1.0f);
-
-    } else {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
-    }
-    return ret;
-}
-
-UniValue getutxoassetinfo(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 0)
-        throw runtime_error(
-            "getassetstats\n"
-            "\nReturns a summary of the total amounts of unspent assets in the UTXO set\n"
-            "Note this call may take some time.\n"
-            "\nResult:\n"
-            "[                     (json array of objects)\n"
-            "  {\n"
-            "    \"asset\":\"<asset>\",   (string) Asset type ID \n"
-	    "    \"amountspendable\":\"X.XX\",     (numeric) The total amount of spendable asset.\n"
-            "    \"spendabletxouts\":\"n\",         (numeric) The number of spendable outputs of the asset.\n"
-	    "    \"amountfrozen\":\"X.XX\",       (numeric) The total amount of frozen asset.\n"
-            "    \"frozentxouts\":\"n\",          (numeric) The number of frozen outputs of the asset.\n"
-            "  }\n"
-            "  ,...\n"
-            "]\n"
-            "\nExamples:\n"
-            + HelpExampleCli("getassetstats", "")
-            + HelpExampleRpc("getassetstats", "")
-			);
-
-    UniValue ret(UniValue::VARR);
-    FlushStateToDisk();
-
-    std::map<CAsset,CAssetStats> stats;
-    if (GetAssetStats(pcoinsTip, stats)) {
-        for(auto const& asset : stats){
-	    UniValue item(UniValue::VOBJ);
-	    item.push_back(Pair("asset",asset.first.GetHex()));
-	    item.push_back(Pair("spendabletxouts",asset.second.nSpendableOutputs));
-	    item.push_back(Pair("amountspendable",ValueFromAmount(asset.second.nSpendableAmount)));
-	    item.push_back(Pair("frozentxouts",asset.second.nFrozenOutputs));
-	    item.push_back(Pair("amountfrozen",ValueFromAmount(asset.second.nFrozenAmount)));
-	    ret.push_back(item);
-	}
-    } else {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
-    }
-    return ret;
-}
-
-UniValue gettxout(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
-        throw runtime_error(
-            "gettxout \"txid\" n ( include_mempool )\n"
-            "\nReturns details about an unspent transaction output.\n"
-            "\nArguments:\n"
-            "1. \"txid\"       (string, required) The transaction id\n"
-            "2. n              (numeric, required) vout number\n"
-            "3. include_mempool  (boolean, optional) Whether to include the mempool\n"
-            "\nResult:\n"
-            "{\n"
-            "  \"bestblock\" : \"hash\",    (string) the block hash\n"
-            "  \"confirmations\" : n,       (numeric) The number of confirmations\n"
-            "  \"value\" : x.xxx,           (numeric) The transaction value in " + CURRENCY_UNIT + "\n"
-            "  \"amountcommitment\": \"hex\", (string) the output's value commitment, if blinded\n"
-            "  \"asset\": \"hex\",          (string) the output's asset type, if unblinded\n"
-            "  \"assetcommitment\": \"hex\", (string) the output's asset commitment, if blinded\n"
-            "  \"scriptPubKey\" : {         (json object)\n"
-            "     \"asm\" : \"code\",       (string) \n"
-            "     \"hex\" : \"hex\",        (string) \n"
-            "     \"reqSigs\" : n,          (numeric) Number of required signatures\n"
-            "     \"type\" : \"pubkeyhash\", (string) The type, eg pubkeyhash\n"
-            "     \"addresses\" : [          (array of string) array of bitcoin addresses\n"
-            "        \"address\"     (string) bitcoin address\n"
-            "        ,...\n"
-            "     ]\n"
-            "  },\n"
-            "  \"version\" : n,            (numeric) The version\n"
-            "  \"coinbase\" : true|false   (boolean) Coinbase or not\n"
-            "}\n"
-
-            "\nExamples:\n"
-            "\nGet unspent transactions\n"
-            + HelpExampleCli("listunspent", "") +
-            "\nView the details\n"
-            + HelpExampleCli("gettxout", "\"txid\" 1") +
-            "\nAs a json rpc call\n"
-            + HelpExampleRpc("gettxout", "\"txid\", 1")
-        );
-
-    LOCK(cs_main);
-
-    UniValue ret(UniValue::VOBJ);
-
-    std::string strHash = request.params[0].get_str();
-    uint256 hash(uint256S(strHash));
-    int n = request.params[1].get_int();
-    bool fMempool = true;
-    if (request.params.size() > 2)
-        fMempool = request.params[2].get_bool();
-
+static bool GetAssetStats(CCoinsView *view,
+                          std::map<CAsset, CAssetStats> &stats) {
+  std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
+  CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+  uint256 hashBlock = pcursor->GetBestBlock();
+  { LOCK(cs_main); }
+  ss << hashBlock;
+  // set freeze-flag key
+  uint160 frzInt;
+  frzInt.SetHex("0x0000000000000000000000000000000000000000");
+  CKeyID frzId;
+  frzId = CKeyID(frzInt);
+  // main loop over coins (transactions with > 0 unspent outputs
+  while (pcursor->Valid()) {
+    boost::this_thread::interruption_point();
+    uint256 key;
     CCoins coins;
-    if (fMempool) {
-        LOCK(mempool.cs);
-        CCoinsViewMemPool view(pcoinsTip, mempool);
-        if (!view.GetCoins(hash, coins))
-            return NullUniValue;
-        mempool.pruneSpent(hash, coins); // TODO: this should be done by the CCoinsViewMemPool
-    } else {
-        if (!pcoinsTip->GetCoins(hash, coins))
-            return NullUniValue;
-    }
-    if (n<0 || (unsigned int)n>=coins.vout.size() || coins.vout[n].IsNull())
-        return NullUniValue;
+    if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
+      ss << key;
+      bool frozenTx = false;
+      // loop over vouts within a single transaction
+      for (unsigned int i = 0; i < coins.vout.size(); i++) {
+        const CTxOut &out = coins.vout[i];
+        // check if the tx is flagged frozen (i.e. one output is a zero address)
+        txnouttype whichType;
+        std::vector<std::vector<unsigned char>> vSolutions;
+        Solver(out.scriptPubKey, whichType, vSolutions);
+        if (whichType == TX_PUBKEYHASH) {
+          CKeyID keyId;
+          keyId = CKeyID(uint160(vSolutions[0]));
+          if (keyId == frzId)
+            frozenTx = true;
+        }
+      }
+      // loop over all vouts within a single transaction
+      for (unsigned int i = 0; i < coins.vout.size(); i++) {
+        const CTxOut &out = coins.vout[i];
+        // null vouts are spent
+        if (!out.IsNull()) {
+          ss << VARINT(i + 1);
+          ss << out;
+          if (frozenTx) {
+            stats[out.nAsset.GetAsset()].nFrozenOutputs++;
+            if (out.nValue.IsExplicit())
+              stats[out.nAsset.GetAsset()].nFrozenAmount +=
+                  out.nValue.GetAmount();
+          } else {
+            stats[out.nAsset.GetAsset()].nSpendableOutputs++;
+            if (out.nValue.IsExplicit())
+              stats[out.nAsset.GetAsset()].nSpendableAmount +=
+                  out.nValue.GetAmount();
+          }
+        }
+      }
+      ss << VARINT(0);
+    } else
+      return error("%s: unable to read value", __func__);
+    pcursor->Next();
+  }
+  return true;
+}
 
-    BlockMap::iterator it = mapBlockIndex.find(pcoinsTip->GetBestBlock());
-    CBlockIndex *pindex = it->second;
-    ret.push_back(Pair("bestblock", pindex->GetBlockHash().GetHex()));
-    if ((unsigned int)coins.nHeight == MEMPOOL_HEIGHT)
-        ret.push_back(Pair("confirmations", 0));
-    else
-        ret.push_back(Pair("confirmations", pindex->nHeight - coins.nHeight + 1));
-    if (coins.vout[n].nValue.IsExplicit()) {
-        ret.push_back(Pair("value", ValueFromAmount(coins.vout[n].nValue.GetAmount())));
-    } else {
-        ret.push_back(Pair("amountcommitment", HexStr(coins.vout[n].nValue.vchCommitment)));
+UniValue pruneblockchain(const JSONRPCRequest &request) {
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+        "pruneblockchain\n"
+        "\nArguments:\n"
+        "1. \"height\"       (numeric, required) The block height to prune up "
+        "to. May be set to a discrete height, or a unix timestamp\n"
+        "                  to prune blocks whose block time is at least 2 "
+        "hours older than the provided timestamp.\n"
+        "\nResult:\n"
+        "n    (numeric) Height of the last block pruned.\n"
+        "\nExamples:\n" +
+        HelpExampleCli("pruneblockchain", "1000") +
+        HelpExampleRpc("pruneblockchain", "1000"));
+  if (!fPruneMode)
+    throw JSONRPCError(
+        RPC_METHOD_NOT_FOUND,
+        "Cannot prune blocks because node is not in prune mode.");
+  LOCK(cs_main);
+  int heightParam = request.params[0].get_int();
+  if (heightParam < 0)
+    throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative block height.");
+  // Height value more than a billion is too high to be a block height, and
+  // too low to be a block time (corresponds to timestamp from Sep 2001).
+  if (heightParam > 1000000000) {
+    // Add a 2 hour buffer to include blocks which might have had old timestamps
+    CBlockIndex *pindex = chainActive.FindEarliestAtLeast(heightParam - 7200);
+    if (!pindex) {
+      throw JSONRPCError(
+          RPC_INTERNAL_ERROR,
+          "Could not find block with at least the specified timestamp.");
     }
-    if (coins.vout[n].nAsset.IsExplicit()) {
-        ret.push_back(Pair("asset", coins.vout[n].nAsset.GetAsset().GetHex()));
-    } else {
-        ret.push_back(Pair("assetcommitment", HexStr(coins.vout[n].nAsset.vchCommitment)));
+    heightParam = pindex->nHeight;
+  }
+  unsigned int height = (unsigned int)heightParam;
+  unsigned int chainHeight = (unsigned int)chainActive.Height();
+  if (chainHeight < Params().PruneAfterHeight())
+    throw JSONRPCError(RPC_INTERNAL_ERROR,
+                       "Blockchain is too short for pruning.");
+  else if (height > chainHeight)
+    throw JSONRPCError(
+        RPC_INVALID_PARAMETER,
+        "Blockchain is shorter than the attempted prune height.");
+  else if (height > chainHeight - MIN_BLOCKS_TO_KEEP) {
+    LogPrint("rpc", "Attempt to prune blocks close to the tip.  Retaining the "
+                    "minimum number of blocks.");
+    height = chainHeight - MIN_BLOCKS_TO_KEEP;
+  }
+  PruneBlockFilesManual(height);
+  return uint64_t(height);
+}
+
+UniValue gettxoutsetinfo(const JSONRPCRequest &request) {
+  if (request.fHelp || request.params.size() != 0)
+    throw runtime_error(
+        "gettxoutsetinfo\n"
+        "\nReturns statistics about the unspent transaction output set.\n"
+        "Note this call may take some time.\n"
+        "\nResult:\n"
+        "{\n"
+        "  \"height\":n,     (numeric) The current block height (index)\n"
+        "  \"bestblock\": \"hex\",   (string) the best block hash hex\n"
+        "  \"transactions\": n,      (numeric) The number of transactions\n"
+        "  \"txouts\": n,            (numeric) The number of output "
+        "transactions\n"
+        "  \"bytes_serialized\": n,  (numeric) The serialized size\n"
+        "  \"hash_serialized\": \"hash\",   (string) The serialized hash\n"
+        "}\n"
+        "\nExamples:\n" +
+        HelpExampleCli("gettxoutsetinfo", "") +
+        HelpExampleRpc("gettxoutsetinfo", ""));
+  UniValue ret(UniValue::VOBJ);
+  CCoinsStats stats;
+  FlushStateToDisk();
+  if (GetUTXOStats(pcoinsTip, stats)) {
+    ret.push_back(Pair("height", (int64_t)stats.nHeight));
+    ret.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
+    ret.push_back(Pair("transactions", (int64_t)stats.nTransactions));
+    ret.push_back(Pair("txouts", (int64_t)stats.nTransactionOutputs));
+    ret.push_back(Pair("bytes_serialized", (int64_t)stats.nSerializedSize));
+    ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
+    statsClient.gauge("utxoset.tx", stats.nTransactions, 1.0f);
+    statsClient.gauge("utxoset.txOutputs", stats.nTransactionOutputs, 1.0f);
+    statsClient.gauge("utxoset.dbSizeBytes", stats.nSerializedSize, 1.0f);
+    statsClient.gauge("utxoset.blockHeight", stats.nHeight, 1.0f);
+    statsClient.gauge("utxoset.totalBTCAmount",
+                      (double)stats.nTotalAmount / (double)COIN, 1.0f);
+  } else
+    throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+  return ret;
+}
+
+UniValue getutxoassetinfo(const JSONRPCRequest &request) {
+  if (request.fHelp || request.params.size() != 0)
+    throw runtime_error("getassetstats\n"
+                        "\nReturns a summary of the total amounts of unspent "
+                        "assets in the UTXO set\n"
+                        "Note this call may take some time.\n"
+                        "\nResult:\n"
+                        "[                     (json array of objects)\n"
+                        "  {\n"
+                        "    \"asset\":\"<asset>\",   (string) Asset type ID \n"
+                        "    \"amountspendable\":\"X.XX\",     (numeric) The "
+                        "total amount of spendable asset.\n"
+                        "    \"spendabletxouts\":\"n\",         (numeric) The "
+                        "number of spendable outputs of the asset.\n"
+                        "    \"amountfrozen\":\"X.XX\",       (numeric) The "
+                        "total amount of frozen asset.\n"
+                        "    \"frozentxouts\":\"n\",          (numeric) The "
+                        "number of frozen outputs of the asset.\n"
+                        "  }\n"
+                        "  ,...\n"
+                        "]\n"
+                        "\nExamples:\n" +
+                        HelpExampleCli("getassetstats", "") +
+                        HelpExampleRpc("getassetstats", ""));
+  UniValue ret(UniValue::VARR);
+  FlushStateToDisk();
+  std::map<CAsset, CAssetStats> stats;
+  if (GetAssetStats(pcoinsTip, stats)) {
+    for (auto const &asset : stats) {
+      UniValue item(UniValue::VOBJ);
+      item.push_back(Pair("asset", asset.first.GetHex()));
+      item.push_back(Pair("spendabletxouts", asset.second.nSpendableOutputs));
+      item.push_back(Pair("amountspendable",
+                          ValueFromAmount(asset.second.nSpendableAmount)));
+      item.push_back(Pair("frozentxouts", asset.second.nFrozenOutputs));
+      item.push_back(
+          Pair("amountfrozen", ValueFromAmount(asset.second.nFrozenAmount)));
+      ret.push_back(item);
     }
+  } else
+    throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+  return ret;
+}
 
-    UniValue o(UniValue::VOBJ);
-    ScriptPubKeyToJSON(coins.vout[n].scriptPubKey, o, true);
-    ret.push_back(Pair("scriptPubKey", o));
-    ret.push_back(Pair("version", coins.nVersion));
-    ret.push_back(Pair("coinbase", coins.fCoinBase));
-
-    return ret;
+UniValue gettxout(const JSONRPCRequest &request) {
+  if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
+    throw runtime_error(
+        "gettxout \"txid\" n ( include_mempool )\n"
+        "\nReturns details about an unspent transaction output.\n"
+        "\nArguments:\n"
+        "1. \"txid\"       (string, required) The transaction id\n"
+        "2. n              (numeric, required) vout number\n"
+        "3. include_mempool  (boolean, optional) Whether to include the "
+        "mempool\n"
+        "\nResult:\n"
+        "{\n"
+        "  \"bestblock\" : \"hash\",    (string) the block hash\n"
+        "  \"confirmations\" : n,       (numeric) The number of confirmations\n"
+        "  \"value\" : x.xxx,           (numeric) The transaction value in " +
+        CURRENCY_UNIT +
+        "\n"
+        "  \"amountcommitment\": \"hex\", (string) the output's value "
+        "commitment, if blinded\n"
+        "  \"asset\": \"hex\",          (string) the output's asset type, if "
+        "unblinded\n"
+        "  \"assetcommitment\": \"hex\", (string) the output's asset "
+        "commitment, if blinded\n"
+        "  \"scriptPubKey\" : {         (json object)\n"
+        "     \"asm\" : \"code\",       (string) \n"
+        "     \"hex\" : \"hex\",        (string) \n"
+        "     \"reqSigs\" : n,          (numeric) Number of required "
+        "signatures\n"
+        "     \"type\" : \"pubkeyhash\", (string) The type, eg pubkeyhash\n"
+        "     \"addresses\" : [          (array of string) array of bitcoin "
+        "addresses\n"
+        "        \"address\"     (string) bitcoin address\n"
+        "        ,...\n"
+        "     ]\n"
+        "  },\n"
+        "  \"version\" : n,            (numeric) The version\n"
+        "  \"coinbase\" : true|false   (boolean) Coinbase or not\n"
+        "}\n"
+        "\nExamples:\n"
+        "\nGet unspent transactions\n" +
+        HelpExampleCli("listunspent", "") + "\nView the details\n" +
+        HelpExampleCli("gettxout", "\"txid\" 1") + "\nAs a json rpc call\n" +
+        HelpExampleRpc("gettxout", "\"txid\", 1"));
+  LOCK(cs_main);
+  UniValue ret(UniValue::VOBJ);
+  std::string strHash = request.params[0].get_str();
+  uint256 hash(uint256S(strHash));
+  int n = request.params[1].get_int();
+  bool fMempool = true;
+  if (request.params.size() > 2)
+    fMempool = request.params[2].get_bool();
+  CCoins coins;
+  if (fMempool) {
+    LOCK(mempool.cs);
+    CCoinsViewMemPool view(pcoinsTip, mempool);
+    if (!view.GetCoins(hash, coins))
+      return NullUniValue;
+    mempool.pruneSpent(
+        hash, coins); // TODO: this should be done by the CCoinsViewMemPool
+  } else if (!pcoinsTip->GetCoins(hash, coins))
+    return NullUniValue;
+  if (n < 0 || (unsigned int)n >= coins.vout.size() || coins.vout[n].IsNull())
+    return NullUniValue;
+  BlockMap::iterator it = mapBlockIndex.find(pcoinsTip->GetBestBlock());
+  CBlockIndex *pindex = it->second;
+  ret.push_back(Pair("bestblock", pindex->GetBlockHash().GetHex()));
+  if ((unsigned int)coins.nHeight == MEMPOOL_HEIGHT)
+    ret.push_back(Pair("confirmations", 0));
+  else
+    ret.push_back(Pair("confirmations", pindex->nHeight - coins.nHeight + 1));
+  if (coins.vout[n].nValue.IsExplicit())
+    ret.push_back(
+        Pair("value", ValueFromAmount(coins.vout[n].nValue.GetAmount())));
+  else
+    ret.push_back(
+        Pair("amountcommitment", HexStr(coins.vout[n].nValue.vchCommitment)));
+  if (coins.vout[n].nAsset.IsExplicit())
+    ret.push_back(Pair("asset", coins.vout[n].nAsset.GetAsset().GetHex()));
+  else
+    ret.push_back(
+        Pair("assetcommitment", HexStr(coins.vout[n].nAsset.vchCommitment)));
+  UniValue o(UniValue::VOBJ);
+  ScriptPubKeyToJSON(coins.vout[n].scriptPubKey, o, true);
+  ret.push_back(Pair("scriptPubKey", o));
+  ret.push_back(Pair("version", coins.nVersion));
+  ret.push_back(Pair("coinbase", coins.fCoinBase));
+  return ret;
 }
 
 UniValue verifychain(const JSONRPCRequest& request)
