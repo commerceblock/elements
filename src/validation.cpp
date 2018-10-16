@@ -2569,287 +2569,323 @@ static int64_t nTimeIndex = 0;
 static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
-bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, const CChainParams& chainparams, std::set<std::pair<uint256, COutPoint> >* setPeginsSpent, bool fJustCheck)
-{
-    boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
-    AssertLockHeld(cs_main);
-
-    int64_t nTimeStart = GetTimeMicros();
-
-    // verify that the view's current state corresponds to the previous block
-    uint256 hashPrevBlock = pindex->pprev == NULL ? uint256() : pindex->pprev->GetBlockHash();
-    assert(hashPrevBlock == view.GetBestBlock());
-
-    // Add genesis outputs. The assumption made here is that there are no real spends
-    // occurring in this block.
-    if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
-        if (!fJustCheck) {
-            assert(block.nHeight == 0);
-            std::vector<std::pair<uint256, CDiskTxPos> > vPos;
-            CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size()));
-            for (const auto& tx : block.vtx) {
-
-                // Directly add new coins to DB
-                view.ModifyNewCoins(tx->GetHash(), tx->IsCoinBase())->FromTx(*tx, pindex->nHeight);
-                vPos.push_back(std::make_pair(tx->GetHash(), pos));
-                pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
-            }
-            view.SetBestBlock(pindex->GetBlockHash());
-            if (fTxIndex) {
-                if (!pblocktree->WriteTxIndex(vPos)) {
-                    return AbortNode(state, "Failed to write transaction index");
-                }
-            }
-        }
-        return true;
-    }
-
-    // Check it again in case a previous version let a bad block in
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck))
-        return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
-
-    // Check that all non-zero coinbase outputs pay to the required destination
-    if (chainparams.GetConsensus().mandatory_coinbase_destination != CScript()) {
-        BOOST_FOREACH(const CTxOut& txout, block.vtx[0]->vout) {
-            if (txout.scriptPubKey != chainparams.GetConsensus().mandatory_coinbase_destination && !(txout.nValue.IsExplicit() && txout.nValue.GetAmount() == 0))
-                return state.DoS(100, error("ConnectBlock(): Coinbase outputs didnt match required scriptPubKey"),
-                                 REJECT_INVALID, "bad-coinbase-txos");
-        }
-    }
-
-    bool fScriptChecks = true;
-    if (!hashAssumeValid.IsNull()) {
-        // We've been configured with the hash of a block which has been externally verified to have a valid history.
-        // A suitable default value is included with the software and updated from time to time.  Because validity
-        //  relative to a piece of software is an objective fact these defaults can be easily reviewed.
-        // This setting doesn't force the selection of any particular chain but makes validating some faster by
-        //  effectively caching the result of part of the verification.
-        BlockMap::const_iterator  it = mapBlockIndex.find(hashAssumeValid);
-        if (it != mapBlockIndex.end()) {
-            if (it->second->GetAncestor(pindex->nHeight) == pindex &&
-                pindexBestHeader->GetAncestor(pindex->nHeight) == pindex &&
-                pindexBestHeader->nChainWork >= UintToArith256(chainparams.GetConsensus().nMinimumChainWork)) {
-                // This block is a member of the assumed verified chain and an ancestor of the best header.
-                // The equivalent time check discourages hashpower from extorting the network via DOS attack
-                //  into accepting an invalid block through telling users they must manually set assumevalid.
-                //  Requiring a software change or burying the invalid block, regardless of the setting, makes
-                //  it hard to hide the implication of the demand.  This also avoids having release candidates
-                //  that are hardly doing any signature verification at all in testing without having to
-                //  artificially set the default assumed verified block further back.
-                // The test against nMinimumChainWork prevents the skipping when denied access to any chain at
-                //  least as good as the expected chain.
-                fScriptChecks = (GetBlockProofEquivalentTime(*pindexBestHeader, *pindex, *pindexBestHeader, chainparams.GetConsensus()) <= 60 * 60 * 24 * 7 * 2);
-            }
-        }
-    }
-
-    int64_t nTime1 = GetTimeMicros(); nTimeCheck += nTime1 - nTimeStart;
-    LogPrint("bench", "    - Sanity checks: %.2fms [%.2fs]\n", 0.001 * (nTime1 - nTimeStart), nTimeCheck * 0.000001);
-
-    // Do not allow blocks that contain transactions which 'overwrite' older transactions,
-    // unless those are already completely spent.
-    // If such overwrites are allowed, coinbases and transactions depending upon those
-    // can be duplicated to remove the ability to spend the first instance -- even after
-    // being sent to another address.
-    // See BIP30 and http://r6.ca/blog/20120206T005236Z.html for more information.
-    // This logic is not necessary for memory pool transactions, as AcceptToMemoryPool
-    // already refuses previously-known transaction ids entirely.
-    // This rule was originally applied to all blocks with a timestamp after March 15, 2012, 0:00 UTC.
-    // Now that the whole chain is irreversibly beyond that time it is applied to all blocks except the
-    // two in the chain that violate it. This prevents exploiting the issue against nodes during their
-    // initial block download.
-    bool fEnforceBIP30 = (!pindex->phashBlock) || // Enforce on CreateNewBlock invocations which don't have a hash.
-                          !((pindex->nHeight==91842 && pindex->GetBlockHash() == uint256S("0x00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec")) ||
-                           (pindex->nHeight==91880 && pindex->GetBlockHash() == uint256S("0x00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721")));
-
-    // Once BIP34 activated it was not possible to create new duplicate coinbases and thus other than starting
-    // with the 2 existing duplicate coinbase pairs, not possible to create overwriting txs.  But by the
-    // time BIP34 activated, in each of the existing pairs the duplicate coinbase had overwritten the first
-    // before the first had been spent.  Since those coinbases are sufficiently buried its no longer possible to create further
-    // duplicate transactions descending from the known pairs either.
-    // If we're on the known chain at height greater than where BIP34 activated, we can save the db accesses needed for the BIP30 check.
-    CBlockIndex *pindexBIP34height = pindex->pprev->GetAncestor(chainparams.GetConsensus().BIP34Height);
-    //Only continue to enforce if we're below BIP34 activation height or the block hash at that height doesn't correspond.
-    fEnforceBIP30 = fEnforceBIP30 && (!pindexBIP34height || !(pindexBIP34height->GetBlockHash() == chainparams.GetConsensus().BIP34Hash));
-
-    if (fEnforceBIP30) {
-        for (const auto& tx : block.vtx) {
-            const CCoins* coins = view.AccessCoins(tx->GetHash());
-            if (coins && !coins->IsPruned())
-                return state.DoS(100, error("ConnectBlock(): tried to overwrite transaction"),
-                                 REJECT_INVALID, "bad-txns-BIP30");
-        }
-    }
-
-    //P2SH is a requirement for segwit + CT
-    unsigned int flags = SCRIPT_VERIFY_P2SH;
-
-    // Start enforcing the DERSIG (BIP66) rule
-    flags |= SCRIPT_VERIFY_DERSIG;
-
-    // Start enforcing CHECKLOCKTIMEVERIFY (BIP65) rule
-    flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
-
-    // Start enforcing BIP68 (sequence locks) and BIP112 (CHECKSEQUENCEVERIFY) using versionbits logic.
-    int nLockTimeFlags = 0;
-    if (VersionBitsState(pindex->pprev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_CSV, versionbitscache) == THRESHOLD_ACTIVE) {
-        flags |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
-        nLockTimeFlags |= LOCKTIME_VERIFY_SEQUENCE;
-    }
-
-    // Start enforcing WITNESS rules using versionbits logic.
-    if (IsWitnessEnabled(pindex->pprev, chainparams.GetConsensus())) {
-        flags |= SCRIPT_VERIFY_WITNESS;
-        flags |= SCRIPT_VERIFY_NULLDUMMY;
-    }
-
-    int64_t nTime2 = GetTimeMicros(); nTimeForks += nTime2 - nTime1;
-    LogPrint("bench", "    - Fork checks: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeForks * 0.000001);
-
-    CBlockUndo blockundo;
-
-    CCheckQueueControl<CCheck> control(fScriptChecks && nScriptCheckThreads ? &scriptcheckqueue : NULL);
-
-    std::vector<int> prevheights;
-    CAmountMap mapFees;
-    int nInputs = 0;
-    int64_t nSigOpsCost = 0;
-    CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size()));
-    std::vector<std::pair<uint256, CDiskTxPos> > vPos;
-    vPos.reserve(block.vtx.size());
-    blockundo.vtxundo.reserve(block.vtx.size() - 1);
-    std::vector<PrecomputedTransactionData> txdata;
-    txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
-
-    // Used when ConnectBlock() results are unneeded for mempool ejection
-    std::set<std::pair<uint256, COutPoint> > setPeginsSpentDummy;
-
-    for (unsigned int i = 0; i < block.vtx.size(); i++)
-    {
-        const CTransaction &tx = *(block.vtx[i]);
-
-        nInputs += tx.vin.size();
-
-        if (!tx.IsCoinBase())
-        {
-            if (!view.HaveInputs(tx))
-                return state.DoS(100, error("ConnectBlock(): inputs missing/spent"),
-                                 REJECT_INVALID, "bad-txns-inputs-missingorspent");
-
-            // Check that transaction is BIP68 final
-            // BIP68 lock checks (as opposed to nLockTime checks) must
-            // be in ConnectBlock because they require the UTXO set
-            prevheights.resize(tx.vin.size());
-            for (size_t j = 0; j < tx.vin.size(); j++) {
-                if (tx.vin[j].m_is_pegin) {
-                    prevheights[j] = -1;
-                } else {
-                    prevheights[j] = view.AccessCoins(tx.vin[j].prevout.hash)->nHeight;
-                }
-            }
-
-            if (!SequenceLocks(tx, nLockTimeFlags, &prevheights, *pindex)) {
-                return state.DoS(100, error("%s: contains a non-BIP68-final transaction", __func__),
-                                 REJECT_INVALID, "bad-txns-nonfinal");
-            }
-        }
-
-        // GetTransactionSigOpCost counts 3 types of sigops:
-        // * legacy (always)
-        // * p2sh (when P2SH enabled in flags and excludes coinbase)
-        // * witness (when witness enabled in flags and excludes coinbase)
-        nSigOpsCost += GetTransactionSigOpCost(tx, view, flags);
-        if (nSigOpsCost > MAX_BLOCK_SIGOPS_COST)
-            return state.DoS(100, error("ConnectBlock(): too many sigops"),
-                             REJECT_INVALID, "bad-blk-sigops");
-
-        txdata.emplace_back(tx);
-        if (!tx.IsCoinBase())
-        {
-            std::vector<CCheck*> vChecks;
-            bool fCacheResults = fJustCheck; /* Don't cache results if we're actually connecting blocks (still consult the cache, though) */
-            if (!CheckInputs(tx, state, view, fScriptChecks, flags, fCacheResults, txdata[i], setPeginsSpent == NULL ? setPeginsSpentDummy : *setPeginsSpent, nScriptCheckThreads ? &vChecks : NULL))
-                return error("ConnectBlock(): CheckInputs on %s failed with %s",
-                    tx.GetHash().ToString(), FormatStateMessage(state));
-            control.Add(vChecks);
-        }
-
-        CTxUndo undoDummy;
-        if (i > 0) {
-            blockundo.vtxundo.push_back(CTxUndo());
-        }
-        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
-
-        vPos.push_back(std::make_pair(tx.GetHash(), pos));
+bool ConnectBlock(const CBlock &block, CValidationState &state,
+                  CBlockIndex *pindex, CCoinsViewCache &view,
+                  const CChainParams &chainparams,
+                  std::set<std::pair<uint256, COutPoint>> *setPeginsSpent,
+                  bool fJustCheck) {
+  boost::posix_time::ptime start =
+      boost::posix_time::microsec_clock::local_time();
+  AssertLockHeld(cs_main);
+  int64_t nTimeStart = GetTimeMicros();
+  // verify that the view's current state corresponds to the previous block
+  uint256 hashPrevBlock =
+      pindex->pprev == NULL ? uint256() : pindex->pprev->GetBlockHash();
+  assert(hashPrevBlock == view.GetBestBlock());
+  // Add genesis outputs. The assumption made here is that there are no real
+  // spends occurring in this block.
+  if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
+    if (!fJustCheck) {
+      assert(block.nHeight == 0);
+      std::vector<std::pair<uint256, CDiskTxPos>> vPos;
+      CDiskTxPos pos(pindex->GetBlockPos(),
+                     GetSizeOfCompactSize(block.vtx.size()));
+      for (const auto &tx : block.vtx) {
+        // Directly add new coins to DB
+        view.ModifyNewCoins(tx->GetHash(), tx->IsCoinBase())
+            ->FromTx(*tx, pindex->nHeight);
+        vPos.push_back(std::make_pair(tx->GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
-
-        if (!tx.HasValidFee())
-            return state.DoS(100, error("ConnectBlock(): transaction fee overflowed"), REJECT_INVALID, "bad-fee-outofrange");
-        mapFees += tx.GetFee();
-        if (!MoneyRange(mapFees))
-            return state.DoS(100, error("ConnectBlock(): total block reward overflowed"), REJECT_INVALID, "bad-blockreward-outofrange");
-    }
-    int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
-    LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * 0.000001);
-
-    CAmountMap blockReward = mapFees;
-    if (!MoneyRange(blockReward))
-        return state.DoS(100, error("ConnectBlock(): total block reward overflowed"), REJECT_INVALID, "bad-blockreward-outofrange");
-    if (!VerifyCoinbaseAmount(*(block.vtx[0]), blockReward))
-        return state.DoS(100,
-                         error("ConnectBlock(): coinbase pays too much (limit=%d)",
-                               blockReward.begin()->second),
-                               REJECT_INVALID, "bad-cb-amount");
-
-    if (!control.Wait())
-        return state.DoS(100, error("%s: CheckQueue failed", __func__), REJECT_INVALID, "block-validation-failed");
-    int64_t nTime4 = GetTimeMicros(); nTimeVerify += nTime4 - nTime2;
-    LogPrint("bench", "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs]\n", nInputs - 1, 0.001 * (nTime4 - nTime2), nInputs <= 1 ? 0 : 0.001 * (nTime4 - nTime2) / (nInputs-1), nTimeVerify * 0.000001);
-
-    if (fJustCheck)
-        return true;
-
-    // Write undo information to disk
-    if (pindex->GetUndoPos().IsNull() || !pindex->IsValid(BLOCK_VALID_SCRIPTS))
-    {
-        if (pindex->GetUndoPos().IsNull()) {
-            CDiskBlockPos _pos;
-            if (!FindUndoPos(state, pindex->nFile, _pos, ::GetSerializeSize(blockundo, SER_DISK, CLIENT_VERSION) + 40))
-                return error("ConnectBlock(): FindUndoPos failed");
-            if (!UndoWriteToDisk(blockundo, _pos, pindex->pprev->GetBlockHash(), chainparams.MessageStart()))
-                return AbortNode(state, "Failed to write undo data");
-
-            // update nUndoPos in block index
-            pindex->nUndoPos = _pos.nPos;
-            pindex->nStatus |= BLOCK_HAVE_UNDO;
+      }
+      view.SetBestBlock(pindex->GetBlockHash());
+      if (fTxIndex) {
+        if (!pblocktree->WriteTxIndex(vPos)) {
+          return AbortNode(state, "Failed to write transaction index");
         }
-
-        pindex->RaiseValidity(BLOCK_VALID_SCRIPTS);
-        setDirtyBlockIndex.insert(pindex);
+      }
     }
-
-    if (fTxIndex)
-        if (!pblocktree->WriteTxIndex(vPos))
-            return AbortNode(state, "Failed to write transaction index");
-
-    // add this block to the view's block chain
-    view.SetBestBlock(pindex->GetBlockHash());
-
-    int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
-    LogPrint("bench", "    - Index writing: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeIndex * 0.000001);
-
-    // Watch for changes to the previous coinbase transaction.
-    static uint256 hashPrevBestCoinBase;
-    GetMainSignals().UpdatedTransaction(hashPrevBestCoinBase);
-    hashPrevBestCoinBase = block.vtx[0]->GetHash();
-
-
-    int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
-    LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
-    boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
-    boost::posix_time::time_duration diff = finish - start;
-    statsClient.timing("ConnectBlock_ms", diff.total_milliseconds(), 1.0f);
     return true;
+  }
+  // Check it again in case a previous version let a bad block in
+  if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck,
+                  !fJustCheck))
+    return error("%s: Consensus::CheckBlock: %s", __func__,
+                 FormatStateMessage(state));
+  // Check that all non-zero coinbase outputs pay to the required destination
+  if (chainparams.GetConsensus().mandatory_coinbase_destination != CScript()) {
+    BOOST_FOREACH (const CTxOut &txout, block.vtx[0]->vout) {
+      if (txout.scriptPubKey !=
+              chainparams.GetConsensus().mandatory_coinbase_destination &&
+          !(txout.nValue.IsExplicit() && txout.nValue.GetAmount() == 0))
+        return state.DoS(100,
+                         error("ConnectBlock(): Coinbase outputs didnt match "
+                               "required scriptPubKey"),
+                         REJECT_INVALID, "bad-coinbase-txos");
+    }
+  }
+  bool fScriptChecks = true;
+  if (!hashAssumeValid.IsNull()) {
+    // We've been configured with the hash of a block which has been externally
+    // verified to have a valid history. A suitable default value is included
+    // with the software and updated from time to time.  Because validity
+    //  relative to a piece of software is an objective fact these defaults can
+    //  be easily reviewed.
+    // This setting doesn't force the selection of any particular chain but
+    // makes validating some faster by
+    //  effectively caching the result of part of the verification.
+    BlockMap::const_iterator it = mapBlockIndex.find(hashAssumeValid);
+    if (it != mapBlockIndex.end()) {
+      if (it->second->GetAncestor(pindex->nHeight) == pindex &&
+          pindexBestHeader->GetAncestor(pindex->nHeight) == pindex &&
+          pindexBestHeader->nChainWork >=
+              UintToArith256(chainparams.GetConsensus().nMinimumChainWork)) {
+        // This block is a member of the assumed verified chain and an ancestor
+        // of the best header. The equivalent time check discourages hashpower
+        // from extorting the network via DOS attack
+        //  into accepting an invalid block through telling users they must
+        //  manually set assumevalid. Requiring a software change or burying the
+        //  invalid block, regardless of the setting, makes it hard to hide the
+        //  implication of the demand.  This also avoids having release
+        //  candidates that are hardly doing any signature verification at all
+        //  in testing without having to artificially set the default assumed
+        //  verified block further back.
+        // The test against nMinimumChainWork prevents the skipping when denied
+        // access to any chain at
+        //  least as good as the expected chain.
+        fScriptChecks =
+            (GetBlockProofEquivalentTime(
+                 *pindexBestHeader, *pindex, *pindexBestHeader,
+                 chainparams.GetConsensus()) <= 60 * 60 * 24 * 7 * 2);
+      }
+    }
+  }
+  int64_t nTime1 = GetTimeMicros();
+  nTimeCheck += nTime1 - nTimeStart;
+  LogPrint("bench", "    - Sanity checks: %.2fms [%.2fs]\n",
+           0.001 * (nTime1 - nTimeStart), nTimeCheck * 0.000001);
+  // Do not allow blocks that contain transactions which 'overwrite' older
+  // transactions, unless those are already completely spent. If such overwrites
+  // are allowed, coinbases and transactions depending upon those can be
+  // duplicated to remove the ability to spend the first instance -- even after
+  // being sent to another address.
+  // See BIP30 and http://r6.ca/blog/20120206T005236Z.html for more information.
+  // This logic is not necessary for memory pool transactions, as
+  // AcceptToMemoryPool already refuses previously-known transaction ids
+  // entirely. This rule was originally applied to all blocks with a timestamp
+  // after March 15, 2012, 0:00 UTC. Now that the whole chain is irreversibly
+  // beyond that time it is applied to all blocks except the two in the chain
+  // that violate it. This prevents exploiting the issue against nodes during
+  // their initial block download.
+  bool fEnforceBIP30 =
+      (!pindex->phashBlock) || // Enforce on CreateNewBlock invocations which
+                               // don't have a hash.
+      !((pindex->nHeight == 91842 &&
+         pindex->GetBlockHash() ==
+             uint256S("0x00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8"
+                      "e300e0caec")) ||
+        (pindex->nHeight == 91880 &&
+         pindex->GetBlockHash() ==
+             uint256S("0x00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a3808"
+                      "4ccb7cd721")));
+  // Once BIP34 activated it was not possible to create new duplicate coinbases
+  // and thus other than starting with the 2 existing duplicate coinbase pairs,
+  // not possible to create overwriting txs.  But by the time BIP34 activated,
+  // in each of the existing pairs the duplicate coinbase had overwritten the
+  // first before the first had been spent.  Since those coinbases are
+  // sufficiently buried its no longer possible to create further duplicate
+  // transactions descending from the known pairs either. If we're on the known
+  // chain at height greater than where BIP34 activated, we can save the db
+  // accesses needed for the BIP30 check.
+  CBlockIndex *pindexBIP34height =
+      pindex->pprev->GetAncestor(chainparams.GetConsensus().BIP34Height);
+  // Only continue to enforce if we're below BIP34 activation height or the
+  // block hash at that height doesn't correspond.
+  fEnforceBIP30 = fEnforceBIP30 && (!pindexBIP34height ||
+                                    !(pindexBIP34height->GetBlockHash() ==
+                                      chainparams.GetConsensus().BIP34Hash));
+  if (fEnforceBIP30) {
+    for (const auto &tx : block.vtx) {
+      const CCoins *coins = view.AccessCoins(tx->GetHash());
+      if (coins && !coins->IsPruned())
+        return state.DoS(
+            100, error("ConnectBlock(): tried to overwrite transaction"),
+            REJECT_INVALID, "bad-txns-BIP30");
+    }
+  }
+  // P2SH is a requirement for segwit + CT
+  unsigned int flags = SCRIPT_VERIFY_P2SH;
+  // Start enforcing the DERSIG (BIP66) rule
+  flags |= SCRIPT_VERIFY_DERSIG;
+  // Start enforcing CHECKLOCKTIMEVERIFY (BIP65) rule
+  flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
+  // Start enforcing BIP68 (sequence locks) and BIP112 (CHECKSEQUENCEVERIFY)
+  // using versionbits logic.
+  int nLockTimeFlags = 0;
+  if (VersionBitsState(pindex->pprev, chainparams.GetConsensus(),
+                       Consensus::DEPLOYMENT_CSV,
+                       versionbitscache) == THRESHOLD_ACTIVE) {
+    flags |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
+    nLockTimeFlags |= LOCKTIME_VERIFY_SEQUENCE;
+  }
+  // Start enforcing WITNESS rules using versionbits logic.
+  if (IsWitnessEnabled(pindex->pprev, chainparams.GetConsensus())) {
+    flags |= SCRIPT_VERIFY_WITNESS;
+    flags |= SCRIPT_VERIFY_NULLDUMMY;
+  }
+  int64_t nTime2 = GetTimeMicros();
+  nTimeForks += nTime2 - nTime1;
+  LogPrint("bench", "    - Fork checks: %.2fms [%.2fs]\n",
+           0.001 * (nTime2 - nTime1), nTimeForks * 0.000001);
+  CBlockUndo blockundo;
+  CCheckQueueControl<CCheck> control(
+      fScriptChecks && nScriptCheckThreads ? &scriptcheckqueue : NULL);
+  std::vector<int> prevheights;
+  CAmountMap mapFees;
+  int nInputs = 0;
+  int64_t nSigOpsCost = 0;
+  CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size()));
+  std::vector<std::pair<uint256, CDiskTxPos>> vPos;
+  vPos.reserve(block.vtx.size());
+  blockundo.vtxundo.reserve(block.vtx.size() - 1);
+  std::vector<PrecomputedTransactionData> txdata;
+  txdata.reserve(
+      block.vtx.size()); // Required so that pointers to individual
+                         // PrecomputedTransactionData don't get invalidated
+  // Used when ConnectBlock() results are unneeded for mempool ejection
+  std::set<std::pair<uint256, COutPoint>> setPeginsSpentDummy;
+  for (unsigned int i = 0; i < block.vtx.size(); i++) {
+    const CTransaction &tx = *(block.vtx[i]);
+    nInputs += tx.vin.size();
+    if (!tx.IsCoinBase()) {
+      if (!view.HaveInputs(tx))
+        return state.DoS(100, error("ConnectBlock(): inputs missing/spent"),
+                         REJECT_INVALID, "bad-txns-inputs-missingorspent");
+      // Check that transaction is BIP68 final
+      // BIP68 lock checks (as opposed to nLockTime checks) must
+      // be in ConnectBlock because they require the UTXO set
+      prevheights.resize(tx.vin.size());
+      for (size_t j = 0; j < tx.vin.size(); j++) {
+        if (tx.vin[j].m_is_pegin) {
+          prevheights[j] = -1;
+        } else {
+          prevheights[j] = view.AccessCoins(tx.vin[j].prevout.hash)->nHeight;
+        }
+      }
+      if (!SequenceLocks(tx, nLockTimeFlags, &prevheights, *pindex)) {
+        return state.DoS(
+            100, error("%s: contains a non-BIP68-final transaction", __func__),
+            REJECT_INVALID, "bad-txns-nonfinal");
+      }
+    }
+    // GetTransactionSigOpCost counts 3 types of sigops:
+    // * legacy (always)
+    // * p2sh (when P2SH enabled in flags and excludes coinbase)
+    // * witness (when witness enabled in flags and excludes coinbase)
+    nSigOpsCost += GetTransactionSigOpCost(tx, view, flags);
+    if (nSigOpsCost > MAX_BLOCK_SIGOPS_COST)
+      return state.DoS(100, error("ConnectBlock(): too many sigops"),
+                       REJECT_INVALID, "bad-blk-sigops");
+    txdata.emplace_back(tx);
+    if (!tx.IsCoinBase()) {
+      std::vector<CCheck *> vChecks;
+      bool fCacheResults =
+          fJustCheck; /* Don't cache results if we're actually connecting blocks
+                         (still consult the cache, though) */
+      if (!CheckInputs(
+              tx, state, view, fScriptChecks, flags, fCacheResults, txdata[i],
+              setPeginsSpent == NULL ? setPeginsSpentDummy : *setPeginsSpent,
+              nScriptCheckThreads ? &vChecks : NULL))
+        return error("ConnectBlock(): CheckInputs on %s failed with %s",
+                     tx.GetHash().ToString(), FormatStateMessage(state));
+      control.Add(vChecks);
+    }
+    CTxUndo undoDummy;
+    if (i > 0) {
+      blockundo.vtxundo.push_back(CTxUndo());
+    }
+    UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(),
+                pindex->nHeight);
+    vPos.push_back(std::make_pair(tx.GetHash(), pos));
+    pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
+    if (!tx.HasValidFee())
+      return state.DoS(100, error("ConnectBlock(): transaction fee overflowed"),
+                       REJECT_INVALID, "bad-fee-outofrange");
+    mapFees += tx.GetFee();
+    if (!MoneyRange(mapFees))
+      return state.DoS(100,
+                       error("ConnectBlock(): total block reward overflowed"),
+                       REJECT_INVALID, "bad-blockreward-outofrange");
+  }
+  int64_t nTime3 = GetTimeMicros();
+  nTimeConnect += nTime3 - nTime2;
+  LogPrint("bench",
+           "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) "
+           "[%.2fs]\n",
+           (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2),
+           0.001 * (nTime3 - nTime2) / block.vtx.size(),
+           nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs - 1),
+           nTimeConnect * 0.000001);
+  CAmountMap blockReward = mapFees;
+  if (!MoneyRange(blockReward))
+    return state.DoS(100,
+                     error("ConnectBlock(): total block reward overflowed"),
+                     REJECT_INVALID, "bad-blockreward-outofrange");
+  if (!VerifyCoinbaseAmount(*(block.vtx[0]), blockReward))
+    return state.DoS(100,
+                     error("ConnectBlock(): coinbase pays too much (limit=%d)",
+                           blockReward.begin()->second),
+                     REJECT_INVALID, "bad-cb-amount");
+  if (!control.Wait())
+    return state.DoS(100, error("%s: CheckQueue failed", __func__),
+                     REJECT_INVALID, "block-validation-failed");
+  int64_t nTime4 = GetTimeMicros();
+  nTimeVerify += nTime4 - nTime2;
+  LogPrint("bench", "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs]\n",
+           nInputs - 1, 0.001 * (nTime4 - nTime2),
+           nInputs <= 1 ? 0 : 0.001 * (nTime4 - nTime2) / (nInputs - 1),
+           nTimeVerify * 0.000001);
+  if (fJustCheck)
+    return true;
+  // Write undo information to disk
+  if (pindex->GetUndoPos().IsNull() || !pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+    if (pindex->GetUndoPos().IsNull()) {
+      CDiskBlockPos _pos;
+      if (!FindUndoPos(state, pindex->nFile, _pos,
+                       ::GetSerializeSize(blockundo, SER_DISK, CLIENT_VERSION) +
+                           40))
+        return error("ConnectBlock(): FindUndoPos failed");
+      if (!UndoWriteToDisk(blockundo, _pos, pindex->pprev->GetBlockHash(),
+                           chainparams.MessageStart()))
+        return AbortNode(state, "Failed to write undo data");
+      // update nUndoPos in block index
+      pindex->nUndoPos = _pos.nPos;
+      pindex->nStatus |= BLOCK_HAVE_UNDO;
+    }
+    pindex->RaiseValidity(BLOCK_VALID_SCRIPTS);
+    setDirtyBlockIndex.insert(pindex);
+  }
+  if (fTxIndex)
+    if (!pblocktree->WriteTxIndex(vPos))
+      return AbortNode(state, "Failed to write transaction index");
+  // add this block to the view's block chain
+  view.SetBestBlock(pindex->GetBlockHash());
+  int64_t nTime5 = GetTimeMicros();
+  nTimeIndex += nTime5 - nTime4;
+  LogPrint("bench", "    - Index writing: %.2fms [%.2fs]\n",
+           0.001 * (nTime5 - nTime4), nTimeIndex * 0.000001);
+  // Watch for changes to the previous coinbase transaction.
+  static uint256 hashPrevBestCoinBase;
+  GetMainSignals().UpdatedTransaction(hashPrevBestCoinBase);
+  hashPrevBestCoinBase = block.vtx[0]->GetHash();
+  int64_t nTime6 = GetTimeMicros();
+  nTimeCallbacks += nTime6 - nTime5;
+  LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n",
+           0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
+  boost::posix_time::ptime finish =
+      boost::posix_time::microsec_clock::local_time();
+  boost::posix_time::time_duration diff = finish - start;
+  statsClient.timing("ConnectBlock_ms", diff.total_milliseconds(), 1.0f);
+  return true;
 }
 
 /**
