@@ -3441,7 +3441,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
     // far from a guarantee. Things in the P2P/RPC will often end up calling
     // us in the middle of ProcessNewBlock - do not assume pblock is set
     // sanely for performance or correctness!
-
+    boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
     CBlockIndex *pindexMostWork = NULL;
     CBlockIndex *pindexNewTip = NULL;
     do {
@@ -3509,7 +3509,9 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
         }
     } while (pindexNewTip != pindexMostWork);
     CheckBlockIndex(chainparams.GetConsensus());
-
+    boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
+    boost::posix_time::time_duration diff = finish - start;
+    statsClient.timing("ActivateBestChain_ms", diff.total_milliseconds(), 1.0f);
     // Write changes periodically to disk, after relay.
     if (!FlushStateToDisk(state, FLUSH_STATE_PERIODIC)) {
         return false;
