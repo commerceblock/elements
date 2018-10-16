@@ -2131,6 +2131,8 @@ bool ApplyTxInUndo(const CTxInUndo& undo, CCoinsViewCache& view, const COutPoint
 bool DisconnectBlock(const CBlock &block, CValidationState &state,
                      const CBlockIndex *pindex, CCoinsViewCache &view,
                      bool *pfClean) {
+  boost::posix_time::ptime start =
+      boost::posix_time::microsec_clock::local_time();
   assert(pindex->GetBlockHash() == view.GetBestBlock());
   if (pfClean)
     *pfClean = false;
@@ -2184,6 +2186,10 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state,
   }
   // move best block pointer to prevout block
   view.SetBestBlock(pindex->pprev->GetBlockHash());
+  boost::posix_time::ptime finish =
+      boost::posix_time::microsec_clock::local_time();
+  boost::posix_time::time_duration diff = finish - start;
+  statsClient.timing("DisconnectBlock_ms", diff.total_milliseconds(), 1.0f);
   statsClient.gauge("transactions.txInUTXOSet", view.GetCacheSize(), 1.0f);
   if (pfClean) {
     *pfClean = fClean;
