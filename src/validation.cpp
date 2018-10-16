@@ -1495,9 +1495,10 @@ bool AcceptToMemoryPoolWithTime(CTxMemPool &pool, CValidationState &state,
   bool res = AcceptToMemoryPoolWorker(
       pool, state, tx, fLimitFree, pfMissingInputs, nAcceptTime, plTxnReplaced,
       fOverrideMempoolLimit, nAbsurdFee, vHashTxToUncache);
-  if (!res)
+  if (!res) {
     BOOST_FOREACH (const uint256 &hashTx, vHashTxToUncache)
       pcoinsTip->Uncache(hashTx);
+  }
   // After we've (potentially) uncached entries, ensure our coins cache is still
   // within its size limits
   CValidationState stateDummy;
