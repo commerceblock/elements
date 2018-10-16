@@ -2986,121 +2986,130 @@ void PruneAndFlush() {
     FlushStateToDisk(state, FLUSH_STATE_NONE);
 }
 
-/** Update chainActive and related internal data structures. */
-void static UpdateTip(CBlockIndex *pindexNew, const CChainParams& chainParams) {
-    chainActive.SetTip(pindexNew);
-    statsClient.gauge("blocks.currentHeight", chainActive.Height(), 1.0f);
-    // New best block
-    mempool.AddTransactionsUpdated(1);
-
-    cvBlockChange.notify_all();
-
-    static bool fWarned = false;
-    std::vector<std::string> warningMessages;
-    if (!IsInitialBlockDownload())
-    {
-        int nUpgraded = 0;
-        const CBlockIndex* pindex = chainActive.Tip();
-        for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
-            WarningBitsConditionChecker checker(bit);
-            ThresholdState state = checker.GetStateFor(pindex, chainParams.GetConsensus(), warningcache[bit]);
-            if (state == THRESHOLD_ACTIVE || state == THRESHOLD_LOCKED_IN) {
-                if (state == THRESHOLD_ACTIVE) {
-                    std::string strWarning = strprintf(_("Warning: unknown new rules activated (versionbit %i)"), bit);
-                    SetMiscWarning(strWarning);
-                    if (!fWarned) {
-                        AlertNotify(strWarning);
-                        fWarned = true;
-                    }
-                } else {
-                    warningMessages.push_back(strprintf("unknown new rules are about to activate (versionbit %i)", bit));
-                }
-            }
-        }
-        // Check the version of the last 100 blocks to see if we need to upgrade:
-        for (int i = 0; i < 100 && pindex != NULL; i++)
-        {
-            int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus());
-            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
-                ++nUpgraded;
-            pindex = pindex->pprev;
-        }
-        if (nUpgraded > 0)
-            warningMessages.push_back(strprintf("%d of last 100 blocks have unexpected version", nUpgraded));
-        if (nUpgraded > 100/2)
-        {
-            std::string strWarning = _("Warning: Unknown block versions being mined! It's possible unknown rules are in effect");
-            // notify GetWarnings(), called by Qt and the JSON-RPC code to warn the user:
-            SetMiscWarning(strWarning);
-            if (!fWarned) {
-                AlertNotify(strWarning);
-                fWarned = true;
-            }
-        }
+// Update chainActive and related internal data structures.
+void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
+  chainActive.SetTip(pindexNew);
+  statsClient.gauge("blocks.currentHeight", chainActive.Height(), 1.0f);
+  // New best block
+  mempool.AddTransactionsUpdated(1);
+  cvBlockChange.notify_all();
+  static bool fWarned = false;
+  std::vector<std::string> warningMessages;
+  if (!IsInitialBlockDownload()) {
+    int nUpgraded = 0;
+    const CBlockIndex *pindex = chainActive.Tip();
+    for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
+      WarningBitsConditionChecker checker(bit);
+      ThresholdState state = checker.GetStateFor(
+          pindex, chainParams.GetConsensus(), warningcache[bit]);
+      if (state == THRESHOLD_ACTIVE || state == THRESHOLD_LOCKED_IN) {
+        if (state == THRESHOLD_ACTIVE) {
+          std::string strWarning = strprintf(
+              _("Warning: unknown new rules activated (versionbit %i)"), bit);
+          SetMiscWarning(strWarning);
+          if (!fWarned) {
+            AlertNotify(strWarning);
+            fWarned = true;
+          }
+        } else
+          warningMessages.push_back(strprintf(
+              "unknown new rules are about to activate (versionbit %i)", bit));
+      }
     }
-    LogPrintf("%s: new best=%s height=%d version=0x%08x log2_work=%.8g tx=%lu date='%s' progress=%f cache=%.1fMiB(%utx)", __func__,
-      chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height(), chainActive.Tip()->nVersion,
-      log(chainActive.Tip()->nChainWork.getdouble())/log(2.0), (unsigned long)chainActive.Tip()->nChainTx,
+    // Check the version of the last 100 blocks to see if we need to upgrade:
+    for (int i = 0; i < 100 && pindex != NULL; i++) {
+      int32_t nExpectedVersion =
+          ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus());
+      if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION &&
+          (pindex->nVersion & ~nExpectedVersion) != 0)
+        ++nUpgraded;
+      pindex = pindex->pprev;
+    }
+    if (nUpgraded > 0)
+      warningMessages.push_back(strprintf(
+          "%d of last 100 blocks have unexpected version", nUpgraded));
+    if (nUpgraded > 100 / 2) {
+      std::string strWarning = _("Warning: Unknown block versions being mined! "
+                                 "It's possible unknown rules are in effect");
+      // notify GetWarnings()
+      // called by Qt and the JSON-RPC code to warn the user:
+      SetMiscWarning(strWarning);
+      if (!fWarned) {
+        AlertNotify(strWarning);
+        fWarned = true;
+      }
+    }
+  }
+  LogPrintf(
+      "%s: new best=%s height=%d version=0x%08x log2_work=%.8g tx=%lu "
+      "date='%s' progress=%f cache=%.1fMiB(%utx)",
+      __func__, chainActive.Tip()->GetBlockHash().ToString(),
+      chainActive.Height(), chainActive.Tip()->nVersion,
+      log(chainActive.Tip()->nChainWork.getdouble()) / log(2.0),
+      (unsigned long)chainActive.Tip()->nChainTx,
       DateTimeStrFormat("%Y-%m-%d %H:%M:%S", chainActive.Tip()->GetBlockTime()),
-      GuessVerificationProgress(chainParams.TxData(), chainActive.Tip()), pcoinsTip->DynamicMemoryUsage() * (1.0 / (1<<20)), pcoinsTip->GetCacheSize());
-    if (!warningMessages.empty())
-        LogPrintf(" warning='%s'", boost::algorithm::join(warningMessages, ", "));
-    LogPrintf("\n");
-
+      GuessVerificationProgress(chainParams.TxData(), chainActive.Tip()),
+      pcoinsTip->DynamicMemoryUsage() * (1.0 / (1 << 20)),
+      pcoinsTip->GetCacheSize());
+  if (!warningMessages.empty())
+    LogPrintf(" warning='%s'", boost::algorithm::join(warningMessages, ", "));
+  LogPrintf("\n");
 }
 
-/** Disconnect chainActive's tip. You probably want to call mempool.removeForReorg and manually re-limit mempool size after this, with cs_main held. */
-bool static DisconnectTip(CValidationState& state, const CChainParams& chainparams, bool fBare = false)
-{
-    CBlockIndex *pindexDelete = chainActive.Tip();
-    assert(pindexDelete);
-    // Read block from disk.
-    CBlock block;
-    if (!ReadBlockFromDisk(block, pindexDelete, chainparams.GetConsensus()))
-        return AbortNode(state, "Failed to read block");
-    // Apply the block atomically to the chain state.
-    int64_t nStart = GetTimeMicros();
-    {
-        CCoinsViewCache view(pcoinsTip);
-        if (!DisconnectBlock(block, state, pindexDelete, view))
-            return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
-        bool flushed = view.Flush();
-        assert(flushed);
+/** Disconnect chainActive's tip. You probably want to call
+ * mempool.removeForReorg and manually re-limit mempool size after this, with
+ * cs_main held. */
+bool static DisconnectTip(CValidationState &state,
+                          const CChainParams &chainparams, bool fBare = false) {
+  CBlockIndex *pindexDelete = chainActive.Tip();
+  assert(pindexDelete);
+  // Read block from disk.
+  CBlock block;
+  if (!ReadBlockFromDisk(block, pindexDelete, chainparams.GetConsensus()))
+    return AbortNode(state, "Failed to read block");
+  // Apply the block atomically to the chain state.
+  int64_t nStart = GetTimeMicros();
+  {
+    CCoinsViewCache view(pcoinsTip);
+    if (!DisconnectBlock(block, state, pindexDelete, view))
+      return error("DisconnectTip(): DisconnectBlock %s failed",
+                   pindexDelete->GetBlockHash().ToString());
+    bool flushed = view.Flush();
+    assert(flushed);
+  }
+  LogPrint("bench", "- Disconnect block: %.2fms\n",
+           (GetTimeMicros() - nStart) * 0.001);
+  // Write the chain state to disk, if necessary.
+  if (!FlushStateToDisk(state, FLUSH_STATE_IF_NEEDED))
+    return false;
+  if (!fBare) {
+    // Resurrect mempool transactions from the disconnected block.
+    std::vector<uint256> vHashUpdate;
+    for (const auto &it : block.vtx) {
+      const CTransaction &tx = *it;
+      // ignore validation errors in resurrected transactions
+      CValidationState stateDummy;
+      if (tx.IsCoinBase() ||
+          !AcceptToMemoryPool(mempool, stateDummy, it, false, NULL, NULL, true))
+        mempool.removeRecursive(tx, MemPoolRemovalReason::REORG);
+      else if (mempool.exists(tx.GetHash()))
+        vHashUpdate.push_back(tx.GetHash());
     }
-    LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
-    // Write the chain state to disk, if necessary.
-    if (!FlushStateToDisk(state, FLUSH_STATE_IF_NEEDED))
-        return false;
-
-    if (!fBare) {
-        // Resurrect mempool transactions from the disconnected block.
-        std::vector<uint256> vHashUpdate;
-        for (const auto& it : block.vtx) {
-            const CTransaction& tx = *it;
-            // ignore validation errors in resurrected transactions
-            CValidationState stateDummy;
-            if (tx.IsCoinBase() || !AcceptToMemoryPool(mempool, stateDummy, it, false, NULL, NULL, true)) {
-                mempool.removeRecursive(tx, MemPoolRemovalReason::REORG);
-            } else if (mempool.exists(tx.GetHash())) {
-                vHashUpdate.push_back(tx.GetHash());
-            }
-        }
-        // AcceptToMemoryPool/addUnchecked all assume that new mempool entries have
-        // no in-mempool children, which is generally not true when adding
-        // previously-confirmed transactions back to the mempool.
-        // UpdateTransactionsFromBlock finds descendants of any transactions in this
-        // block that were added back and cleans up the mempool state.
-        mempool.UpdateTransactionsFromBlock(vHashUpdate);
-    }
-
-    // Update chainActive and related variables.
-    UpdateTip(pindexDelete->pprev, chainparams);
-    // Let wallets know transactions went from 1-confirmed to
-    // 0-confirmed or conflicted:
-    for (const auto& tx : block.vtx) {
-        GetMainSignals().SyncTransaction(*tx, pindexDelete->pprev, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
-    }
-    return true;
+    // AcceptToMemoryPool/addUnchecked all assume that new mempool entries have
+    // no in-mempool children, which is generally not true when adding
+    // previously-confirmed transactions back to the mempool.
+    // UpdateTransactionsFromBlock finds descendants of any transactions in this
+    // block that were added back and cleans up the mempool state.
+    mempool.UpdateTransactionsFromBlock(vHashUpdate);
+  }
+  // Update chainActive and related variables.
+  UpdateTip(pindexDelete->pprev, chainparams);
+  // Let wallets know transactions went from 1-confirmed to
+  // 0-confirmed or conflicted:
+  for (const auto &tx : block.vtx)
+    GetMainSignals().SyncTransaction(
+        *tx, pindexDelete->pprev, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
+  return true;
 }
 
 static int64_t nTimeReadFromDisk = 0;
@@ -3114,236 +3123,267 @@ static int64_t nTimePostConnect = 0;
  * part of a single ActivateBestChainStep call.
  */
 struct ConnectTrace {
-    std::vector<std::pair<CBlockIndex*, std::shared_ptr<const CBlock> > > blocksConnected;
+  std::vector<std::pair<CBlockIndex *, std::shared_ptr<const CBlock>>>
+      blocksConnected;
 };
 
 /**
- * Connect a new block to chainActive. pblock is either NULL or a pointer to a CBlock
- * corresponding to pindexNew, to bypass loading it again from disk.
+ * Connect a new block to chainActive. pblock is either NULL or a pointer to a
+ * CBlock corresponding to pindexNew, to bypass loading it again from disk.
  *
- * The block is always added to connectTrace (either after loading from disk or by copying
- * pblock) - if that is not intended, care must be taken to remove the last entry in
- * blocksConnected in case of failure.
+ * The block is always added to connectTrace (either after loading from disk or
+ * by copying pblock) - if that is not intended, care must be taken to remove
+ * the last entry in blocksConnected in case of failure.
  */
-bool static ConnectTip(CValidationState& state, const CChainParams& chainparams, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace)
-{
-    assert(pindexNew->pprev == chainActive.Tip());
-    // Read block from disk.
-    int64_t nTime1 = GetTimeMicros();
-    if (!pblock) {
-        std::shared_ptr<CBlock> pblockNew = std::make_shared<CBlock>();
-        connectTrace.blocksConnected.emplace_back(pindexNew, pblockNew);
-        if (!ReadBlockFromDisk(*pblockNew, pindexNew, chainparams.GetConsensus()))
-            return AbortNode(state, "Failed to read block");
-    } else {
-        connectTrace.blocksConnected.emplace_back(pindexNew, pblock);
-    }
-    const CBlock& blockConnecting = *connectTrace.blocksConnected.back().second;
-    // Apply the block atomically to the chain state.
-    int64_t nTime2 = GetTimeMicros(); nTimeReadFromDisk += nTime2 - nTime1;
-    int64_t nTime3;
-    LogPrint("bench", "  - Load block from disk: %.2fms [%.2fs]\n", (nTime2 - nTime1) * 0.001, nTimeReadFromDisk * 0.000001);
-    // For mempool removal with pegin conflicts
-    std::set<std::pair<uint256, COutPoint> > setPeginsSpent;
-    {
-        CCoinsViewCache view(pcoinsTip);
-        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams, &setPeginsSpent);
-        GetMainSignals().BlockChecked(blockConnecting, state);
-        if (!rv) {
-            if (state.IsInvalid()) {
-                InvalidBlockFound(pindexNew, state);
-                //Possibly result of RPC to bitcoind failure
-                //or unseen Bitcoin blocks.
-                if (state.GetRejectCode() == REJECT_PEGIN) {
-                    //Write queue of invalid blocks that
-                    //must be cleared to continue operation
-                    std::vector<uint256> vinvalidBlocks;
-                    pblocktree->ReadInvalidBlockQueue(vinvalidBlocks);
-                    bool blockAlreadyInvalid = false;
-                    BOOST_FOREACH(uint256& hash, vinvalidBlocks) {
-                        if (hash == blockConnecting.GetHash()) {
-                            blockAlreadyInvalid = true;
-                            break;
-                        }
-                    }
-                    if (!blockAlreadyInvalid) {
-                        vinvalidBlocks.push_back(blockConnecting.GetHash());
-                        pblocktree->WriteInvalidBlockQueue(vinvalidBlocks);
-                    }
-                }
+bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
+                       CBlockIndex *pindexNew,
+                       const std::shared_ptr<const CBlock> &pblock,
+                       ConnectTrace &connectTrace) {
+  assert(pindexNew->pprev == chainActive.Tip());
+  // Read block from disk.
+  int64_t nTime1 = GetTimeMicros();
+  if (!pblock) {
+    std::shared_ptr<CBlock> pblockNew = std::make_shared<CBlock>();
+    connectTrace.blocksConnected.emplace_back(pindexNew, pblockNew);
+    if (!ReadBlockFromDisk(*pblockNew, pindexNew, chainparams.GetConsensus()))
+      return AbortNode(state, "Failed to read block");
+  } else {
+    connectTrace.blocksConnected.emplace_back(pindexNew, pblock);
+  }
+  const CBlock &blockConnecting = *connectTrace.blocksConnected.back().second;
+  // Apply the block atomically to the chain state.
+  int64_t nTime2 = GetTimeMicros();
+  nTimeReadFromDisk += nTime2 - nTime1;
+  int64_t nTime3;
+  LogPrint("bench", "  - Load block from disk: %.2fms [%.2fs]\n",
+           (nTime2 - nTime1) * 0.001, nTimeReadFromDisk * 0.000001);
+  // For mempool removal with pegin conflicts
+  std::set<std::pair<uint256, COutPoint>> setPeginsSpent;
+  {
+    CCoinsViewCache view(pcoinsTip);
+    bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams,
+                           &setPeginsSpent);
+    GetMainSignals().BlockChecked(blockConnecting, state);
+    if (!rv) {
+      if (state.IsInvalid()) {
+        InvalidBlockFound(pindexNew, state);
+        // Possibly result of RPC to bitcoind failure
+        // or unseen Bitcoin blocks.
+        if (state.GetRejectCode() == REJECT_PEGIN) {
+          // Write queue of invalid blocks that
+          // must be cleared to continue operation
+          std::vector<uint256> vinvalidBlocks;
+          pblocktree->ReadInvalidBlockQueue(vinvalidBlocks);
+          bool blockAlreadyInvalid = false;
+          BOOST_FOREACH (uint256 &hash, vinvalidBlocks) {
+            if (hash == blockConnecting.GetHash()) {
+              blockAlreadyInvalid = true;
+              break;
             }
-
-            return error("ConnectTip(): ConnectBlock %s failed", pindexNew->GetBlockHash().ToString());
+          }
+          if (!blockAlreadyInvalid) {
+            vinvalidBlocks.push_back(blockConnecting.GetHash());
+            pblocktree->WriteInvalidBlockQueue(vinvalidBlocks);
+          }
         }
-        nTime3 = GetTimeMicros(); nTimeConnectTotal += nTime3 - nTime2;
-        LogPrint("bench", "  - Connect total: %.2fms [%.2fs]\n", (nTime3 - nTime2) * 0.001, nTimeConnectTotal * 0.000001);
-        bool flushed = view.Flush();
-        assert(flushed);
+      }
+      return error("ConnectTip(): ConnectBlock %s failed",
+                   pindexNew->GetBlockHash().ToString());
     }
-    int64_t nTime4 = GetTimeMicros(); nTimeFlush += nTime4 - nTime3;
-    LogPrint("bench", "  - Flush: %.2fms [%.2fs]\n", (nTime4 - nTime3) * 0.001, nTimeFlush * 0.000001);
-    // Write the chain state to disk, if necessary.
-    if (!FlushStateToDisk(state, FLUSH_STATE_IF_NEEDED))
-        return false;
-    int64_t nTime5 = GetTimeMicros(); nTimeChainState += nTime5 - nTime4;
-    LogPrint("bench", "  - Writing chainstate: %.2fms [%.2fs]\n", (nTime5 - nTime4) * 0.001, nTimeChainState * 0.000001);
-    // Remove conflicting transactions from the mempool.;
-    mempool.removeForBlock(blockConnecting.vtx, pindexNew->nHeight, setPeginsSpent);
-    // Update chainActive & related variables.
-    UpdateTip(pindexNew, chainparams);
-
-    int64_t nTime6 = GetTimeMicros(); nTimePostConnect += nTime6 - nTime5; nTimeTotal += nTime6 - nTime1;
-    LogPrint("bench", "  - Connect postprocess: %.2fms [%.2fs]\n", (nTime6 - nTime5) * 0.001, nTimePostConnect * 0.000001);
-    LogPrint("bench", "- Connect block: %.2fms [%.2fs]\n", (nTime6 - nTime1) * 0.001, nTimeTotal * 0.000001);
-    return true;
+    nTime3 = GetTimeMicros();
+    nTimeConnectTotal += nTime3 - nTime2;
+    LogPrint("bench", "  - Connect total: %.2fms [%.2fs]\n",
+             (nTime3 - nTime2) * 0.001, nTimeConnectTotal * 0.000001);
+    bool flushed = view.Flush();
+    assert(flushed);
+  }
+  int64_t nTime4 = GetTimeMicros();
+  nTimeFlush += nTime4 - nTime3;
+  LogPrint("bench", "  - Flush: %.2fms [%.2fs]\n", (nTime4 - nTime3) * 0.001,
+           nTimeFlush * 0.000001);
+  // Write the chain state to disk, if necessary.
+  if (!FlushStateToDisk(state, FLUSH_STATE_IF_NEEDED))
+    return false;
+  int64_t nTime5 = GetTimeMicros();
+  nTimeChainState += nTime5 - nTime4;
+  LogPrint("bench", "  - Writing chainstate: %.2fms [%.2fs]\n",
+           (nTime5 - nTime4) * 0.001, nTimeChainState * 0.000001);
+  // Remove conflicting transactions from the mempool.;
+  mempool.removeForBlock(blockConnecting.vtx, pindexNew->nHeight,
+                         setPeginsSpent);
+  // Update chainActive & related variables.
+  UpdateTip(pindexNew, chainparams);
+  int64_t nTime6 = GetTimeMicros();
+  nTimePostConnect += nTime6 - nTime5;
+  nTimeTotal += nTime6 - nTime1;
+  LogPrint("bench", "  - Connect postprocess: %.2fms [%.2fs]\n",
+           (nTime6 - nTime5) * 0.001, nTimePostConnect * 0.000001);
+  LogPrint("bench", "- Connect block: %.2fms [%.2fs]\n",
+           (nTime6 - nTime1) * 0.001, nTimeTotal * 0.000001);
+  return true;
 }
 
 /**
  * Return the tip of the chain with the most work in it, that isn't
  * known to be invalid (it's however far from certain to be valid).
  */
-static CBlockIndex* FindMostWorkChain() {
-    do {
-        CBlockIndex *pindexNew = NULL;
-
-        // Find the best candidate header.
-        {
-            std::set<CBlockIndex*, CBlockIndexWorkComparator>::reverse_iterator it = setBlockIndexCandidates.rbegin();
-            if (it == setBlockIndexCandidates.rend())
-                return NULL;
-            pindexNew = *it;
+static CBlockIndex *FindMostWorkChain() {
+  do {
+    CBlockIndex *pindexNew = NULL;
+    // Find the best candidate header.
+    {
+      std::set<CBlockIndex *, CBlockIndexWorkComparator>::reverse_iterator it =
+          setBlockIndexCandidates.rbegin();
+      if (it == setBlockIndexCandidates.rend())
+        return NULL;
+      pindexNew = *it;
+    }
+    // Check whether all blocks on the path between the currently active chain
+    // and the candidate are valid. Just going until the active chain is an
+    // optimization, as we know all blocks in it are valid already.
+    CBlockIndex *pindexTest = pindexNew;
+    bool fInvalidAncestor = false;
+    while (pindexTest && !chainActive.Contains(pindexTest)) {
+      assert(pindexTest->nChainTx || pindexTest->nHeight == 0);
+      // Pruned nodes may have entries in setBlockIndexCandidates for
+      // which block files have been deleted.  Remove those as candidates
+      // for the most work chain if we come across them; we can't switch
+      // to a chain unless we have all the non-active-chain parent blocks.
+      bool fFailedChain = pindexTest->nStatus & BLOCK_FAILED_MASK;
+      bool fMissingData = !(pindexTest->nStatus & BLOCK_HAVE_DATA);
+      if (fFailedChain || fMissingData) {
+        // Candidate chain is not usable (either invalid or missing data)
+        if (fFailedChain &&
+            (pindexBestInvalid == NULL ||
+             pindexNew->nChainWork > pindexBestInvalid->nChainWork))
+          pindexBestInvalid = pindexNew;
+        CBlockIndex *pindexFailed = pindexNew;
+        // Remove the entire chain from the set.
+        while (pindexTest != pindexFailed) {
+          if (fFailedChain) {
+            pindexFailed->nStatus |= BLOCK_FAILED_CHILD;
+          } else if (fMissingData) {
+            // If we're missing data, then add back to mapBlocksUnlinked,
+            // so that if the block arrives in the future we can try adding
+            // to setBlockIndexCandidates again.
+            mapBlocksUnlinked.insert(
+                std::make_pair(pindexFailed->pprev, pindexFailed));
+          }
+          setBlockIndexCandidates.erase(pindexFailed);
+          pindexFailed = pindexFailed->pprev;
         }
-
-        // Check whether all blocks on the path between the currently active chain and the candidate are valid.
-        // Just going until the active chain is an optimization, as we know all blocks in it are valid already.
-        CBlockIndex *pindexTest = pindexNew;
-        bool fInvalidAncestor = false;
-        while (pindexTest && !chainActive.Contains(pindexTest)) {
-            assert(pindexTest->nChainTx || pindexTest->nHeight == 0);
-
-            // Pruned nodes may have entries in setBlockIndexCandidates for
-            // which block files have been deleted.  Remove those as candidates
-            // for the most work chain if we come across them; we can't switch
-            // to a chain unless we have all the non-active-chain parent blocks.
-            bool fFailedChain = pindexTest->nStatus & BLOCK_FAILED_MASK;
-            bool fMissingData = !(pindexTest->nStatus & BLOCK_HAVE_DATA);
-            if (fFailedChain || fMissingData) {
-                // Candidate chain is not usable (either invalid or missing data)
-                if (fFailedChain && (pindexBestInvalid == NULL || pindexNew->nChainWork > pindexBestInvalid->nChainWork))
-                    pindexBestInvalid = pindexNew;
-                CBlockIndex *pindexFailed = pindexNew;
-                // Remove the entire chain from the set.
-                while (pindexTest != pindexFailed) {
-                    if (fFailedChain) {
-                        pindexFailed->nStatus |= BLOCK_FAILED_CHILD;
-                    } else if (fMissingData) {
-                        // If we're missing data, then add back to mapBlocksUnlinked,
-                        // so that if the block arrives in the future we can try adding
-                        // to setBlockIndexCandidates again.
-                        mapBlocksUnlinked.insert(std::make_pair(pindexFailed->pprev, pindexFailed));
-                    }
-                    setBlockIndexCandidates.erase(pindexFailed);
-                    pindexFailed = pindexFailed->pprev;
-                }
-                setBlockIndexCandidates.erase(pindexTest);
-                fInvalidAncestor = true;
-                break;
-            }
-            pindexTest = pindexTest->pprev;
-        }
-        if (!fInvalidAncestor)
-            return pindexNew;
-    } while(true);
+        setBlockIndexCandidates.erase(pindexTest);
+        fInvalidAncestor = true;
+        break;
+      }
+      pindexTest = pindexTest->pprev;
+    }
+    if (!fInvalidAncestor)
+      return pindexNew;
+  } while (true);
 }
 
-/** Delete all entries in setBlockIndexCandidates that are worse than the current tip. */
+/** Delete all entries in setBlockIndexCandidates that are worse than the
+ * current tip. */
 static void PruneBlockIndexCandidates() {
-    // Note that we can't delete the current block itself, as we may need to return to it later in case a
-    // reorganization to a better block fails.
-    std::set<CBlockIndex*, CBlockIndexWorkComparator>::iterator it = setBlockIndexCandidates.begin();
-    while (it != setBlockIndexCandidates.end() && setBlockIndexCandidates.value_comp()(*it, chainActive.Tip())) {
-        setBlockIndexCandidates.erase(it++);
-    }
-    // Either the current tip or a successor of it we're working towards is left in setBlockIndexCandidates.
-    assert(!setBlockIndexCandidates.empty());
+  // Note that we can't delete the current block itself, as we may need to
+  // return to it later in case a reorganization to a better block fails.
+  std::set<CBlockIndex *, CBlockIndexWorkComparator>::iterator it =
+      setBlockIndexCandidates.begin();
+  while (it != setBlockIndexCandidates.end() &&
+         setBlockIndexCandidates.value_comp()(*it, chainActive.Tip())) {
+    setBlockIndexCandidates.erase(it++);
+  }
+  // Either the current tip or a successor of it we're working towards is left
+  // in setBlockIndexCandidates.
+  assert(!setBlockIndexCandidates.empty());
 }
 
 /**
  * Try to make some progress towards making pindexMostWork the active block.
- * pblock is either NULL or a pointer to a CBlock corresponding to pindexMostWork.
+ * pblock is either NULL or a pointer to a CBlock corresponding to
+ * pindexMostWork.
  */
-static bool ActivateBestChainStep(CValidationState& state, const CChainParams& chainparams, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace)
-{
-    AssertLockHeld(cs_main);
-    const CBlockIndex *pindexOldTip = chainActive.Tip();
-    const CBlockIndex *pindexFork = chainActive.FindFork(pindexMostWork);
-
-    // Disconnect active blocks which are no longer in the best chain.
-    bool fBlocksDisconnected = false;
-    while (chainActive.Tip() && chainActive.Tip() != pindexFork) {
-        if (!DisconnectTip(state, chainparams))
-            return false;
-        fBlocksDisconnected = true;
+static bool ActivateBestChainStep(CValidationState &state,
+                                  const CChainParams &chainparams,
+                                  CBlockIndex *pindexMostWork,
+                                  const std::shared_ptr<const CBlock> &pblock,
+                                  bool &fInvalidFound,
+                                  ConnectTrace &connectTrace) {
+  AssertLockHeld(cs_main);
+  const CBlockIndex *pindexOldTip = chainActive.Tip();
+  const CBlockIndex *pindexFork = chainActive.FindFork(pindexMostWork);
+  // Disconnect active blocks which are no longer in the best chain.
+  bool fBlocksDisconnected = false;
+  while (chainActive.Tip() && chainActive.Tip() != pindexFork) {
+    if (!DisconnectTip(state, chainparams))
+      return false;
+    fBlocksDisconnected = true;
+  }
+  // Build list of new blocks to connect.
+  std::vector<CBlockIndex *> vpindexToConnect;
+  bool fContinue = true;
+  int nHeight = pindexFork ? pindexFork->nHeight : -1;
+  while (fContinue && nHeight != pindexMostWork->nHeight) {
+    // Don't iterate the entire list of potential improvements toward the best
+    // tip, as we likely only need a few blocks along the way.
+    int nTargetHeight = std::min(nHeight + 32, pindexMostWork->nHeight);
+    vpindexToConnect.clear();
+    vpindexToConnect.reserve(nTargetHeight - nHeight);
+    CBlockIndex *pindexIter = pindexMostWork->GetAncestor(nTargetHeight);
+    while (pindexIter && pindexIter->nHeight != nHeight) {
+      vpindexToConnect.push_back(pindexIter);
+      pindexIter = pindexIter->pprev;
     }
-
-    // Build list of new blocks to connect.
-    std::vector<CBlockIndex*> vpindexToConnect;
-    bool fContinue = true;
-    int nHeight = pindexFork ? pindexFork->nHeight : -1;
-    while (fContinue && nHeight != pindexMostWork->nHeight) {
-        // Don't iterate the entire list of potential improvements toward the best tip, as we likely only need
-        // a few blocks along the way.
-        int nTargetHeight = std::min(nHeight + 32, pindexMostWork->nHeight);
-        vpindexToConnect.clear();
-        vpindexToConnect.reserve(nTargetHeight - nHeight);
-        CBlockIndex *pindexIter = pindexMostWork->GetAncestor(nTargetHeight);
-        while (pindexIter && pindexIter->nHeight != nHeight) {
-            vpindexToConnect.push_back(pindexIter);
-            pindexIter = pindexIter->pprev;
+    nHeight = nTargetHeight;
+    // Connect new blocks.
+    BOOST_REVERSE_FOREACH(CBlockIndex * pindexConnect, vpindexToConnect) {
+      if (!ConnectTip(state, chainparams, pindexConnect,
+                      pindexConnect == pindexMostWork
+                          ? pblock
+                          : std::shared_ptr<const CBlock>(),
+                      connectTrace)) {
+        if (state.IsInvalid()) {
+          // The block violates a consensus rule.
+          if (!state.CorruptionPossible())
+            InvalidChainFound(vpindexToConnect.back());
+          state = CValidationState();
+          fInvalidFound = true;
+          fContinue = false;
+          // If we didn't actually connect the block, don't notify listeners
+          // about it
+          connectTrace.blocksConnected.pop_back();
+          break;
+        } else {
+          // A system error occurred (disk space, database error, ...).
+          return false;
         }
-        nHeight = nTargetHeight;
-
-        // Connect new blocks.
-        BOOST_REVERSE_FOREACH(CBlockIndex *pindexConnect, vpindexToConnect) {
-            if (!ConnectTip(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace)) {
-                if (state.IsInvalid()) {
-                    // The block violates a consensus rule.
-                    if (!state.CorruptionPossible())
-                        InvalidChainFound(vpindexToConnect.back());
-                    state = CValidationState();
-                    fInvalidFound = true;
-                    fContinue = false;
-                    // If we didn't actually connect the block, don't notify listeners about it
-                    connectTrace.blocksConnected.pop_back();
-                    break;
-                } else {
-                    // A system error occurred (disk space, database error, ...).
-                    return false;
-                }
-            } else {
-                PruneBlockIndexCandidates();
-                if (!pindexOldTip || chainActive.Tip()->nChainWork > pindexOldTip->nChainWork) {
-                    // We're in a better position than we were. Return temporarily to release the lock.
-                    fContinue = false;
-                    break;
-                }
-            }
+      } else {
+        PruneBlockIndexCandidates();
+        if (!pindexOldTip ||
+            chainActive.Tip()->nChainWork > pindexOldTip->nChainWork) {
+          // We're in a better position than we were. Return temporarily to
+          // release the lock.
+          fContinue = false;
+          break;
         }
+      }
     }
-
-    if (fBlocksDisconnected) {
-        mempool.removeForReorg(pcoinsTip, chainActive.Tip()->nHeight + 1, STANDARD_LOCKTIME_VERIFY_FLAGS);
-        LimitMempoolSize(mempool, GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000, GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
-    }
-    mempool.check(pcoinsTip);
-
-    // Callbacks/notifications for a new best chain.
-    if (fInvalidFound)
-        CheckForkWarningConditionsOnNewFork(vpindexToConnect.back());
-    else
-        CheckForkWarningConditions();
-
-    return true;
+  }
+  if (fBlocksDisconnected) {
+    mempool.removeForReorg(pcoinsTip, chainActive.Tip()->nHeight + 1,
+                           STANDARD_LOCKTIME_VERIFY_FLAGS);
+    LimitMempoolSize(
+        mempool, GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000,
+        GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
+  }
+  mempool.check(pcoinsTip);
+  // Callbacks/notifications for a new best chain.
+  if (fInvalidFound)
+    CheckForkWarningConditionsOnNewFork(vpindexToConnect.back());
+  else
+    CheckForkWarningConditions();
+  return true;
 }
 
 static void NotifyHeaderTip() {
