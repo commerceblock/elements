@@ -34,6 +34,9 @@
 
 #include <mutex>
 #include <condition_variable>
+
+extern statsd::StatsdClient statsClient;
+
 using namespace std;
 
 struct CUpdatedBlock
