@@ -2143,105 +2143,98 @@ bool ApplyTxInUndo(const CTxInUndo& undo, CCoinsViewCache& view, const COutPoint
     return fClean;
 }
 
-bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockIndex* pindex, CCoinsViewCache& view, bool* pfClean)
-{
-    assert(pindex->GetBlockHash() == view.GetBestBlock());
-
-    if (pfClean)
-        *pfClean = false;
-
-    bool fClean = true;
-
-    CBlockUndo blockUndo;
-    CDiskBlockPos pos = pindex->GetUndoPos();
-    if (pos.IsNull())
-        return error("DisconnectBlock(): no undo data available");
-    if (!UndoReadFromDisk(blockUndo, pos, pindex->pprev->GetBlockHash()))
-        return error("DisconnectBlock(): failure reading undo data");
-
-    if (blockUndo.vtxundo.size() + 1 != block.vtx.size())
-        return error("DisconnectBlock(): block and undo data inconsistent");
-
-    // undo transactions in reverse order
-    for (int i = block.vtx.size() - 1; i >= 0; i--) {
-        const CTransaction &tx = *(block.vtx[i]);
-        uint256 hash = tx.GetHash();
-
-        // Check that all outputs are available and match the outputs in the block itself
-        // exactly.
-        {
-        CCoinsModifier outs = view.ModifyCoins(hash);
-        outs->ClearUnspendable();
-
-        CCoins outsBlock(tx, pindex->nHeight);
-        // The CCoins serialization does not serialize negative numbers.
-        // No network rules currently depend on the version here, so an inconsistency is harmless
-        // but it must be corrected before txout nversion ever influences a network rule.
-        if (outsBlock.nVersion < 0)
-            outs->nVersion = outsBlock.nVersion;
-        if (*outs != outsBlock)
-            fClean = fClean && error("DisconnectBlock(): added transaction mismatch? database corrupted");
-
-        // remove outputs
-        outs->Clear();
-        }
-
-        // restore inputs
-        if (i > 0) { // not coinbases
-            const CTxUndo &txundo = blockUndo.vtxundo[i-1];
-            if (txundo.vprevout.size() != tx.vin.size())
-                return error("DisconnectBlock(): transaction and undo data inconsistent");
-            for (unsigned int j = tx.vin.size(); j-- > 0;) {
-                const COutPoint &out = tx.vin[j].prevout;
-                const CTxInUndo &undo = txundo.vprevout[j];
-                const CScriptWitness &pegin_wit = tx.wit.vtxinwit.size() > j ? tx.wit.vtxinwit[j].m_pegin_witness : CScriptWitness();
-                if (!ApplyTxInUndo(undo, view, out, tx.vin[j], pegin_wit))
-                    fClean = false;
-            }
-        }
+bool DisconnectBlock(const CBlock &block, CValidationState &state,
+                     const CBlockIndex *pindex, CCoinsViewCache &view,
+                     bool *pfClean) {
+  assert(pindex->GetBlockHash() == view.GetBestBlock());
+  if (pfClean)
+    *pfClean = false;
+  bool fClean = true;
+  CBlockUndo blockUndo;
+  CDiskBlockPos pos = pindex->GetUndoPos();
+  if (pos.IsNull())
+    return error("DisconnectBlock(): no undo data available");
+  if (!UndoReadFromDisk(blockUndo, pos, pindex->pprev->GetBlockHash()))
+    return error("DisconnectBlock(): failure reading undo data");
+  if (blockUndo.vtxundo.size() + 1 != block.vtx.size())
+    return error("DisconnectBlock(): block and undo data inconsistent");
+  // undo transactions in reverse order
+  for (int i = block.vtx.size() - 1; i >= 0; i--) {
+    const CTransaction &tx = *(block.vtx[i]);
+    uint256 hash = tx.GetHash();
+    // Check that all outputs are available and match the outputs in the block
+    // itself exactly.
+    {
+      CCoinsModifier outs = view.ModifyCoins(hash);
+      outs->ClearUnspendable();
+      CCoins outsBlock(tx, pindex->nHeight);
+      // The CCoins serialization does not serialize negative numbers.
+      // No network rules currently depend on the version here, so an
+      // inconsistency is harmless but it must be corrected before txout
+      // nversion ever influences a network rule.
+      if (outsBlock.nVersion < 0)
+        outs->nVersion = outsBlock.nVersion;
+      if (*outs != outsBlock)
+        fClean = fClean && error("DisconnectBlock(): added transaction "
+                                 "mismatch? database corrupted");
+      // remove outputs
+      outs->Clear();
     }
-
-    // move best block pointer to prevout block
-    view.SetBestBlock(pindex->pprev->GetBlockHash());
-    statsClient.gauge("transactions.txInUTXOSet", view.GetCacheSize(), 1.0f);
-    if (pfClean) {
-        *pfClean = fClean;
-        return true;
+    // restore inputs
+    if (i > 0) { // not coinbases
+      const CTxUndo &txundo = blockUndo.vtxundo[i - 1];
+      if (txundo.vprevout.size() != tx.vin.size())
+        return error(
+            "DisconnectBlock(): transaction and undo data inconsistent");
+      for (unsigned int j = tx.vin.size(); j-- > 0;) {
+        const COutPoint &out = tx.vin[j].prevout;
+        const CTxInUndo &undo = txundo.vprevout[j];
+        const CScriptWitness &pegin_wit =
+            tx.wit.vtxinwit.size() > j ? tx.wit.vtxinwit[j].m_pegin_witness
+                                       : CScriptWitness();
+        if (!ApplyTxInUndo(undo, view, out, tx.vin[j], pegin_wit))
+          fClean = false;
+      }
     }
-    statsClient.gauge("transactions.txInUTXOSet", view.GetCacheSize(), 1.0f);
-    return fClean;
+  }
+  // move best block pointer to prevout block
+  view.SetBestBlock(pindex->pprev->GetBlockHash());
+  statsClient.gauge("transactions.txInUTXOSet", view.GetCacheSize(), 1.0f);
+  if (pfClean) {
+    *pfClean = fClean;
+    return true;
+  }
+  statsClient.gauge("transactions.txInUTXOSet", view.GetCacheSize(), 1.0f);
+  return fClean;
 }
 
-void static FlushBlockFile(bool fFinalize = false)
-{
-    LOCK(cs_LastBlockFile);
-
-    CDiskBlockPos posOld(nLastBlockFile, 0);
-
-    FILE *fileOld = OpenBlockFile(posOld);
-    if (fileOld) {
-        if (fFinalize)
-            TruncateFile(fileOld, vinfoBlockFile[nLastBlockFile].nSize);
-        FileCommit(fileOld);
-        fclose(fileOld);
-    }
-
-    fileOld = OpenUndoFile(posOld);
-    if (fileOld) {
-        if (fFinalize)
-            TruncateFile(fileOld, vinfoBlockFile[nLastBlockFile].nUndoSize);
-        FileCommit(fileOld);
-        fclose(fileOld);
-    }
+void static FlushBlockFile(bool fFinalize = false) {
+  LOCK(cs_LastBlockFile);
+  CDiskBlockPos posOld(nLastBlockFile, 0);
+  FILE *fileOld = OpenBlockFile(posOld);
+  if (fileOld) {
+    if (fFinalize)
+      TruncateFile(fileOld, vinfoBlockFile[nLastBlockFile].nSize);
+    FileCommit(fileOld);
+    fclose(fileOld);
+  }
+  fileOld = OpenUndoFile(posOld);
+  if (fileOld) {
+    if (fFinalize)
+      TruncateFile(fileOld, vinfoBlockFile[nLastBlockFile].nUndoSize);
+    FileCommit(fileOld);
+    fclose(fileOld);
+  }
 }
 
-bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigned int nAddSize);
+bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos,
+                 unsigned int nAddSize);
 
 static CCheckQueue<CCheck> scriptcheckqueue(128);
 
 void ThreadScriptCheck() {
-    RenameThread("bitcoin-scriptch");
-    scriptcheckqueue.Thread();
+  RenameThread("bitcoin-scriptch");
+  scriptcheckqueue.Thread();
 }
 
 bool BitcoindRPCCheck(const bool init)
