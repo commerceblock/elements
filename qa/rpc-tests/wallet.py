@@ -36,24 +36,24 @@ class WalletTest (BitcoinTestFramework):
         assert_equal(len(self.nodes[2].listunspent()), 100)
 
         walletinfo = self.nodes[0].getwalletinfo()
-        assert_equal(walletinfo['balance']["bitcoin"], 21000000)
+        assert_equal(walletinfo['balance']["CBT"], 21000000)
 
         print("Mining blocks...")
         self.nodes[1].generate(101)
         self.sync_all()
 
-        assert_equal(self.nodes[0].getbalance("", 0, False, "bitcoin"), 21000000)
-        assert_equal(self.nodes[1].getbalance("", 0, False, "bitcoin"), 21000000)
-        assert_equal(self.nodes[2].getbalance("", 0, False, "bitcoin"), 21000000)
+        assert_equal(self.nodes[0].getbalance("", 0, False, "CBT"), 21000000)
+        assert_equal(self.nodes[1].getbalance("", 0, False, "CBT"), 21000000)
+        assert_equal(self.nodes[2].getbalance("", 0, False, "CBT"), 21000000)
 
         #Set all OP_TRUE genesis outputs to single node
         self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 21000000, "", "", True)
         self.nodes[0].generate(101)
         self.sync_all()
 
-        assert_equal(self.nodes[0].getbalance("", 0, False, "bitcoin"), 21000000)
-        assert_equal(self.nodes[1].getbalance("", 0, False, "bitcoin"), 0)
-        assert_equal(self.nodes[2].getbalance("", 0, False, "bitcoin"), 0)
+        assert_equal(self.nodes[0].getbalance("", 0, False, "CBT"), 21000000)
+        assert_equal(self.nodes[1].getbalance("", 0, False, "CBT"), 0)
+        assert_equal(self.nodes[2].getbalance("", 0, False, "CBT"), 0)
 
         #self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000000)
         #self.nodes[0].generate(1)
@@ -71,21 +71,21 @@ class WalletTest (BitcoinTestFramework):
         txid1 = self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 11)
         txout1v0 = self.nodes[0].gettxout(txid1, 0)
         rawtx1 = self.nodes[0].getrawtransaction(txid1, 1)
-        amountcommit1 = rawtx1["vout"][0]["amountcommitment"]
+        #amountcommit1 = rawtx1["vout"][0]["amountcommitment"]
         assert_equal(txout1v0['confirmations'], 0)
         assert(not txout1v0['coinbase'])
-        assert_equal(amountcommit1, txout1v0['amountcommitment'])
+        #assert_equal(amountcommit1, txout1v0['amountcommitment'])
 
 
         txid2 = self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 10)
         txout2v0 = self.nodes[0].gettxout(txid2, 0)
         rawtx2 = self.nodes[0].getrawtransaction(txid2, 1)
-        amountcommit2 = rawtx2["vout"][0]["amountcommitment"]
+        #amountcommit2 = rawtx2["vout"][0]["amountcommitment"]
         assert_equal(txout2v0['confirmations'], 0)
         assert(not txout2v0['coinbase'])
-        assert_equal(amountcommit2, txout2v0['amountcommitment'])
+        #assert_equal(amountcommit2, txout2v0['amountcommitment'])
 
-        walletinfo = self.nodes[0].getwalletinfo("bitcoin")
+        walletinfo = self.nodes[0].getwalletinfo("CBT")
         assert_equal(walletinfo['immature_balance'], 0)
 
         # Have node0 mine a block, thus it will collect its own fee. Confirm previous transactions.
@@ -93,7 +93,7 @@ class WalletTest (BitcoinTestFramework):
         self.sync_all()
 
         # Exercise locking of unspent outputs
-        unspent_0 = self.nodes[2].listunspent(1, 9999999, [], True, "bitcoin")[0]
+        unspent_0 = self.nodes[2].listunspent(1, 9999999, [], True, "CBT")[0]
         unspent_0 = {"txid": unspent_0["txid"], "vout": unspent_0["vout"]}
         self.nodes[2].lockunspent(False, [unspent_0])
         assert_raises_message(JSONRPCException, "Insufficient funds", self.nodes[2].sendtoaddress, self.nodes[2].getnewaddress(), 20)
@@ -107,13 +107,13 @@ class WalletTest (BitcoinTestFramework):
 
         # node0 should end up with 100 btc in block rewards plus fees, but
         # minus the 21 plus fees sent to node2
-        assert_equal(self.nodes[0].getbalance("", 0, False, "bitcoin"), 21000000-21)
-        assert_equal(self.nodes[2].getbalance("", 0, False, "bitcoin"), 21)
+        assert_equal(self.nodes[0].getbalance("", 0, False, "CBT"), 21000000-21)
+        assert_equal(self.nodes[2].getbalance("", 0, False, "CBT"), 21)
 
         # Node0 should have three spendable outputs since 0-value coinbase outputs will be OP_RETURN.
         # Create a couple of transactions to send them to node2, submit them through
         # node1, and make sure both node0 and node2 pick them up properly:
-        node0utxos = self.nodes[0].listunspent(1, 9999999, [], True, "bitcoin")
+        node0utxos = self.nodes[0].listunspent(1, 9999999, [], True, "CBT")
         assert_equal(len(node0utxos), 3)
 
         # create both transactions
@@ -124,7 +124,8 @@ class WalletTest (BitcoinTestFramework):
             inputs = []
             outputs = {}
             inputs.append({ "txid" : utxo["txid"], "vout" : utxo["vout"], "nValue":utxo["amount"]})
-            outputs[self.nodes[2].getnewaddress("from1")] = utxo["amount"]
+            outputs = {self.nodes[2].getnewaddress("from1"): utxo["amount"] - Decimal('1'),
+                        "fee": Decimal('1')}
             raw_tx = self.nodes[0].createrawtransaction(inputs, outputs)
             raw_tx = self.nodes[0].blindrawtransaction(raw_tx)
             txns_to_send.append(self.nodes[0].signrawtransaction(raw_tx))
@@ -136,10 +137,80 @@ class WalletTest (BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
 
+        #test creatation of raw multisig issuance transactions                          
+        #get a new address and public and private key for each node                     
+        address_node1 = self.nodes[0].getnewaddress()
+        val_addr_node1 = self.nodes[0].validateaddress(address_node1)
+        privkey_node1 = self.nodes[0].dumpprivkey(address_node1)
+
+        address_node2 =self.nodes[1].getnewaddress()
+        val_addr_node2 = self.nodes[1].validateaddress(address_node2)
+        privkey_node2 =self.nodes[1].dumpprivkey(address_node2)
+
+        address_node3 =self.nodes[2].getnewaddress()
+        val_addr_node3 = self.nodes[2].validateaddress(address_node3)
+        privkey_node3 =self.nodes[2].dumpprivkey(address_node3)
+
+        #create 2 of 3 multisig P2SH script and address                                 
+        multisig = self.nodes[0].createmultisig(2,[val_addr_node1["pubkey"],val_addr_node2["pubkey"],val_addr_node3["pubkey"]])
+        #send some policyasset to the P2SH address
+        pa_txid = self.nodes[2].sendtoaddress(multisig["address"],1)
+        self.nodes[1].generate(1)
+        self.sync_all()
+
+        #get the vout and scriptPubKey of the multisig output                                            
+        vout = 0
+        pa_tx = self.nodes[1].getrawtransaction(pa_txid,1)
+
+        for val in pa_tx["vout"]:
+            for i,j in val.items():
+                if i == "n": vout_t = j
+            for i,j in val.items():
+                if i == "scriptPubKey":
+                    for i2,j2 in j.items():
+                        if i2 == "hex": script_t = j2
+                    for i2,j2 in j.items(): 
+                        if(i2 == "type" and j2 == "scripthash"):
+                            script_pk = script_t
+                            vout = vout_t
+
+        #get address to send tokens and re-issuance tokens  
+        asset_addr = self.nodes[1].getnewaddress()
+        token_addr = self.nodes[1].getnewaddress()
+
+        #create an unsigned raw issuance transaction 
+        issuance_tx = self.nodes[1].createrawissuance(asset_addr,10,token_addr,1,multisig["address"],0.9999,1,0.0001,pa_txid,str(vout))
+
+        #node1 partially sign transaction
+        partial_signed = self.nodes[0].signrawtransaction(issuance_tx["rawtx"],[{"txid":pa_txid,"vout":vout,"scriptPubKey":script_pk,"redeemScript":multisig["redeemScript"]}],[privkey_node1])
+        assert(not partial_signed["complete"])
+
+        #node1 partially sign transaction 
+        signed_tx = self.nodes[1].signrawtransaction(partial_signed["hex"],[{"txid":pa_txid,"vout":vout,"scriptPubKey":script_pk,"redeemScript":multisig["redeemScript"]}],[privkey_node2])
+
+        assert(signed_tx["complete"])
+        self.nodes[1].generate(2)
+        self.sync_all()
+
+        #submit signed transaction to network
+        submit = self.nodes[1].sendrawtransaction(signed_tx["hex"])
+
+        #confirm transaction accepted by mempool 
+        mempool_tx = self.nodes[1].getrawmempool()
+        assert_equal(mempool_tx[0],submit)
+        self.nodes[1].generate(10)
+        self.sync_all()
+
+        #confirm asset can be spent by node2 wallet
+        asset_addr2 = self.nodes[0].getnewaddress()
+        asset_tx = self.nodes[1].sendtoaddress(asset_addr2,5,' ',' ',False,issuance_tx["asset"],True)
+        mempool1 = self.nodes[1].getrawmempool()
+        assert_equal(mempool1[0],asset_tx)
+
+        return #TODO fix the rest
         txoutv0 = self.nodes[0].gettxout(txid, 0)
         assert_equal(txoutv0['confirmations'], 1)
         assert(not txoutv0['coinbase'])
-        return #TODO fix the rest
 
         assert_equal(self.nodes[0].getbalance(), 0)
         assert_equal(self.nodes[2].getbalance(), 94)
@@ -164,7 +235,7 @@ class WalletTest (BitcoinTestFramework):
         node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), Decimal('20'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
 
         # Sendmany 10 BTC
-        txid = self.nodes[2].sendmany('from1', {address: 10}, 0, "", [])
+        txid = self.nodes[2].sendmany('from1', {address: 10}, 0, "", [], {'fee': 'CBT'})
         self.nodes[2].generate(1)
         self.sync_all()
         node_0_bal += Decimal('10')
@@ -172,7 +243,7 @@ class WalletTest (BitcoinTestFramework):
         assert_equal(self.nodes[0].getbalance(), node_0_bal)
 
         # Sendmany 10 BTC with subtract fee from amount
-        txid = self.nodes[2].sendmany('from1', {address: 10}, 0, "", [address])
+        txid = self.nodes[2].sendmany('from1', {address: 10}, 0, "", [address], {'fee': 'CBT'})
         self.nodes[2].generate(1)
         self.sync_all()
         node_2_bal -= Decimal('10')

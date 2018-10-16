@@ -216,7 +216,7 @@ UniValue validateaddress(const JSONRPCRequest& request)
         if (address.IsBlinded()) {
             CPubKey key = address.GetBlindingKey();
             ret.push_back(Pair("confidential_key", HexStr(key.begin(), key.end())));
-            ret.push_back(Pair("unconfidential", address.GetUnblinded().ToString()));
+            ret.push_back(Pair("unconfidential", CBitcoinAddress(dest).ToString()));
         } else {
             ret.push_back(Pair("confidential_key", ""));
             ret.push_back(Pair("unconfidential", currentAddress));
@@ -250,6 +250,7 @@ UniValue validateaddress(const JSONRPCRequest& request)
                     ret.push_back(Pair("hdkeypath", it->second.hdKeypath));
                     ret.push_back(Pair("hdmasterkeyid", it->second.hdMasterKeyID.GetHex()));
                 }
+                ret.push_back(Pair("derivedpubkey", HexStr(it->second.derivedPubKey.begin(), it->second.derivedPubKey.end())));
             }
         }
 #endif

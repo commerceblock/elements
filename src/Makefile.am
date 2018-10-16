@@ -135,6 +135,7 @@ BITCOIN_CORE_H = \
   script/sign.h \
   script/standard.h \
   script/ismine.h \
+  statsd_client.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
@@ -206,6 +207,7 @@ libbitcoin_server_a_SOURCES = \
   rpc/server.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
+  statsd_client.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \
@@ -214,6 +216,7 @@ libbitcoin_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
+  statsd_client.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
@@ -342,6 +345,7 @@ libbitcoin_common_a_SOURCES = \
   script/sign.cpp \
   script/standard.cpp \
   warnings.cpp \
+  statsd_client.cpp \
   $(BITCOIN_CORE_H)
 
 # util: shared between all executables.
@@ -360,6 +364,7 @@ libbitcoin_util_a_SOURCES = \
   compat/strnlen.cpp \
   random.cpp \
   rpc/protocol.cpp \
+  statsd_client.cpp \
   support/cleanse.cpp \
   sync.cpp \
   threadinterrupt.cpp \

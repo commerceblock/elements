@@ -7,6 +7,7 @@
 
 #include "policy/policy.h"
 
+#include "pubkey.h"
 #include "validation.h"
 #include "tinyformat.h"
 #include "util.h"
@@ -19,7 +20,7 @@ CAsset policyAsset;
     /**
      * Check transaction inputs to mitigate two
      * potential denial-of-service attacks:
-     * 
+     *
      * 1. scriptSigs with extra data stuffed into them,
      *    not consumed by scriptPubKey (or P2SH script)
      * 2. P2SH scripts with a crazy number of expensive
@@ -92,13 +93,115 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
         if ((whichType == TX_MULTISIG) && (!fIsBareMultisigStd)) {
             reason = "bare-multisig";
             return false;
-        } else if ((txout.nAsset.IsExplicit() && txout.nAsset.GetAsset() == policyAsset) && txout.IsDust(dustRelayFee)) {
+        } else if (txout.nAsset.IsExplicit() && txout.IsDust(dustRelayFee)) {
             reason = "dust";
             return false;
         }
     }
 
     return true;
+}
+
+bool IsWhitelisted(const CTransaction& tx)
+{
+  //function that determines that all outputs of a transaction are P2PKH
+  //and all output addresses are present withing the whitelist database
+
+  txnouttype whichType;
+
+  BOOST_FOREACH(const CTxOut& txout, tx.vout) {
+
+    std::vector<std::vector<unsigned char> > vSolutions;
+    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+      return false;
+
+    //return false if not P2PKH or TX_FEE
+    if(!(whichType == TX_FEE || whichType == TX_PUBKEYHASH)) return false;
+    //skip whitelist check if TX_FEE
+    if(whichType == TX_FEE) continue;
+
+    CKeyID keyId;
+    keyId = CKeyID(uint160(vSolutions[0]));
+
+    // search in whitelist for the presence of qaddress: if not found return false
+    if(!(std::binary_search(addressWhitelist.begin(),addressWhitelist.end(),keyId))) return false;
+
+  }
+  return true;
+}
+
+bool IsFreezelisted(const CTransaction& tx, const CCoinsViewCache& mapInputs)
+{
+  if (tx.IsCoinBase())
+    return false; // Coinbases don't use vin normally
+
+  //function that determines if any input pubkeys are on the freezelist
+
+  for (unsigned int i = 0; i < tx.vin.size(); i++) {
+    const CTxOut& prev = mapInputs.GetOutputFor(tx.vin[i]);
+
+    std::vector<std::vector<unsigned char> > vSolutions;
+    txnouttype whichType;
+
+    const CScript& prevScript = prev.scriptPubKey;
+    if (!Solver(prevScript, whichType, vSolutions))
+      return false;
+
+    if (whichType == TX_PUBKEYHASH)
+      {
+
+	CKeyID keyId;
+	keyId = CKeyID(uint160(vSolutions[0]));
+
+	// search in freezelist for the presence of keyid
+	if(std::binary_search(addressFreezelist.begin(),addressFreezelist.end(),keyId)) return true;
+      }
+  }
+  return false;
+}
+
+bool IsBurnlisted(const CTransaction& tx, const CCoinsViewCache& mapInputs)
+{
+  if (tx.IsCoinBase())
+    return false; // Coinbases don't use vin normally
+
+  //are input pubkeys are on the burn list
+  unsigned int nin = 0;
+  for (unsigned int i = 0; i < tx.vin.size(); i++) {
+    const CTxOut& prev = mapInputs.GetOutputFor(tx.vin[i]);
+
+    std::vector<std::vector<unsigned char> > vSolutions;
+    txnouttype whichType;
+
+    const CScript& prevScript = prev.scriptPubKey;
+    if (!Solver(prevScript, whichType, vSolutions))
+      return false;
+
+    if (whichType == TX_PUBKEYHASH)
+      {
+
+	CKeyID keyId;
+	keyId = CKeyID(uint160(vSolutions[0]));
+
+	// search in freezelist for the presence of keyid
+	if(std::binary_search(addressBurnlist.begin(),addressBurnlist.end(),keyId)) nin++;
+      }
+  }
+
+  if(nin > 0) {
+    //are ALL outputs OP_RETURN burn outputs or fee outputs
+    BOOST_FOREACH(const CTxOut& txout, tx.vout) {
+      
+      std::vector<std::vector<unsigned char> > vSolutions;
+      txnouttype whichType;
+      if (!Solver(txout.scriptPubKey, whichType, vSolutions)) return false;
+
+      if(!(whichType == TX_NULL_DATA || whichType == TX_FEE || txout.nAsset.GetAsset() == policyAsset)) return false;
+    }
+  } else {
+    return false;
+  }
+  return true;
 }
 
 bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)

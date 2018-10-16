@@ -3,6 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "base58.h"
 #include "amount.h"
 #include "chain.h"
 #include "chainparams.h"
@@ -21,12 +22,15 @@
 #include "utilstrencodings.h"
 #include "hash.h"
 
+#include <fstream>
+
 #include <stdint.h>
 
 #include <univalue.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/thread/thread.hpp> // boost::thread::interrupt
+#include <boost/algorithm/string.hpp>
 
 #include <mutex>
 #include <condition_variable>
@@ -78,7 +82,9 @@ UniValue blockheaderToJSON(const CBlockIndex* blockindex)
     result.push_back(Pair("bits", GetChallengeStr(blockindex->GetBlockHeader())));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
     result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
-
+    result.push_back(Pair("contracthash", blockindex->hashContract.GetHex()));
+    result.push_back(Pair("attestationhash", blockindex->hashAttestation.GetHex()));
+    result.push_back(Pair("mappinghash", blockindex->hashMapping.GetHex()));
     if (blockindex->pprev)
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
     CBlockIndex *pnext = chainActive.Next(blockindex);
@@ -122,7 +128,9 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.push_back(Pair("bits", GetChallengeStr(block)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
     result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
-
+    result.push_back(Pair("contracthash", blockindex->hashContract.GetHex()));
+    result.push_back(Pair("attestationhash", blockindex->hashAttestation.GetHex()));
+    result.push_back(Pair("mappinghash", blockindex->hashMapping.GetHex()));
     if (blockindex->pprev)
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
     CBlockIndex *pnext = chainActive.Next(blockindex);
@@ -785,6 +793,16 @@ struct CCoinsStats
     CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nSerializedSize(0), nTotalAmount(0) {}
 };
 
+struct CAssetStats
+{
+    uint64_t nSpendableOutputs;
+    uint64_t nFrozenOutputs;
+    CAmount nSpendableAmount;
+    CAmount nFrozenAmount;
+
+    CAssetStats() : nSpendableOutputs(0), nFrozenOutputs(0), nSpendableAmount(0), nFrozenAmount(0) {}
+};
+
 //! Calculate statistics about the unspent transaction output set
 static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
 {
@@ -824,6 +842,75 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
     }
     stats.hashSerialized = ss.GetHash();
     stats.nTotalAmount = nTotalAmount;
+    return true;
+}
+
+static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
+{
+    std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
+
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    uint256 hashBlock = pcursor->GetBestBlock();
+    {
+        LOCK(cs_main);
+    }
+    ss << hashBlock;
+
+    //set freeze-flag key
+    uint160 frzInt;
+    frzInt.SetHex("0x0000000000000000000000000000000000000000");
+    CKeyID frzId;
+    frzId = CKeyID(frzInt);
+
+  //main loop over coins (transactions with > 0 unspent outputs
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        uint256 key;
+        CCoins coins;
+        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
+            ss << key;
+            bool frozenTx = false;
+      
+	    //loop over vouts within a single transaction
+	    for (unsigned int i=0; i<coins.vout.size(); i++) {
+	        const CTxOut &out = coins.vout[i];
+	
+		//check if the tx is flagged frozen (i.e. one output is a zero address)
+		txnouttype whichType;
+		std::vector<std::vector<unsigned char> > vSolutions;
+		Solver(out.scriptPubKey, whichType, vSolutions);
+		if(whichType == TX_PUBKEYHASH) {
+		  CKeyID keyId;
+		  keyId = CKeyID(uint160(vSolutions[0]));
+		  if(keyId == frzId) frozenTx = true;
+		}
+	    }
+      
+	    //loop over all vouts within a single transaction
+	    for (unsigned int i=0; i<coins.vout.size(); i++) {
+	        const CTxOut &out = coins.vout[i];
+	
+		//null vouts are spent
+		if (!out.IsNull()) {
+		    ss << VARINT(i+1);
+		    ss << out;
+		    if(frozenTx) {
+		        stats[out.nAsset.GetAsset()].nFrozenOutputs++;
+			if (out.nValue.IsExplicit())
+			    stats[out.nAsset.GetAsset()].nFrozenAmount += out.nValue.GetAmount();
+		    } else {
+		        stats[out.nAsset.GetAsset()].nSpendableOutputs++;
+			if (out.nValue.IsExplicit())
+			    stats[out.nAsset.GetAsset()].nSpendableAmount += out.nValue.GetAmount();
+		    }
+		}
+	    }
+	    ss << VARINT(0);
+	} else {
+	  return error("%s: unable to read value", __func__);
+	}
+	pcursor->Next();
+    }
     return true;
 }
 
@@ -908,6 +995,49 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
         ret.push_back(Pair("txouts", (int64_t)stats.nTransactionOutputs));
         ret.push_back(Pair("bytes_serialized", (int64_t)stats.nSerializedSize));
         ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
+    } else {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+    }
+    return ret;
+}
+
+UniValue getutxoassetinfo(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw runtime_error(
+            "getassetstats\n"
+            "\nReturns a summary of the total amounts of unspent assets in the UTXO set\n"
+            "Note this call may take some time.\n"
+            "\nResult:\n"
+            "[                     (json array of objects)\n"
+            "  {\n"
+            "    \"asset\":\"<asset>\",   (string) Asset type ID \n"
+	    "    \"amountspendable\":\"X.XX\",     (numeric) The total amount of spendable asset.\n"
+            "    \"spendabletxouts\":\"n\",         (numeric) The number of spendable outputs of the asset.\n"
+	    "    \"amountfrozen\":\"X.XX\",       (numeric) The total amount of frozen asset.\n"
+            "    \"frozentxouts\":\"n\",          (numeric) The number of frozen outputs of the asset.\n"
+            "  }\n"
+            "  ,...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getassetstats", "")
+            + HelpExampleRpc("getassetstats", "")
+			);
+
+    UniValue ret(UniValue::VARR);
+    FlushStateToDisk();
+
+    std::map<CAsset,CAssetStats> stats;
+    if (GetAssetStats(pcoinsTip, stats)) {
+        for(auto const& asset : stats){
+	    UniValue item(UniValue::VOBJ);
+	    item.push_back(Pair("asset",asset.first.GetHex()));
+	    item.push_back(Pair("spendabletxouts",asset.second.nSpendableOutputs));
+	    item.push_back(Pair("amountspendable",ValueFromAmount(asset.second.nSpendableAmount)));
+	    item.push_back(Pair("frozentxouts",asset.second.nFrozenOutputs));
+	    item.push_back(Pair("amountfrozen",ValueFromAmount(asset.second.nFrozenAmount)));
+	    ret.push_back(item);
+	}
     } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
     }
@@ -1220,7 +1350,7 @@ UniValue getchaintips(const JSONRPCRequest& request)
     LOCK(cs_main);
 
     /*
-     * Idea:  the set of chain tips is chainActive.tip, plus orphan blocks which do not have another orphan building off of them. 
+     * Idea:  the set of chain tips is chainActive.tip, plus orphan blocks which do not have another orphan building off of them.
      * Algorithm:
      *  - Make one pass through mapBlockIndex, picking out the orphan blocks, and also storing a set of the orphan block's pprev pointers.
      *  - Iterate through the orphan blocks. If the block isn't pointed to by another orphan, it is a chain tip.
@@ -1360,6 +1490,421 @@ UniValue preciousblock(const JSONRPCRequest& request)
     return NullUniValue;
 }
 
+UniValue addtowhitelist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 2)
+    throw runtime_error(
+            "addtowhitelist \"tweakedaddress\" \"basepubkey\"\n"
+            "\nAttempts to add an address (tweakedaddress) to the node mempool whitelist.\n"
+            "The address is checked that it has been tweaked with the contract hash.\n"
+            "\nArguments:\n"
+            "1. \"tweakedaddress\"  (string, required) Base58 tweaked address\n"
+            "2. \"basepubkey\"     (string, required) Hex encoded of the compressed base (un-tweaked) public key\n"
+            "\nExamples:\n"
+            + HelpExampleCli("addtowhitelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB \" \"02e2367f74add814a482ab341cd514516f6c56dd951ceb1d51d9ddeb335968355e\"")
+            + HelpExampleRpc("addtowhitelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB \" \"02e2367f74add814a482ab341cd514516f6c56dd951ceb1d51d9ddeb335968\
+355\"")
+                        );
+
+    CBitcoinAddress address;
+    if (!address.SetString(request.params[0].get_str()))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+
+    std::vector<unsigned char> pubKeyData(ParseHex(request.params[1].get_str()));
+    CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
+    if (!pubKey.IsFullyValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid public key");
+
+    uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+    if (!contract.IsNull())
+        pubKey.AddTweakToPubKey((unsigned char*)contract.begin());
+
+    CKeyID keyId;
+    if (!address.GetKeyID(keyId))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+    if (pubKey.GetID() != keyId)
+    {
+        throw JSONRPCError(RPC_INVALID_KEY_DERIVATION, "Invalid key derivation from tweaking key with contract hash");
+    }
+    else
+    {
+        //insert new address into sorted whitelist vector (if it doesn't already exist in the list)
+        if(!(std::binary_search(addressWhitelist.begin(),addressWhitelist.end(),keyId)))
+        {
+            std::vector<CKeyID>::iterator it = std::lower_bound(addressWhitelist.begin(),addressWhitelist.end(),keyId);
+            addressWhitelist.insert(it,keyId);
+        }
+    }
+
+    return NullUniValue;
+}
+
+UniValue readwhitelist(const JSONRPCRequest& request)
+{
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+            "readwhitelist \"filename\"\n"
+            "Read in derived keys and tweaked addresses from key dump file (see dumpderivedkeys) into the address whitelist.\n"
+            "\nArguments:\n"
+            "1. \"filename\"    (string, required) The key file\n"
+            "\nExamples:\n"
+            "\nDump the keys\n"
+            + HelpExampleCli("readwhitelist", "\"test\"")
+            + HelpExampleRpc("readwhitelist", "\"test\"")
+			);
+
+    std::ifstream file;
+    file.open(request.params[0].get_str().c_str(), std::ios::in | std::ios::ate);
+    if (!file.is_open())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open key dump file");
+
+    file.seekg(0, file.beg);
+
+    // parse file to extract bitcoin address - untweaked pubkey pairs and validate derivation
+    while (file.good())
+    {
+        std::string line;
+        std::getline(file, line);
+        if (line.empty() || line[0] == '#')
+            continue;
+
+        std::vector<std::string> vstr;
+        boost::split(vstr, line, boost::is_any_of(" "));
+        if (vstr.size() < 2)
+            continue;
+
+        CBitcoinAddress address;
+        if (!address.SetString(vstr[0]))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+
+        std::vector<unsigned char> pubKeyData(ParseHex(vstr[1]));
+        CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
+        if (!pubKey.IsFullyValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid public key");
+
+        uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+        if (!contract.IsNull())
+            pubKey.AddTweakToPubKey((unsigned char*)contract.begin());
+        CKeyID keyId;
+        if (!address.GetKeyID(keyId))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+        if (pubKey.GetID() != keyId)
+            throw JSONRPCError(RPC_INVALID_KEY_DERIVATION, "Invalid key derivation when tweaking key with contract hash");
+
+        //insert new address into sorted whitelist vector (if it doesn't already exist in the list)
+        if(!(std::binary_search(addressWhitelist.begin(),addressWhitelist.end(),keyId)))
+        {
+            std::vector<CKeyID>::iterator it = std::lower_bound(addressWhitelist.begin(),addressWhitelist.end(),keyId);
+            addressWhitelist.insert(it,keyId);
+        }
+    }
+
+    file.close();
+
+    return NullUniValue;
+}
+
+UniValue querywhitelist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+            "querywhitelist \"address\" \n"
+            "\nChecks if an address is present in the node mempool whitelist.\n"
+            "\nArguments:\n"
+            "1. \"address\"  (string, required) Base58 encoded address\n"
+            "\nExamples:\n"
+            + HelpExampleCli("querywhitelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+            + HelpExampleRpc("querywhitelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+			);
+
+  CBitcoinAddress address;
+  if (!address.SetString(request.params[0].get_str()))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+
+  CKeyID keyId;
+  if (!address.GetKeyID(keyId))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+  return std::binary_search(addressWhitelist.begin(),addressWhitelist.end(),keyId);
+}
+
+UniValue removefromwhitelist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+            "removefromwhitelist \"address\" \n"
+            "\nRemoves an address from the node mempool whitelist.\n"
+            "\nArguments:\n"
+            "1. \"address\"  (string, required) Base58 encoded address\n"
+            "\nExamples:\n"
+            + HelpExampleCli("removefromwhitelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+            + HelpExampleRpc("removefromwhitelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+                        );
+
+  CBitcoinAddress address;
+  if (!address.SetString(request.params[0].get_str()))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+
+  CKeyID keyId;
+  if (!address.GetKeyID(keyId))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+  addressWhitelist.erase(std::remove(addressWhitelist.begin(),addressWhitelist.end(),keyId),addressWhitelist.end());
+
+  return NullUniValue;
+}
+
+UniValue dumpwhitelist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+            "dumpwhitelist \"filename\"\n"
+            "\nDumps all addresses in the tx mempool to a text file.\n"
+	        "\nArguments:\n"
+            "1. \"filename\"    (string, required) The filename\n"
+            "\nExamples:\n"
+            + HelpExampleCli("dumpwhitelist", "\"test\"")
+            + HelpExampleRpc("dumpwhitelist", "\"test\"")
+			);
+
+  std::ofstream file;
+  file.open(request.params[0].get_str().c_str());
+  if (!file.is_open())
+    throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open key dump file");
+
+  // produce output
+  file << strprintf("# Whitelisted address dump");
+  file << "\n";
+
+  for(unsigned long it = 0;it<addressWhitelist.size();it++) {
+    std::string strAddr = CBitcoinAddress(addressWhitelist[it]).ToString();
+    file << strprintf("%s\n",
+		      strAddr);
+  }
+
+  file << "\n";
+  file << "# End of dump\n";
+  file.close();
+
+  return NullUniValue;
+}
+
+UniValue clearwhitelist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 0)
+    throw runtime_error(
+            "clearwhitelist \n"
+            "\nClears the node mempool transaction whitelist (no arguments).\n"
+            + HelpExampleCli("clearwhitelist", "\"true\"")
+            + HelpExampleRpc("clearwhitelist", "\"true\"")
+			);
+
+  addressWhitelist.clear();
+
+  return NullUniValue;
+}
+
+UniValue addtofreezelist(const JSONRPCRequest& request)
+{
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+			    "addtofreezelist \"address\"\n"
+            "\nAdd an address to the node mempool freezelist.\n"
+            "\nArguments:\n"
+            "1. \"address\"  (string, required) Base58 address\n"
+            "\nExamples:\n"
+			    + HelpExampleCli("addtofreezelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+			    + HelpExampleRpc("addtofreezelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+			);
+
+  CBitcoinAddress address;
+  if (!address.SetString(request.params[0].get_str()))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+
+  CKeyID keyId;
+  if (!address.GetKeyID(keyId))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+  //insert address into sorted freezelist vector (if it doesn't already exist in the list)
+  if(!(std::binary_search(addressFreezelist.begin(),addressFreezelist.end(),keyId))) {
+    std::vector<CKeyID>::iterator it = std::lower_bound(addressFreezelist.begin(),addressFreezelist.end(),keyId);
+    addressFreezelist.insert(it,keyId);
+  }
+
+  return NullUniValue;
+}
+
+UniValue queryfreezelist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+            "queryfreezelist \"address\" \n"
+            "\nChecks if an address is present in the node mempool freezelist.\n"
+            "\nArguments:\n"
+            "1. \"address\"  (string, required) Base58 encoded address\n"
+            "\nExamples:\n"
+            + HelpExampleCli("queryfreezelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+            + HelpExampleRpc("queryfreezelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+                        );
+
+  CBitcoinAddress address;
+  if (!address.SetString(request.params[0].get_str()))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+
+  CKeyID keyId;
+  if (!address.GetKeyID(keyId))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+  return std::binary_search(addressFreezelist.begin(),addressFreezelist.end(),keyId);
+}
+
+UniValue removefromfreezelist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+            "removefromfreezelist \"address\" \n"
+            "\nRemoves an address from the node mempool freezelist.\n"
+            "\nArguments:\n"
+            "1. \"address\"  (string, required) Base58 encoded address\n"
+            "\nExamples:\n"
+            + HelpExampleCli("removefromfreezelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+            + HelpExampleRpc("removefromfreezelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+                        );
+
+  CBitcoinAddress address;
+  if (!address.SetString(request.params[0].get_str()))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+
+  CKeyID keyId;
+  if (!address.GetKeyID(keyId))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+  addressFreezelist.erase(std::remove(addressFreezelist.begin(),addressFreezelist.end(),keyId),addressFreezelist.end());
+
+  return NullUniValue;
+}
+
+UniValue clearfreezelist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 0)
+    throw runtime_error(
+            "clearfreezelist \n"
+            "\nClears the node mempool transaction freezelist (no arguments).\n"
+            + HelpExampleCli("clearfreezelist", "\"true\"")
+            + HelpExampleRpc("clearfreezelist", "\"true\"")
+                        );
+
+  addressFreezelist.clear();
+
+  return NullUniValue;
+}
+
+UniValue addtoburnlist(const JSONRPCRequest& request)
+{
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+                            "addtoburnlist \"address\"\n"
+            "\nAdd an address to the node mempool burnlist.\n"
+            "\nArguments:\n"
+            "1. \"address\"  (string, required) Base58 address\n"
+            "\nExamples:\n"
+                            + HelpExampleCli("addtoburnlist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+                            + HelpExampleRpc("addtoburnlist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+                        );
+
+  CBitcoinAddress address;
+  if (!address.SetString(request.params[0].get_str()))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+
+  CKeyID keyId;
+  if (!address.GetKeyID(keyId))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+  //insert address into sorted freezelist vector (if it doesn't already exist in the list)
+  if(!(std::binary_search(addressBurnlist.begin(),addressBurnlist.end(),keyId))) {
+    std::vector<CKeyID>::iterator it = std::lower_bound(addressBurnlist.begin(),addressBurnlist.end(),keyId);
+    addressBurnlist.insert(it,keyId);
+  }
+return NullUniValue;
+}
+
+UniValue queryburnlist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+            "queryburnlist \"address\" \n"
+            "\nChecks if an address is present in the node mempool burnlist.\n"
+            "\nArguments:\n"
+            "1. \"address\"  (string, required) Base58 encoded address\n"
+            "\nExamples:\n"
+            + HelpExampleCli("queryburnlist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+            + HelpExampleRpc("queryburnlist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+                        );
+
+  CBitcoinAddress address;
+  if (!address.SetString(request.params[0].get_str()))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+
+  CKeyID keyId;
+  if (!address.GetKeyID(keyId))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+  return std::binary_search(addressBurnlist.begin(),addressBurnlist.end(),keyId);
+}
+
+UniValue removefromburnlist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+            "removefromburnlist \"address\" \n"
+            "\nRemoves an address from the node mempool burnlist.\n"
+            "\nArguments:\n"
+            "1. \"address\"  (string, required) Base58 encoded address\n"
+            "\nExamples:\n"
+            + HelpExampleCli("removefromburnlist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+            + HelpExampleRpc("removefromburnlist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+                        );
+
+  CBitcoinAddress address;
+  if (!address.SetString(request.params[0].get_str()))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+
+  CKeyID keyId;
+  if (!address.GetKeyID(keyId))
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+  addressBurnlist.erase(std::remove(addressBurnlist.begin(),addressBurnlist.end(),keyId),addressBurnlist.end());
+
+  return NullUniValue;
+}
+
+UniValue clearburnlist(const JSONRPCRequest& request)
+{
+
+  if (request.fHelp || request.params.size() != 0)
+    throw runtime_error(
+            "clearburnlist \n"
+            "\nClears the node mempool transaction burnlist (no arguments).\n"
+            + HelpExampleCli("clearburnlist", "\"true\"")
+            + HelpExampleRpc("clearburnlist", "\"true\"")
+                        );
+
+  addressBurnlist.clear();
+  return NullUniValue;
+}
+
 UniValue invalidateblock(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -1433,6 +1978,84 @@ UniValue reconsiderblock(const JSONRPCRequest& request)
     }
 
     return NullUniValue;
+}
+
+UniValue getmappinghash(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 1)
+        throw runtime_error(
+                "getmappinghash blockheight\n"
+                "\nReturns the mapping hash for the specified block height.\n"
+                "\nArguments:\n"
+                "1. blockheight         (numeric, required) The height index\n"
+                "\nResult:\n"
+                "\"mapping\"         (string) The mapping hash\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getmappinghash", "1000")
+                + HelpExampleRpc("getmappinghash", "1000")
+                );
+
+    LOCK(cs_main);
+
+    int nHeight = chainActive.Height();
+    if (request.params.size() > 0)
+    {
+        nHeight = request.params[0].get_int();
+        if (nHeight < 0 || nHeight > chainActive.Height())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
+    }
+
+    CBlockIndex* pblockindex = chainActive[nHeight];
+    return pblockindex->hashMapping.ToString();
+}
+
+UniValue getcontracthash(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 1)
+        throw runtime_error(
+                "getcontracthash blockheight\n"
+                "\nReturns the contract hash for the specified block height.\n"
+                "\nArguments:\n"
+                "1. blockheight         (numeric, required) The height index\n"
+                "\nResult:\n"
+                "\"contracthash\"         (string) The contract hash\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getcontracthash", "1000")
+                + HelpExampleRpc("getcontracthash", "1000")
+                );
+
+    LOCK(cs_main);
+
+    int nHeight = chainActive.Height();
+    if (request.params.size() > 0)
+    {
+        nHeight = request.params[0].get_int();
+        if (nHeight < 0 || nHeight > chainActive.Height())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
+    }
+
+    CBlockIndex* pblockindex = chainActive[nHeight];
+    return pblockindex->hashContract.ToString();
+}
+
+UniValue getcontract(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw runtime_error(
+                "getcontract \n"
+                "\nReturns the latest contract from the node\n"
+                "\nUp to date contract details are only maintained in signing nodes (no arguments).\n"
+                "\nResult:\n"
+                "{\n"
+                "   \"contract\" : \"contract\""
+                "}\n"
+                + HelpExampleCli("getcontract", "\"true\"")
+                + HelpExampleRpc("getcontract", "\"true\"")
+                );
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("contract", GetContract()));
+    return ret;
 }
 
 template<typename T>
@@ -1552,8 +2175,6 @@ static UniValue getblockstats(const JSONRPCRequest& request)
         }
     }
 
-    const CAsset asset = policyAsset; // TODO Make configurable
-
     const CBlock block = GetBlockChecked(pindex);
 
     const bool do_all = stats.size() == 0; // Calculate everything if nothing selected (default)
@@ -1602,13 +2223,13 @@ static UniValue getblockstats(const JSONRPCRequest& request)
         if (tx->IsCoinBase()) {
             continue;
         }
-        
+
         if (loop_outputs) {
             for (const CTxOut& out : tx->vout) {
-                if (out.IsFee() && out.nAsset.GetAsset() == asset) {
+                if (out.IsFee()) {
                     txfee += out.nValue.GetAmount();
                 }
-                if (out.nValue.IsExplicit() && out.nAsset.IsExplicit() && out.nAsset.GetAsset() == asset) {
+                if (out.nValue.IsExplicit() && out.nAsset.IsExplicit()) {
                     tx_total_out += out.nValue.GetAmount();
                 }
             }
@@ -1746,10 +2367,32 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getsidechaininfo",       &getsidechaininfo,       true,  {} },
     { "blockchain",         "gettxout",               &gettxout,               true,  {"txid","n","include_mempool"} },
     { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true,  {} },
+    { "blockchain",         "getutxoassetinfo",       &getutxoassetinfo,       true,  {} },
     { "blockchain",         "pruneblockchain",        &pruneblockchain,        true,  {"height"} },
     { "blockchain",         "verifychain",            &verifychain,            true,  {"checklevel","nblocks"} },
 
     { "blockchain",         "preciousblock",          &preciousblock,          true,  {"blockhash"} },
+
+    { "blockchain",         "addtowhitelist",         &addtowhitelist,         true,  {"address","basepubkey"} },
+    { "blockchain",         "readwhitelist",          &readwhitelist,          true,  {"filename"} },
+    { "blockchain",         "querywhitelist",         &querywhitelist,         true,  {"address"} },
+    { "blockchain",         "removefromwhitelist",    &removefromwhitelist,    true,  {"address"} },
+    { "blockchain",         "dumpwhitelist",          &dumpwhitelist,          true,  {} },
+    { "blockchain",         "clearwhitelist",         &clearwhitelist,         true,  {} },
+
+    { "blockchain",         "addtofreezelist",        &addtofreezelist,        true,  {"address"} },
+    { "blockchain",         "removefromfreezelist",   &removefromfreezelist,   true,  {"address"} },
+    { "blockchain",         "queryfreezelist",        &queryfreezelist,        true,  {"address"} },
+    { "blockchain",         "clearfreezelist",        &clearfreezelist,        true,  {} },
+
+    { "blockchain",         "addtoburnlist",          &addtoburnlist,          true,  {"address"} },
+    { "blockchain",         "removefromburnlist",     &removefromburnlist,     true,  {"address"} },
+    { "blockchain",         "queryburnlist",          &queryburnlist,          true,  {"address"} },
+    { "blockchain",         "clearburnlist",          &clearburnlist,          true,  {} },
+
+    { "blockchain",         "getcontract",             &getcontract,         true,  {} },
+    { "blockchain",         "getcontracthash",         &getcontracthash,     true,  {"blockheight"} },
+    { "blockchain",         "getmappinghash",          &getmappinghash,     true,  {"blockheight"} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        true,  {"blockhash"} },

@@ -195,6 +195,9 @@ public:
     //! block header
     int nVersion;
     uint256 hashMerkleRoot;
+    uint256 hashContract;
+    uint256 hashAttestation;
+    uint256 hashMapping;
     unsigned int nTime;
     CProof proof;
 
@@ -222,6 +225,9 @@ public:
 
         nVersion       = 0;
         hashMerkleRoot = uint256();
+        hashContract   = uint256();
+        hashAttestation = uint256();
+        hashMapping = uint256();
         nTime          = 0;
         proof.SetNull();
     }
@@ -237,6 +243,9 @@ public:
 
         nVersion       = block.nVersion;
         hashMerkleRoot = block.hashMerkleRoot;
+        hashContract   = block.hashContract;
+        hashAttestation = block.hashAttestation;
+        hashMapping     = block.hashMapping;
         nTime          = block.nTime;
         nHeight        = block.nHeight;
         proof          = block.proof;
@@ -267,6 +276,9 @@ public:
         if (pprev)
             block.hashPrevBlock = pprev->GetBlockHash();
         block.hashMerkleRoot = hashMerkleRoot;
+        block.hashContract   = hashContract;
+        block.hashAttestation = hashAttestation;
+        block.hashMapping   = hashMapping;
         block.nTime          = nTime;
         block.nHeight        = nHeight;
         block.proof          = proof;
@@ -383,6 +395,9 @@ public:
         READWRITE(this->nVersion);
         READWRITE(hashPrev);
         READWRITE(hashMerkleRoot);
+        READWRITE(hashContract);
+        READWRITE(hashAttestation);
+        READWRITE(hashMapping);
         READWRITE(nTime);
         READWRITE(proof);
     }
@@ -393,6 +408,9 @@ public:
         block.nVersion        = nVersion;
         block.hashPrevBlock   = hashPrev;
         block.hashMerkleRoot  = hashMerkleRoot;
+        block.hashContract    = hashContract;
+        block.hashAttestation = hashAttestation;
+        block.hashMapping     = hashMapping;
         block.nTime           = nTime;
         block.proof           = proof;
         block.nHeight         = nHeight;

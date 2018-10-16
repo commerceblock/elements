@@ -200,7 +200,9 @@ UniValue getnewaddress(const JSONRPCRequest& request)
 
     pwalletMain->SetAddressBook(keyID, strAccount, "receive");
 
-    return CBitcoinAddress(keyID).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)))).ToString();
+    return !pwalletMain->GetDisableCt() ?
+        CBitcoinAddress(keyID).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)))).ToString() :
+        CBitcoinAddress(keyID).ToString();
 }
 
 
@@ -211,7 +213,9 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false)
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
     }
 
-    return CBitcoinAddress(pubKey.GetID()).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(pubKey.GetID())));
+    return !pwalletMain->GetDisableCt() ?
+        CBitcoinAddress(pubKey.GetID()).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(pubKey.GetID()))).ToString() :
+        CBitcoinAddress(pubKey.GetID()).ToString();
 }
 
 UniValue getaccountaddress(const JSONRPCRequest& request)
@@ -277,7 +281,9 @@ UniValue getrawchangeaddress(const JSONRPCRequest& request)
 
     CKeyID keyID = vchPubKey.GetID();
 
-    return CBitcoinAddress(keyID).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)))).ToString();
+    return !pwalletMain->GetDisableCt() ?
+        CBitcoinAddress(keyID).AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)))).ToString() :
+        CBitcoinAddress(keyID).ToString();
 }
 
 
@@ -389,7 +395,10 @@ UniValue getaddressesbyaccount(const JSONRPCRequest& request)
     BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& item, pwalletMain->mapAddressBook)
     {
         CBitcoinAddress address = item.first;
-        address.AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(item.first)));
+        if (!pwalletMain->GetDisableCt())
+        {
+            address.AddBlindingKey(pwalletMain->GetBlindingPubKey(GetScriptForDestination(item.first)));
+        }
         const string& strName = item.second.name;
         if (strName == strAccount)
             ret.push_back(address.ToString());
@@ -425,14 +434,14 @@ static void SendMoney(const CScript& scriptPubKey, CAmount nValue, CAsset asset,
     int nChangePosRet = -1;
     CRecipient recipient = {scriptPubKey, nValue, asset, confidentiality_key, fSubtractFeeFromAmount};
     vecSend.push_back(recipient);
-    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, vChangeKey, nFeeRequired, nChangePosRet, strError, NULL, true, NULL, true, NULL, NULL, NULL, fIgnoreBlindFail)) {
+    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, vChangeKey, nFeeRequired, nChangePosRet, strError, NULL, true, NULL, true, NULL, NULL, NULL, CAsset(), fIgnoreBlindFail)) {
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
     CValidationState state;
     if (!pwalletMain->CommitTransaction(wtxNew, vChangeKey, g_connman.get(), state)) {
-        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        strError = strprintf("Error: The transaction was rejected! Reason given: %s %s", state.GetRejectReason(), state.GetDebugMessage());
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
 }
@@ -549,7 +558,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
     if (request.params.size() > 4)
         fSubtractFeeFromAmount = request.params[4].get_bool();
 
-    std::string strasset = "bitcoin";
+    std::string strasset = "CBT";
     if (request.params.size() > 5 && request.params[5].isStr()) {
         strasset = request.params[5].get_str();
     }
@@ -954,7 +963,7 @@ UniValue getbalance(const JSONRPCRequest& request)
             }
             BOOST_FOREACH(const COutputEntry& s, listSent)
                 mapBalance[s.asset] -= s.amount;
-            mapBalance[policyAsset] -= allFee;
+            mapBalance[wtx.tx->GetFee().begin()->first] -= allFee;
             // Tally issuances since there are no corresponding "receives"
             for (unsigned int i = 0; i < wtx.tx->vin.size(); i++) {
                 const CTxIn& txin = wtx.tx->vin[i];
@@ -966,7 +975,7 @@ UniValue getbalance(const JSONRPCRequest& request)
                 CAsset token;
                 uint256 entropy;
                 if (!issuance.IsNull()) {
-                    if (issuance.assetBlindingNonce.IsNull()) {
+                    if (!issuance.IsReissuance()) {
                         GenerateAssetEntropy(entropy, txin.prevout, issuance.assetEntropy);
                         CalculateAsset(asset, entropy);
                         CalculateReissuanceToken(token, entropy, issuance.nAmount.IsCommitment());
@@ -1093,6 +1102,7 @@ UniValue sendmany(const JSONRPCRequest& request)
             "6. \"output_assets\"     (string, optional, default=bitcoin) a json object of assets to addresses\n"
             "   {\n"
             "       \"address\": \"hex\" \n"
+            "       \"fee\": \"hex\" \n"
             "       ...\n"
             "   }\n"
             "7. \"ignoreblindfail\"\"   (bool, default=true) Return a transaction even when a blinding attempt fails due to number of blinded inputs/outputs.\n"
@@ -1154,7 +1164,7 @@ UniValue sendmany(const JSONRPCRequest& request)
     {
         CBitcoinAddress address(name_);
 
-        std::string strasset = "bitcoin";
+        std::string strasset = "CBT";
         if (!assets.isNull() && assets[name_].isStr()) {
             strasset = assets[name_].get_str();
         }
@@ -1192,6 +1202,12 @@ UniValue sendmany(const JSONRPCRequest& request)
 
     }
 
+    // Check if the fee asset is set and pass that to transaction creation
+    CAsset feeAsset;
+    if (!assets.isNull() && assets["fee"].isStr()) {
+        feeAsset = GetAssetFromString(assets["fee"].get_str());
+    }
+
     EnsureWalletIsUnlocked();
 
     // Check funds
@@ -1213,7 +1229,7 @@ UniValue sendmany(const JSONRPCRequest& request)
     CAmount nFeeRequired = 0;
     int nChangePosRet = -1;
     string strFailReason;
-    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, vChangeKey, nFeeRequired, nChangePosRet, strFailReason, NULL, true, NULL, false, NULL, NULL, NULL, fIgnoreBlindFail);
+    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, vChangeKey, nFeeRequired, nChangePosRet, strFailReason, NULL, true, NULL, false, NULL, NULL, NULL, feeAsset, fIgnoreBlindFail);
     if (!fCreated)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
     CValidationState state;
@@ -2078,7 +2094,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
             "      \"fee\": x.xxx,                     (numeric) The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the \n"
             "                                           'send' category of transactions.\n"
             "      \"abandoned\": xxx                  (bool) 'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
-            "                                           'send' category of transactions.\n"			
+            "                                           'send' category of transactions.\n"
             "    }\n"
             "    ,...\n"
             "  ],\n"
@@ -2114,9 +2130,9 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmountMap nCredit = wtx.GetCredit(filter);
     CAmountMap nDebit = wtx.GetDebit(filter);
     assert(wtx.tx->HasValidFee());
-    CAmount nFee = (wtx.IsFromMe(filter) ? -wtx.tx->GetFee()[policyAsset] : 0);
+    CAmount nFee = (wtx.IsFromMe(filter) ? -wtx.tx->GetFee().begin()->second : 0);
     CAmountMap nNet = nCredit - nDebit;
-    nNet[policyAsset] -= nFee;
+    nNet[wtx.tx->GetFee().begin()->first] -= nFee;
 
     entry.push_back(Pair("amount", PushAssetBalance(nNet, pwalletMain, strasset)));
     if (wtx.IsFromMe(filter))
@@ -3748,6 +3764,116 @@ UniValue claimpegin(const JSONRPCRequest& request)
     return sendrawtransaction(request3);
 }
 
+UniValue createrawissuance(const JSONRPCRequest& request)
+{
+  if (request.fHelp || request.params.size() !=10)
+    throw runtime_error(
+            "createrawissuance assetaddress assetamount tokenaddress tokenamount changeaddress feeamount inputtxid vout\n"
+            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a policyAsset outpoint as input.\n"
+            "\nArguments:\n"
+	    "1. \"assetaddress\"          (string, required) Address to send issued asset to.\n"
+            "2. \"assetamount\"           (numeric or string, required) Amount of asset to generate.\n"
+	    "3. \"tokenaddress\"          (string, required) Address to send reissuance token to.\n"
+            "4. \"tokenamount\"           (numeric or string, required) Amount of reissuance tokens to generate. These will allow you to reissue the asset if in wallet using `reissueasset`. These tokens are not consumed during reissuance.\n"
+	    "5. \"changeaddress\"         (string, required) Address to return the policyAsset input.\n"
+	    "6. \"changeamount\"          (numeric or string, required) Return policyAsset amount.\n"
+	    "7. \"changenum\"             (numeric or string, required) Number of change outputs to be generated\n"
+	    "8. \"feeamount\"             (numeric or string, required) Fee output amount.\n"
+            "9. \"inputtxid\"             (string, required) policyAsset input TXID.\n"
+	    "10. \"vout\"                  (numeric or string, required) policyAsset TXID output index\n"
+            "\nResult:\n"
+            "{                        (json object)\n"
+            "  \"rawtx\":\"<rawtx>\",   (string) Hex encoded raw unsigned issuance transaction.\n"
+            "  \"entropy\":\"<entropy>\" (string) Entropy of the asset type.\n"
+            "  \"asset\":\"<asset>\", (string) Asset type for issuance if known.\n"
+            "  \"token\":\"<token>\", (string) Token type for issuance.\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("createrawissuance", "\"2dhfx249gZKqMGKtKAgceuCyDiHVEeVZWzU\" 100.0 \"2dp5EWgkc4RyzVvBvAyRAMuJ1hS84BgSBLj\" 1.0 \"2djpn7hq9Jh3jx3sjhPXuhUpJQWHrtXrKLr\" 99.9995 1 0.0005 \"42b7101f4596d39cfb5f5e5ca7b6873474607b04f365590f478261ad74dae717\" 1 ")
+            + HelpExampleRpc("createrawissuance", "\"2dhfx249gZKqMGKtKAgceuCyDiHVEeVZWzU\" 100.0 \"2dp5EWgkc4RyzVvBvAyRAMuJ1hS84BgSBLj\" 1.0 \"2djpn7hq9Jh3jx3sjhPXuhUpJQWHrtXrKLr\" 99.9995 1 0.0005 \"42b7101f4596d39cfb5f5e5ca7b6873474607b04f365590f478261ad74dae717\" 1 ")
+			);
+  //Get the output addresses
+  CBitcoinAddress assetAddr(request.params[0].get_str());
+  CBitcoinAddress tokenAddr(request.params[2].get_str());
+  CBitcoinAddress changeAddr(request.params[4].get_str());
+
+  if (!assetAddr.IsValid())
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Asset token address");
+
+  if (!tokenAddr.IsValid())
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Reissuance token address");
+
+  if (!changeAddr.IsValid())
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid policy asset return address");
+
+  //get the output amounts
+  CAmount nAmount = AmountFromValue(request.params[1]);
+  CAmount nTokens = AmountFromValue(request.params[3]);
+  CAmount nChange = AmountFromValue(request.params[5]);
+  CAmount nFee = AmountFromValue(request.params[7]);
+
+  if (nAmount == 0 && nTokens == 0) {
+    throw JSONRPCError(RPC_TYPE_ERROR, "Issuance must have one non-zero component");
+  }
+
+  //get number of change outputs required
+  int nChangeOutputs = request.params[6].get_int();
+
+  bool fBlindIssuances = false;
+
+  //get the input outpoint from RPC
+  uint256 prevtxhash;
+  prevtxhash.SetHex(request.params[8].get_str());
+  uint32_t nout = atoi(request.params[9].get_str());
+  COutPoint policyOutpoint(prevtxhash,nout);
+
+  CMutableTransaction rawTx;
+
+  // Calculate entropy, asset and token IDs from the input outpoint
+  uint256 entropy;
+  CAsset asset;
+  CAsset token;
+  GenerateAssetEntropy(entropy, policyOutpoint, uint256());
+  CalculateAsset(asset, entropy);
+  CalculateReissuanceToken(token, entropy, fBlindIssuances);
+
+  //generate the outputs
+  CAsset pAsset(policyAsset);
+  CTxOut txoutAsset(asset,nAmount,GetScriptForDestination(assetAddr.Get()));
+  rawTx.vout.push_back(txoutAsset);
+  CTxOut txoutToken(token,nTokens,GetScriptForDestination(tokenAddr.Get()));
+  rawTx.vout.push_back(txoutToken);
+  CTxOut txoutChange(pAsset,nChange,GetScriptForDestination(changeAddr.Get()));
+  vector<CTxOut> changeOuts;
+  for(int it=0;it<nChangeOutputs;it++) {
+    rawTx.vout.push_back(txoutChange);
+  }
+  CTxOut out(pAsset, nFee, CScript());
+  rawTx.vout.push_back(out);
+
+  //standard sequence number
+  uint32_t nSequence = (rawTx.nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
+
+  //generate input from the provided outpoint
+  CTxIn in(policyOutpoint, CScript(), nSequence);
+
+  //push single input to raw transaction
+  rawTx.vin.push_back(in);
+
+  //set flags and amounts for asset issuance and reissuance token in the input
+  rawTx.vin[0].assetIssuance.nAmount = nAmount;
+  rawTx.vin[0].assetIssuance.nInflationKeys = nTokens;
+
+  //return result
+  UniValue ret(UniValue::VOBJ);
+  ret.push_back(Pair("rawtx", EncodeHexTx(rawTx)));
+  ret.push_back(Pair("vin", 0));
+  ret.push_back(Pair("entropy", entropy.GetHex()));
+  ret.push_back(Pair("asset", asset.GetHex()));
+  ret.push_back(Pair("token", token.GetHex()));
+  return ret;
+}
+
 UniValue issueasset(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
@@ -3782,7 +3908,8 @@ UniValue issueasset(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_TYPE_ERROR, "Issuance must have one non-zero component");
     }
 
-    bool fBlindIssuances = request.params.size() < 3 || request.params[2].get_bool();
+    bool fBlindIssuances = (!pwalletMain->GetDisableCt() && request.params.size() < 3) ||
+                        (request.params.size() == 3 && request.params[2].get_bool());
 
     if (!pwalletMain->IsLocked())
         pwalletMain->TopUpKeyPool();
@@ -3801,7 +3928,8 @@ UniValue issueasset(const JSONRPCRequest& request)
         keyID = newKey.GetID();
         pwalletMain->SetAddressBook(keyID, "", "receive");
         assetAddr = CBitcoinAddress(keyID);
-        assetKey = pwalletMain->GetBlindingPubKey(GetScriptForDestination(assetAddr.Get()));
+        assetKey = !pwalletMain->GetDisableCt() ?
+            pwalletMain->GetBlindingPubKey(GetScriptForDestination(assetAddr.Get())) : CPubKey();
     }
     if (nTokens > 0) {
         if (!pwalletMain->GetKeyFromPool(newKey))
@@ -3809,7 +3937,8 @@ UniValue issueasset(const JSONRPCRequest& request)
         keyID = newKey.GetID();
         pwalletMain->SetAddressBook(keyID, "", "receive");
         tokenAddr = CBitcoinAddress(keyID);
-        tokenKey = pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)));
+        tokenKey = !pwalletMain->GetDisableCt() ?
+            pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID))) : CPubKey();
     }
 
     CWalletTx wtx;
@@ -3909,7 +4038,8 @@ UniValue reissueasset(const JSONRPCRequest& request)
     keyID = newKey.GetID();
     pwalletMain->SetAddressBook(keyID, "", "receive");
     assetAddr = CBitcoinAddress(keyID);
-    assetKey = pwalletMain->GetBlindingPubKey(GetScriptForDestination(assetAddr.Get()));
+    assetKey = !pwalletMain->GetDisableCt() ?
+        pwalletMain->GetBlindingPubKey(GetScriptForDestination(assetAddr.Get())) : CPubKey();
 
     // Add destination for tokens we are moving
     if (!pwalletMain->GetKeyFromPool(newKey))
@@ -3917,11 +4047,12 @@ UniValue reissueasset(const JSONRPCRequest& request)
     keyID = newKey.GetID();
     pwalletMain->SetAddressBook(keyID, "", "receive");
     tokenAddr = CBitcoinAddress(keyID);
-    tokenKey = pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID)));
+    tokenKey = !pwalletMain->GetDisableCt() ?
+        pwalletMain->GetBlindingPubKey(GetScriptForDestination(CTxDestination(keyID))) : CPubKey();
 
     // Attempt a send.
     CWalletTx wtx;
-    SendGenerationTransaction(GetScriptForDestination(assetAddr.Get()), assetKey, GetScriptForDestination(tokenAddr.Get()), tokenKey, nAmount, -1, true, entropy, asset, reissuanceToken, wtx);
+    SendGenerationTransaction(GetScriptForDestination(assetAddr.Get()), assetKey, GetScriptForDestination(tokenAddr.Get()), tokenKey, nAmount, -1, !pwalletMain->GetDisableCt(), entropy, asset, reissuanceToken, wtx);
 
     std::string blinds;
     for (unsigned int i=0; i<wtx.tx->vout.size(); i++) {
@@ -4001,7 +4132,7 @@ UniValue listissuances(const JSONRPCRequest& request)
             if (issuance.IsNull()) {
                 continue;
             }
-            if (issuance.assetBlindingNonce.IsNull()) {
+            if (!issuance.IsReissuance()) {
                 GenerateAssetEntropy(entropy, pcoin->tx->vin[vinIndex].prevout, issuance.assetEntropy);
                 CalculateAsset(asset, entropy);
                 // Null is considered explicit
@@ -4061,6 +4192,9 @@ extern UniValue importprivkey(const JSONRPCRequest& request);
 extern UniValue importaddress(const JSONRPCRequest& request);
 extern UniValue importpubkey(const JSONRPCRequest& request);
 extern UniValue dumpwallet(const JSONRPCRequest& request);
+extern UniValue dumpderivedkeys(const JSONRPCRequest& request);
+extern UniValue getderivedkeys(const JSONRPCRequest& request);
+extern UniValue validatederivedkeys(const JSONRPCRequest& request);
 extern UniValue importwallet(const JSONRPCRequest& request);
 extern UniValue importprunedfunds(const JSONRPCRequest& request);
 extern UniValue removeprunedfunds(const JSONRPCRequest& request);
@@ -4084,6 +4218,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "dumpprivkey",              &dumpprivkey,              true,   {"address"}  },
     { "wallet",             "dumpissuanceblindingkey",  &dumpissuanceblindingkey,  true,   {"txid", "vin"} },
     { "wallet",             "dumpwallet",               &dumpwallet,               true,   {"filename"} },
+    { "wallet",             "dumpderivedkeys",          &dumpderivedkeys,          true,   {"filename"} },
+    { "wallet",             "validatederivedkeys",      &validatederivedkeys,      true,   {"filename"} },
     { "wallet",             "encryptwallet",            &encryptwallet,            true,   {"passphrase"} },
     { "wallet",             "claimpegin",               &claimpegin,               false,  {"bitcoinT", "txoutproof", "claim_script"} },
     { "wallet",             "createrawpegin",           &createrawpegin,           false,  {"bitcoinT", "txoutproof", "claim_script"} },
@@ -4091,6 +4227,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getaccount",               &getaccount,               true,   {"address"} },
     { "wallet",             "getaddressesbyaccount",    &getaddressesbyaccount,    true,   {"account"} },
     { "wallet",             "getbalance",               &getbalance,               false,  {"account","minconf","include_watchonly"} },
+    { "wallet",             "getderivedkeys",           &getderivedkeys,           true,   {} },
     { "wallet",             "getnewaddress",            &getnewaddress,            true,   {"account"} },
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getpeginaddress",          &getpeginaddress,          false,  {} },
@@ -4109,6 +4246,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "importissuanceblindingkey",&importissuanceblindingkey,true,   {"txid", "vin", "blindingkey"} },
     { "wallet",             "keypoolrefill",            &keypoolrefill,            true,   {"newsize"} },
     { "wallet",             "issueasset",               &issueasset,               true,   {"assetamount", "tokenamount", "blind"} },
+    { "wallet",             "createrawissuance",        &createrawissuance,        true,   {"assetaddress", "assetamount", "tokenaddress", "tokenamount", "changeaddress", "changeamount", "feeamount", "inputtxid", "vout"} },
     { "wallet",             "listaccounts",             &listaccounts,             false,  {"minconf","include_watchonly"} },
     { "wallet",             "listaddressgroupings",     &listaddressgroupings,     false,  {} },
     { "wallet",             "listlockunspent",          &listlockunspent,          false,  {} },

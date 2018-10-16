@@ -28,7 +28,7 @@ static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
 
 
-CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, true) 
+CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, true)
 {
 }
 
@@ -207,16 +207,19 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 // Construct block index object
                 CBlockIndex* pindexNew = insertBlockIndex(diskindex.GetBlockHash());
                 pindexNew->pprev          = insertBlockIndex(diskindex.hashPrev);
-                pindexNew->nHeight        = diskindex.nHeight;
-                pindexNew->nFile          = diskindex.nFile;
-                pindexNew->nDataPos       = diskindex.nDataPos;
-                pindexNew->nUndoPos       = diskindex.nUndoPos;
-                pindexNew->nVersion       = diskindex.nVersion;
-                pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
-                pindexNew->nTime          = diskindex.nTime;
-                pindexNew->proof          = diskindex.proof;
-                pindexNew->nStatus        = diskindex.nStatus;
-                pindexNew->nTx            = diskindex.nTx;
+                pindexNew->nHeight          = diskindex.nHeight;
+                pindexNew->nFile            = diskindex.nFile;
+                pindexNew->nDataPos         = diskindex.nDataPos;
+                pindexNew->nUndoPos         = diskindex.nUndoPos;
+                pindexNew->nVersion         = diskindex.nVersion;
+                pindexNew->hashMerkleRoot   = diskindex.hashMerkleRoot;
+                pindexNew->hashContract     = diskindex.hashContract;
+                pindexNew->hashAttestation  = diskindex.hashAttestation;
+                pindexNew->hashMapping      = diskindex.hashMapping;
+                pindexNew->nTime            = diskindex.nTime;
+                pindexNew->proof            = diskindex.proof;
+                pindexNew->nStatus          = diskindex.nStatus;
+                pindexNew->nTx              = diskindex.nTx;
 
                 pcursor->Next();
             } else {

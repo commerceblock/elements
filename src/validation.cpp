@@ -42,9 +42,10 @@
 #include "versionbits.h"
 #include "warnings.h"
 
+#include "statsd_client.h"
+
 #include <atomic>
 #include <sstream>
-
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/filesystem.hpp>
@@ -62,9 +63,8 @@
 /**
  * Global state
  */
-
+extern statsd::StatsdClient statsClient;
 CCriticalSection cs_main;
-
 BlockMap mapBlockIndex;
 CChain chainActive;
 CBlockIndex *pindexBestHeader = NULL;
@@ -78,17 +78,21 @@ bool fHavePruned = false;
 bool fPruneMode = false;
 bool fIsBareMultisigStd = DEFAULT_PERMIT_BAREMULTISIG;
 bool fRequireStandard = true;
+bool fRequireWhitelistCheck = DEFAULT_WHITELIST_CHECK;
+bool fEnableBurnlistCheck = DEFAULT_BURNLIST_CHECK;
+bool fRequireFreezelistCheck = DEFAULT_BURNLIST_CHECK;
+bool fblockissuancetx = DEFAULT_BLOCK_ISSUANCE;
 bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
 size_t nCoinCacheUsage = 5000 * 300;
 uint64_t nPruneTarget = 0;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
-
 uint256 hashAssumeValid;
-
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
-
+AWhitelist addressWhitelist;
+AWhitelist addressBurnlist;
+AWhitelist addressFreezelist;
 CTxMemPool mempool(::minRelayTxFee);
 
 static void CheckBlockIndex(const Consensus::Params& consensusParams);
@@ -510,12 +514,9 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
     return nSigOps;
 }
 
-
-
-
-
 bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
 {
+    boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
@@ -563,7 +564,9 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             if (txin.prevout.IsNull())
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
     }
-
+    boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
+    boost::posix_time::time_duration diff = finish - start;
+    statsClient.timing("timing.CheckTransaction", diff.total_milliseconds(), 1.0f);
     return true;
 }
 
@@ -780,7 +783,7 @@ bool VerifyAmounts(const CCoinsViewCache& cache, const CTransaction& tx, std::ve
         // These are calculated differently depending on if initial issuance or followup
 
         // New issuance, compute the asset ids
-        if (issuance.assetBlindingNonce.IsNull()) {
+        if (!issuance.IsReissuance()) {
             uint256 entropy;
             GenerateAssetEntropy(entropy, tx.vin[i].prevout, issuance.assetEntropy);
             CalculateAsset(assetID, entropy);
@@ -796,12 +799,15 @@ bool VerifyAmounts(const CCoinsViewCache& cache, const CTransaction& tx, std::ve
             // Must check that prevout is the blinded issuance token
             // prevout's asset tag = assetTokenID + assetBlindingNonce
 
-            if (secp256k1_generator_generate_blinded(secp256k1_ctx_verify_amounts, &gen, assetTokenID.begin(), issuance.assetBlindingNonce.begin()) != 1)
-                return false;
-            if (secp256k1_generator_parse(secp256k1_ctx_verify_amounts, &gencmp, &asset.vchCommitment[0]) != 1)
-                return false;
-            if (memcmp(&gen, &gencmp, 33))
-                return false;
+            if (!issuance.IsUnblindedReissuance()) // skip check if issuance was unblinded
+            {
+                if (secp256k1_generator_generate_blinded(secp256k1_ctx_verify_amounts, &gen, assetTokenID.begin(), issuance.assetBlindingNonce.begin()) != 1)
+                    return false;
+                if (secp256k1_generator_parse(secp256k1_ctx_verify_amounts, &gencmp, &asset.vchCommitment[0]) != 1)
+                    return false;
+                if (memcmp(&gen, &gencmp, 33))
+                    return false;
+            }
         }
 
         // Process issuance of asset
@@ -848,7 +854,7 @@ bool VerifyAmounts(const CCoinsViewCache& cache, const CTransaction& tx, std::ve
         }
 
         // Only initial issuance can have reissuance tokens
-        if (issuance.assetBlindingNonce.IsNull() && !issuance.nInflationKeys.IsNull()) {
+        if (!issuance.IsReissuance() && !issuance.nInflationKeys.IsNull()) {
 
             ret = secp256k1_generator_generate(secp256k1_ctx_verify_amounts, &gen, assetTokenID.begin());
             assert(ret == 1);
@@ -1078,6 +1084,19 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (fRequireStandard && !IsStandardTx(tx, reason))
         return state.DoS(0, false, REJECT_NONSTANDARD, reason);
 
+    // Accept only transactions that have P2PKH outputs with addresses in the whitelist
+    if (fRequireWhitelistCheck){
+      if(!IsWhitelisted(tx))
+      return state.DoS(0, false, REJECT_NONSTANDARD, "non-whitelisted-address");
+    }
+
+    // Accept only transactions that have no asset issuance inputs
+    if(fblockissuancetx){
+      if(GetNumIssuances(tx) > 0){
+	return state.DoS(0, false, REJECT_NONSTANDARD, "blocked-asset-issuance-txn");
+      }
+    }
+
     // Only accept nLockTime-using transactions that can be mined in the next
     // block; we don't want our mempool filled up with transactions that can't
     // be mined yet.
@@ -1176,6 +1195,19 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         if (fRequireStandard && !AreInputsStandard(tx, view))
             return state.Invalid(false, REJECT_NONSTANDARD, "bad-txns-nonstandard-inputs");
 
+	// Accept only transactions that spend from scriptSig inputs with pubkeys that are NOT on the freezelist
+// Pubkeys that are on the freezelist AND the burnlist that are sent to OP_RETURN outputs are passed
+	if (fRequireFreezelistCheck){
+	  if(IsFreezelisted(tx,view)){
+	    if(fEnableBurnlistCheck){
+	      if(!IsBurnlisted(tx,view))
+		return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-no-burnlist-address");
+	    } else {
+	      return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-address");
+	    }
+	  }
+	}
+
         // Check for non-standard witness in P2WSH
         if (tx.HasWitness() && fRequireStandard && !IsWitnessStandard(tx, view))
             return state.DoS(0, false, REJECT_NONSTANDARD, "bad-witness-nonstandard", true);
@@ -1184,7 +1216,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         if (!tx.HasValidFee())
             return state.DoS(0, false, REJECT_INVALID, "bad-fees");
-        CAmount nFees = tx.GetFee()[policyAsset];
+        CAmount nFees = tx.GetFee().begin()->second;
+        CAsset feeAsset = tx.GetFee().begin()->first;
 
         // nModifiedFees includes any fee deltas from PrioritiseTransaction
         CAmount nModifiedFees = nFees;
@@ -1210,7 +1243,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
         }
 
-        CTxMemPoolEntry entry(ptx, nFees, nAcceptTime, dPriority, chainActive.Height(),
+        CTxMemPoolEntry entry(ptx, nFees, feeAsset, nAcceptTime, dPriority, chainActive.Height(),
                               inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp, setPeginsSpent);
         unsigned int nSize = entry.GetTxSize();
 
@@ -1225,7 +1258,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
         if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
-            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d for asset %s", nFees, mempoolRejectFee, feeAsset.GetHex()));
         }
 
         // No transactions are allowed below minRelayTxFee except from disconnected blocks
@@ -1237,7 +1270,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         if (nAbsurdFee && nFees > nAbsurdFee)
             return state.Invalid(false,
                 REJECT_HIGHFEE, "absurdly-high-fee",
-                strprintf("%d > %d", nFees, nAbsurdFee));
+                strprintf("%d > %d for asset %s", nFees, nAbsurdFee, feeAsset.GetHex()));
 
         // Calculate in-mempool ancestors, up to a limit.
         CTxMemPool::setEntries setAncestors;
@@ -1496,7 +1529,12 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
                         bool* pfMissingInputs, std::list<CTransactionRef>* plTxnReplaced,
                         bool fOverrideMempoolLimit, const CAmount nAbsurdFee)
 {
-    return AcceptToMemoryPoolWithTime(pool, state, tx, fLimitFree, pfMissingInputs, GetTime(), plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee);
+  boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
+  bool retrn = AcceptToMemoryPoolWithTime(pool, state, tx, fLimitFree, pfMissingInputs, GetTime(), plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee);
+  boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
+  boost::posix_time::time_duration diff = finish - start;
+  statsClient.timing("timing.AcceptToMemoryPool", diff.total_milliseconds(), 1.0f);
+  return retrn;
 }
 
 /** Return transaction in txOut, and if it was found inside a block, its hash is placed in hashBlock */
@@ -1761,9 +1799,9 @@ void CheckForkWarningConditionsOnNewFork(CBlockIndex* pindexNewForkTip)
 
 void static InvalidChainFound(CBlockIndex* pindexNew)
 {
+    statsClient.inc("warnings.InvalidBlockFound", 1.0f);
     if (!pindexBestInvalid || pindexNew->nChainWork > pindexBestInvalid->nChainWork)
         pindexBestInvalid = pindexNew;
-
     LogPrintf("%s: invalid block=%s  height=%d  log2_work=%.8g  date=%s\n", __func__,
       pindexNew->GetBlockHash().ToString(), pindexNew->nHeight,
       log(pindexNew->nChainWork.getdouble())/log(2.0), DateTimeStrFormat("%Y-%m-%d %H:%M:%S",
@@ -1777,12 +1815,13 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
 }
 
 void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state) {
-    if (!state.CorruptionPossible()) {
-        pindex->nStatus |= BLOCK_FAILED_VALID;
-        setDirtyBlockIndex.insert(pindex);
-        setBlockIndexCandidates.erase(pindex);
-        InvalidChainFound(pindex);
-    }
+  statsClient.inc("warnings.InvalidBlockFound", 1.0f);
+  if (!state.CorruptionPossible()) {
+    pindex->nStatus |= BLOCK_FAILED_VALID;
+    setDirtyBlockIndex.insert(pindex);
+    setBlockIndexCandidates.erase(pindex);
+    InvalidChainFound(pindex);
+  }
 }
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
@@ -1907,6 +1946,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
 bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheStore, PrecomputedTransactionData& txdata, std::set<std::pair<uint256, COutPoint> >& setPeginsSpent, std::vector<CCheck*> *pvChecks)
 {
+    boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
     if (!tx.IsCoinBase())
     {
         if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs), setPeginsSpent, pvChecks, cacheStore, fScriptChecks))
@@ -1970,7 +2010,9 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
             }
         }
     }
-
+    boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
+    boost::posix_time::time_duration diff = finish - start;
+    statsClient.timing("timing.CheckInputs", diff.total_milliseconds(), 1.0f);
     return true;
 }
 
@@ -2769,7 +2811,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (!VerifyCoinbaseAmount(*(block.vtx[0]), blockReward))
         return state.DoS(100,
                          error("ConnectBlock(): coinbase pays too much (limit=%d)",
-                               blockReward[policyAsset]),
+                               blockReward.begin()->second),
                                REJECT_INVALID, "bad-cb-amount");
 
     if (!control.Wait())
@@ -3703,65 +3745,55 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
 
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot)
 {
-    // These are checks that are independent of context.
-
-    if (block.fChecked)
-        return true;
-
-    // Check that the header is valid (particularly PoW).  This is mostly
-    // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
-        return false;
-
-    // Check the merkle root.
-    if (fCheckMerkleRoot) {
-        bool mutated;
-        uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
-        if (block.hashMerkleRoot != hashMerkleRoot2)
-            return state.DoS(100, false, REJECT_INVALID, "bad-txnmrklroot", true, "hashMerkleRoot mismatch");
-
-        // Check for merkle tree malleability (CVE-2012-2459): repeating sequences
-        // of transactions in a block without affecting the merkle root of a block,
-        // while still invalidating it.
-        if (mutated)
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
-    }
-
-    // All potential-corruption validation must be done before we do any
-    // transaction validation, as otherwise we may mark the header as invalid
-    // because we receive the wrong transactions for it.
-    // Note that witness malleability is checked in ContextualCheckBlock, so no
-    // checks that use witness data may be performed here.
-
-    // Size limits
-    if (block.vtx.empty() || block.vtx.size() > MAX_BLOCK_BASE_SIZE || ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) > MAX_BLOCK_BASE_SIZE)
-        return state.DoS(100, false, REJECT_INVALID, "bad-blk-length", false, "size limits failed");
-
-    // First transaction must be coinbase, the rest must not be
-    if (block.vtx.empty() || !block.vtx[0]->IsCoinBase())
-        return state.DoS(100, false, REJECT_INVALID, "bad-cb-missing", false, "first tx is not coinbase");
-    for (unsigned int i = 1; i < block.vtx.size(); i++)
-        if (block.vtx[i]->IsCoinBase())
-            return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
-
-    // Check transactions
-    for (const auto& tx : block.vtx)
-        if (!CheckTransaction(*tx, state, false))
-            return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
-                                 strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
-
-    unsigned int nSigOps = 0;
-    for (const auto& tx : block.vtx)
-    {
-        nSigOps += GetLegacySigOpCount(*tx);
-    }
-    if (nSigOps * WITNESS_SCALE_FACTOR > MAX_BLOCK_SIGOPS_COST)
-        return state.DoS(100, false, REJECT_INVALID, "bad-blk-sigops", false, "out-of-bounds SigOpCount");
-
-    if (fCheckPOW && fCheckMerkleRoot)
-        block.fChecked = true;
-
+  boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
+  // These are checks that are independent of context.
+  if (block.fChecked)
     return true;
+  // Check that the header is valid (particularly PoW).  This is mostly
+  // redundant with the call in AcceptBlockHeader.
+  if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
+    return false;
+  // Check the merkle root.
+  if (fCheckMerkleRoot) {
+    bool mutated;
+    uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
+    if (block.hashMerkleRoot != hashMerkleRoot2)
+      return state.DoS(100, false, REJECT_INVALID, "bad-txnmrklroot", true, "hashMerkleRoot mismatch");
+    // Check for merkle tree malleability (CVE-2012-2459): repeating sequences
+    // of transactions in a block without affecting the merkle root of a block,
+    // while still invalidating it.
+    if (mutated)
+      return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
+  }
+  // All potential-corruption validation must be done before we do any
+  // transaction validation, as otherwise we may mark the header as invalid
+  // because we receive the wrong transactions for it.
+  // Note that witness malleability is checked in ContextualCheckBlock, so no
+  // checks that use witness data may be performed here.
+  // Size limits
+  if (block.vtx.empty() || block.vtx.size() > MAX_BLOCK_BASE_SIZE || ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) > MAX_BLOCK_BASE_SIZE)
+    return state.DoS(100, false, REJECT_INVALID, "bad-blk-length", false, "size limits failed");
+  // First transaction must be coinbase, the rest must not be
+  if (block.vtx.empty() || !block.vtx[0]->IsCoinBase())
+    return state.DoS(100, false, REJECT_INVALID, "bad-cb-missing", false, "first tx is not coinbase");
+  for (unsigned int i = 1; i < block.vtx.size(); i++)
+    if (block.vtx[i]->IsCoinBase())
+      return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
+  // Check transactions
+  for (const auto& tx : block.vtx)
+    if (!CheckTransaction(*tx, state, false))
+      return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
+  unsigned int nSigOps = 0;
+  for (const auto& tx : block.vtx)
+    nSigOps += GetLegacySigOpCount(*tx);
+  if (nSigOps * WITNESS_SCALE_FACTOR > MAX_BLOCK_SIGOPS_COST)
+    return state.DoS(100, false, REJECT_INVALID, "bad-blk-sigops", false, "out-of-bounds SigOpCount");
+  if (fCheckPOW && fCheckMerkleRoot)
+    block.fChecked = true;
+  boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
+  boost::posix_time::time_duration diff = finish - start;
+  statsClient.timing("timing.CheckBlock", diff.total_milliseconds(), 1.0f);
+  return true;
 }
 
 static bool CheckIndexAgainstCheckpoint(const CBlockIndex* pindexPrev, CValidationState& state, const CChainParams& chainparams, const uint256& hash)
@@ -3955,6 +3987,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
 static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex)
 {
+    boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
     AssertLockHeld(cs_main);
     // Check for duplicate
     uint256 hash = block.GetHash();
@@ -3998,7 +4031,9 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
         *ppindex = pindex;
 
     CheckBlockIndex(chainparams.GetConsensus());
-
+    boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
+    boost::posix_time::time_duration diff = finish - start;
+    statsClient.timing("timing.AcceptBlock", diff.total_milliseconds(), 1.0f);
     return true;
 }
 
@@ -4024,89 +4059,86 @@ bool ProcessNewBlockHeaders(const std::vector<CBlockHeader>& headers, CValidatio
 /** Store block on disk. If dbp is non-NULL, the file is known to already reside on disk */
 static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const CDiskBlockPos* dbp, bool* fNewBlock)
 {
-    const CBlock& block = *pblock;
-
-    if (fNewBlock) *fNewBlock = false;
-    AssertLockHeld(cs_main);
-
-    CBlockIndex *pindexDummy = NULL;
-    CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
-
-    //Never process blocks if RPC to bitcoind failure has triggered a failed block
-    std::vector<uint256> lockdown;
-    if (pblocktree->ReadInvalidBlockQueue(lockdown) && lockdown.size() > 0) {
-        LogPrintf("Block with hash %s was received, but unable to process due to bitcoind pegin validation failure.", block.GetHash().GetHex());
-        return false;
-    }
-
-    if (!AcceptBlockHeader(block, state, chainparams, &pindex))
-        return false;
-
-    // Try to process all requested blocks that we don't have, but only
-    // process an unrequested block if it's new and has enough work to
-    // advance our tip, and isn't too many blocks ahead.
-    bool fAlreadyHave = pindex->nStatus & BLOCK_HAVE_DATA;
-    bool fHasMoreWork = (chainActive.Tip() ? pindex->nChainWork > chainActive.Tip()->nChainWork : true);
-    // Blocks that are too out-of-order needlessly limit the effectiveness of
-    // pruning, because pruning will not delete block files that contain any
-    // blocks which are too close in height to the tip.  Apply this test
-    // regardless of whether pruning is enabled; it should generally be safe to
-    // not process unrequested blocks.
-    bool fTooFarAhead = (pindex->nHeight > int(chainActive.Height() + MIN_BLOCKS_TO_KEEP));
-
-    // TODO: Decouple this function from the block download logic by removing fRequested
-    // This requires some new chain datastructure to efficiently look up if a
-    // block is in a chain leading to a candidate for best tip, despite not
-    // being such a candidate itself.
-
-    // TODO: deal better with return value and error conditions for duplicate
-    // and unrequested blocks.
-    if (fAlreadyHave) return true;
-    if (!fRequested) {  // If we didn't ask for it:
-        if (pindex->nTx != 0) return true;  // This is a previously-processed block that was pruned
-        if (!fHasMoreWork) return true;     // Don't process less-work chains
-        if (fTooFarAhead) return true;      // Block height is too high
-    }
-    if (fNewBlock) *fNewBlock = true;
-
-    if ((block.GetHash() != chainparams.GetConsensus().hashGenesisBlock) &&
-        (!CheckBlock(block, state, chainparams.GetConsensus()) ||
-        !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev))) {
-        if (state.IsInvalid() && !state.CorruptionPossible()) {
-            pindex->nStatus |= BLOCK_FAILED_VALID;
-            setDirtyBlockIndex.insert(pindex);
-        }
-        return error("%s: %s", __func__, FormatStateMessage(state));
-    }
-
-    // Header is valid/has work, merkle tree and segwit merkle tree are good...RELAY NOW
-    // (but if it does not build on our best tip, let the SendMessages loop relay it)
-    if (!IsInitialBlockDownload() && chainActive.Tip() == pindex->pprev)
-        GetMainSignals().NewPoWValidBlock(pindex, pblock);
-
-    int nHeight = pindex->nHeight;
-
-    // Write block to history file
-    try {
-        unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
-        CDiskBlockPos blockPos;
-        if (dbp != NULL)
-            blockPos = *dbp;
-        if (!FindBlockPos(state, blockPos, nBlockSize+8, nHeight, block.GetBlockTime(), dbp != NULL))
-            return error("AcceptBlock(): FindBlockPos failed");
-        if (dbp == NULL)
-            if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart()))
-                AbortNode(state, "Failed to write block");
-        if (!ReceivedBlockTransactions(block, state, pindex, blockPos))
-            return error("AcceptBlock(): ReceivedBlockTransactions failed");
-    } catch (const std::runtime_error& e) {
-        return AbortNode(state, std::string("System error: ") + e.what());
-    }
-
-    if (fCheckForPruning)
-        FlushStateToDisk(state, FLUSH_STATE_NONE); // we just allocated more disk space for block files
-
+  boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
+  const CBlock& block = *pblock;
+  if (fNewBlock)
+    *fNewBlock = false;
+  AssertLockHeld(cs_main);
+  CBlockIndex *pindexDummy = NULL;
+  CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
+  //Never process blocks if RPC to bitcoind failure has triggered a failed block
+  std::vector<uint256> lockdown;
+  if (pblocktree->ReadInvalidBlockQueue(lockdown) && lockdown.size() > 0) {
+    LogPrintf("Block with hash %s was received, but unable to process due to bitcoind pegin validation failure.", block.GetHash().GetHex());
+    return false;
+  }
+  if (!AcceptBlockHeader(block, state, chainparams, &pindex))
+    return false;
+  // Try to process all requested blocks that we don't have, but only
+  // process an unrequested block if it's new and has enough work to
+  // advance our tip, and isn't too many blocks ahead.
+  bool fAlreadyHave = pindex->nStatus & BLOCK_HAVE_DATA;
+  bool fHasMoreWork = (chainActive.Tip() ? pindex->nChainWork > chainActive.Tip()->nChainWork : true);
+  // Blocks that are too out-of-order needlessly limit the effectiveness of
+  // pruning, because pruning will not delete block files that contain any
+  // blocks which are too close in height to the tip.  Apply this test
+  // regardless of whether pruning is enabled; it should generally be safe to
+  // not process unrequested blocks.
+  bool fTooFarAhead = (pindex->nHeight > int(chainActive.Height() + MIN_BLOCKS_TO_KEEP));
+  // TODO: Decouple this function from the block download logic by removing fRequested
+  // This requires some new chain datastructure to efficiently look up if a
+  // block is in a chain leading to a candidate for best tip, despite not
+  // being such a candidate itself.
+  // TODO: deal better with return value and error conditions for duplicate
+  // and unrequested blocks.
+  if (fAlreadyHave)
     return true;
+  if (!fRequested) {  // If we didn't ask for it:
+    if (pindex->nTx != 0)
+      return true;  // This is a previously-processed block that was pruned
+    if (!fHasMoreWork)
+      return true;     // Don't process less-work chains
+    if (fTooFarAhead)
+      return true;      // Block height is too high
+  }
+  if (fNewBlock)
+    *fNewBlock = true;
+  if ((block.GetHash() != chainparams.GetConsensus().hashGenesisBlock) &&
+      (!CheckBlock(block, state, chainparams.GetConsensus()) ||
+      !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev))) {
+    if (state.IsInvalid() && !state.CorruptionPossible()) {
+      pindex->nStatus |= BLOCK_FAILED_VALID;
+      setDirtyBlockIndex.insert(pindex);
+    }
+    return error("%s: %s", __func__, FormatStateMessage(state));
+  }
+  // Header is valid/has work, merkle tree and segwit merkle tree are good...RELAY NOW
+  // (but if it does not build on our best tip, let the SendMessages loop relay it)
+  if (!IsInitialBlockDownload() && chainActive.Tip() == pindex->pprev)
+    GetMainSignals().NewPoWValidBlock(pindex, pblock);
+  int nHeight = pindex->nHeight;
+  // Write block to history file
+  try {
+    unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
+    CDiskBlockPos blockPos;
+    if (dbp != NULL)
+      blockPos = *dbp;
+    if (!FindBlockPos(state, blockPos, nBlockSize+8, nHeight, block.GetBlockTime(), dbp != NULL))
+      return error("AcceptBlock(): FindBlockPos failed");
+    if (dbp == NULL)
+      if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart()))
+        AbortNode(state, "Failed to write block");
+    if (!ReceivedBlockTransactions(block, state, pindex, blockPos))
+      return error("AcceptBlock(): ReceivedBlockTransactions failed");
+  } catch (const std::runtime_error& e) {
+    return AbortNode(state, std::string("System error: ") + e.what());
+  }
+  if (fCheckForPruning)
+    FlushStateToDisk(state, FLUSH_STATE_NONE); // we just allocated more disk space for block files
+  boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
+  boost::posix_time::time_duration diff = finish - start;
+  statsClient.timing("timing.AcceptBlock", diff.total_milliseconds(), 1.0f);
+  return true;
 }
 
 bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<const CBlock> pblock, bool fForceProcessing, bool *fNewBlock)

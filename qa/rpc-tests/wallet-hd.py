@@ -39,7 +39,7 @@ class WalletHDTest(BitcoinTestFramework):
         # Import a non-HD private key in the HD wallet
         non_hd_add = self.nodes[0].getnewaddress()
         self.nodes[1].importprivkey(self.nodes[0].dumpprivkey(non_hd_add))
-        self.nodes[1].importblindingkey(non_hd_add, self.nodes[0].dumpblindingkey(non_hd_add))
+        #self.nodes[1].importblindingkey(non_hd_add, self.nodes[0].dumpblindingkey(non_hd_add))
 
         # This should be enough to keep the master key and the non-HD key 
         self.nodes[1].backupwallet(tmpdir + "/hd.bak")
@@ -48,6 +48,8 @@ class WalletHDTest(BitcoinTestFramework):
         # Derive some HD addresses and remember the last
         # Also send funds to each add
         self.nodes[0].generate(101)
+        self.sync_all()
+
         hd_add = None
         NUM_HD_ADDS = 10
         for i in range(NUM_HD_ADDS):
@@ -57,10 +59,11 @@ class WalletHDTest(BitcoinTestFramework):
             assert_equal(hd_info["hdmasterkeyid"], masterkeyid)
             self.nodes[0].sendtoaddress(hd_add, 1)
             self.nodes[0].generate(1)
+
         self.nodes[0].sendtoaddress(non_hd_add, 1)
         self.nodes[0].generate(1)
         self.sync_all()
-        assert_equal(self.nodes[1].getbalance()["bitcoin"], NUM_HD_ADDS + 1)
+        assert_equal(self.nodes[1].getbalance()["CBT"], NUM_HD_ADDS + 1)
 
         print("Restore backup ...")
         self.stop_node(1)
@@ -82,7 +85,7 @@ class WalletHDTest(BitcoinTestFramework):
         self.stop_node(1)
         self.nodes[1] = start_node(1, self.options.tmpdir, self.node_args[1] + ['-rescan'])
         connect_nodes_bi(self.nodes, 0, 1)
-        assert_equal(self.nodes[1].getbalance()["bitcoin"], NUM_HD_ADDS + 1)
+        assert_equal(self.nodes[1].getbalance()["CBT"], NUM_HD_ADDS + 1)
 
 
 if __name__ == '__main__':

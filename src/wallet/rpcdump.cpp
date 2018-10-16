@@ -66,7 +66,7 @@ std::string DecodeDumpString(const std::string &str) {
     for (unsigned int pos = 0; pos < str.length(); pos++) {
         unsigned char c = str[pos];
         if (c == '%' && pos+2 < str.length()) {
-            c = (((str[pos+1]>>6)*9+((str[pos+1]-'0')&15)) << 4) | 
+            c = (((str[pos+1]>>6)*9+((str[pos+1]-'0')&15)) << 4) |
                 ((str[pos+2]>>6)*9+((str[pos+2]-'0')&15));
             pos += 2;
         }
@@ -79,7 +79,7 @@ UniValue importprivkey(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
         return NullUniValue;
-    
+
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
         throw runtime_error(
             "importprivkey \"bitcoinprivkey\" ( \"label\" ) ( rescan )\n"
@@ -193,7 +193,7 @@ UniValue importaddress(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
         return NullUniValue;
-    
+
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 4)
         throw runtime_error(
             "importaddress \"address\" ( \"label\" rescan p2sh )\n"
@@ -413,12 +413,76 @@ UniValue importpubkey(const JSONRPCRequest& request)
     return NullUniValue;
 }
 
+UniValue validatederivedkeys(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+            "validatederivedkeys \"filename\"\n"
+            "Validate derived keys from a key dump file (see dumpderivedkeys).\n"
+            "\nArguments:\n"
+            "1. \"filename\"    (string, required) The key file\n"
+            "\nExamples:\n"
+            "\nDump the keys\n"
+            + HelpExampleCli("dumpderivedkeys", "\"test\"") +
+            "Validate the keys\n"
+            + HelpExampleCli("validatederivedkeys", "\"test\"") +
+            "Validate using the json rpc call\n"
+            + HelpExampleRpc("validatederivedkeys", "\"test\"")
+        );
+
+    ifstream file;
+    file.open(request.params[0].get_str().c_str(), std::ios::in | std::ios::ate);
+    if (!file.is_open())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open key dump file");
+
+    file.seekg(0, file.beg);
+
+    // parse file to extract bitcoin address - untweaked pubkey pairs and validate derivation
+    while (file.good()) {
+        std::string line;
+        std::getline(file, line);
+        if (line.empty() || line[0] == '#')
+            continue;
+
+        std::vector<std::string> vstr;
+        boost::split(vstr, line, boost::is_any_of(" "));
+        if (vstr.size() < 2)
+            continue;
+
+        CBitcoinAddress address;
+        if (!address.SetString(vstr[0]))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+
+        std::vector<unsigned char> pubKeyData(ParseHex(vstr[1]));
+        CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
+        if (!pubKey.IsFullyValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid public key");
+
+        uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+        if (!contract.IsNull())
+            pubKey.AddTweakToPubKey((unsigned char*)contract.begin());
+        CKeyID keyId;
+        if (!address.GetKeyID(keyId))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+        if (pubKey.GetID() != keyId)
+            throw JSONRPCError(RPC_INVALID_KEY_DERIVATION, "Invalid key derivation when tweaking key with contract hash");
+    }
+    file.close();
+
+    AuditLogPrintf("%s : validatederivedkeys %s\n", getUser(), request.params[0].get_str());
+
+    return NullUniValue;
+}
 
 UniValue importwallet(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
         return NullUniValue;
-    
+
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "importwallet \"filename\"\n"
@@ -526,7 +590,7 @@ UniValue dumpprivkey(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
         return NullUniValue;
-    
+
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "dumpprivkey \"address\"\n"
@@ -562,12 +626,116 @@ UniValue dumpprivkey(const JSONRPCRequest& request)
     return CBitcoinSecret(vchSecret).ToString();
 }
 
+UniValue getderivedkeys(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 0)
+        throw runtime_error(
+            "getderivedkeys (no arguments).\n"
+            "\nReturns all wallet addresses and untweaked pub keys in a human-readable format.\n"
+            "\nResult:\n"
+            "{\n"
+            "   \"address\" : [ \"address1\", \"address2\", \"address3\" ],\n"
+            "   \"bpubkey\" : [ \"bpubkey1\", \"bpubkey2\", \"bpubkey3\" ]\n"
+            ""
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getderivedkeys", "\"true\"")
+            + HelpExampleRpc("getderivedkeys", "\"true\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    std::set<CKeyID> setKeyPool;
+    pwalletMain->GetAllReserveKeys(setKeyPool);
+
+    UniValue addresses(UniValue::VARR);
+    UniValue pubkeys(UniValue::VARR);
+    // add the base58check encoded tweaked public key and untweaked pubkey hex
+    for(std::set<CKeyID>::const_iterator it = setKeyPool.begin(); it != setKeyPool.end(); ++it) {
+        const CKeyID &keyid = *it;
+        addresses.push_back(CBitcoinAddress(keyid).ToString());
+        CKey key;
+        if (pwalletMain->GetKey(keyid, key)) { // verify exists
+            CPubKey pubKey = pwalletMain->mapKeyMetadata[keyid].derivedPubKey;
+            pubkeys.push_back(HexStr(pubKey.begin(), pubKey.end()));
+        }
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("address", addresses));
+    ret.push_back(Pair("bpubkey", pubkeys));
+
+    AuditLogPrintf("%s : getderivedkeys\n", getUser());
+
+    return ret;
+}
+
+UniValue dumpderivedkeys(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+            "dumpderivedkeys \"filename\"\n"
+            "\nDumps all wallet tweaked public keys in a human-readable format.\n"
+            "\nArguments:\n"
+            "1. \"filename\"    (string, required) The filename\n"
+            "\nExamples:\n"
+            + HelpExampleCli("dumpderivedkeys", "\"test\"")
+            + HelpExampleRpc("dumpderivedkeys", "\"test\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    std::ofstream file;
+    file.open(request.params[0].get_str().c_str());
+    if (!file.is_open())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open key dump file");
+
+    std::set<CKeyID> setKeyPool;
+    pwalletMain->GetAllReserveKeys(setKeyPool);
+
+    // produce output
+    file << strprintf("# Derived key dump created by Bitcoin %s\n", CLIENT_BUILD);
+    file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()));
+    file << strprintf("# * Best block at time of backup was %i (%s),\n", chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString());
+    file << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
+    file << "\n";
+
+    // add the base58check encoded tweaked public key and untweaked pubkey hex
+    for(std::set<CKeyID>::const_iterator it = setKeyPool.begin(); it != setKeyPool.end(); ++it) {
+        const CKeyID &keyid = *it;
+        std::string strAddr = CBitcoinAddress(keyid).ToString();
+        CKey key;
+        if (pwalletMain->GetKey(keyid, key)) { // verify exists
+            CPubKey pubKey = pwalletMain->mapKeyMetadata[keyid].derivedPubKey;
+            file << strprintf("%s %s\n",
+                strAddr,
+                HexStr(pubKey.begin(), pubKey.end()));
+        }
+    }
+    file << "\n";
+    file << "# End of dump\n";
+    file.close();
+
+    AuditLogPrintf("%s : dumpderivedkeys %s\n", getUser(), request.params[0].get_str());
+
+    return NullUniValue;
+}
 
 UniValue dumpwallet(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
         return NullUniValue;
-    
+
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "dumpwallet \"filename\"\n"
@@ -583,7 +751,7 @@ UniValue dumpwallet(const JSONRPCRequest& request)
 
     EnsureWalletIsUnlocked();
 
-    ofstream file;
+    std::ofstream file;
     file.open(request.params[0].get_str().c_str());
     if (!file.is_open())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open wallet dump file");
@@ -610,7 +778,7 @@ UniValue dumpwallet(const JSONRPCRequest& request)
     file << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
     file << "\n";
 
-    // add the base58check encoded extended master if the wallet uses HD 
+    // add the base58check encoded extended master if the wallet uses HD
     CKeyID masterKeyID = pwalletMain->GetHDChain().masterKeyID;
     if (!masterKeyID.IsNull())
     {

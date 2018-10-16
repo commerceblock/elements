@@ -69,7 +69,7 @@ static const bool DEFAULT_WALLETBROADCAST = true;
 static const bool DEFAULT_DISABLE_WALLET = false;
 //! if set, all keys will be derived by using BIP32
 static const bool DEFAULT_USE_HD_WALLET = true;
-
+static const bool DEFAULT_DISABLE_CT = true;
 extern const char * DEFAULT_WALLET_DAT;
 
 bool hasNegativeValue(const CAmountMap& amount);
@@ -253,7 +253,7 @@ public:
     bool IsCoinBase() const { return tx->IsCoinBase(); }
 };
 
-/** 
+/**
  * A transaction with a bunch of additional info that only the owner cares about.
  * It includes any unrecorded transactions needed to link it back to the block chain.
  */
@@ -610,7 +610,7 @@ private:
 };
 
 
-/** 
+/**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
@@ -624,7 +624,7 @@ private:
      * all coins from coinControl are selected; Never select unconfirmed coins
      * if they are not ours
      */
-    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmountMap& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmountMap& nValueRet, const CCoinControl* coinControl) const;
+    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmountMap& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmountMap& nValueRet, const CCoinControl* coinControl, const CAsset& feeAsset) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -637,6 +637,7 @@ private:
     int64_t nNextResend;
     int64_t nLastResend;
     bool fBroadcastTransactions;
+    bool fDisableCt;
 
     /**
      * Used to keep track of spent outpoints, and
@@ -738,6 +739,7 @@ public:
         nLastResend = 0;
         nTimeFirstKey = 0;
         fBroadcastTransactions = false;
+        fDisableCt = false;
         blinding_derivation_key = uint256();
     }
 
@@ -777,7 +779,7 @@ public:
      * completion the coin set and corresponding actual target value is
      * assembled
      */
-    bool SelectCoinsMinConf(const CAmountMap& nTargetValue, int nConfMine, int nConfTheirs, uint64_t nMaxAncestors, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmountMap& nValueRet) const;
+    bool SelectCoinsMinConf(const CAmountMap& nTargetValue, int nConfMine, int nConfTheirs, uint64_t nMaxAncestors, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmountMap& nValueRet, const CAsset& feeAsset) const;
 
     bool IsSpent(const uint256& hash, unsigned int n) const;
 
@@ -835,7 +837,7 @@ public:
 
     void GetKeyBirthTimes(std::map<CTxDestination, int64_t> &mapKeyBirth) const;
 
-    /** 
+    /**
      * Increment the next transaction order id
      * @return next transaction order id
      */
@@ -872,7 +874,7 @@ public:
      * @note passing nChangePosInOut as -1 will result in setting a random position
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, std::vector<CReserveKey>& vChangeKey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, std::vector<CAmount> *outAmounts = NULL, bool fBlindIssuances = true, const uint256* issuanceEntropy = NULL, const CAsset* reissuanceAsset = NULL, const CAsset* reissuanceToken = NULL, bool fIgnoreBlindFail = true);
+                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, std::vector<CAmount> *outAmounts = NULL, bool fBlindIssuances = true, const uint256* issuanceEntropy = NULL, const CAsset* reissuanceAsset = NULL, const CAsset* reissuanceToken = NULL, CAsset feeAsset = CAsset(), bool fIgnoreBlindFail = true);
     bool CommitTransaction(CWalletTx& wtxNew, std::vector<CReserveKey>& reservekey, CConnman* connman, CValidationState& state);
 
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& entries);
@@ -905,6 +907,7 @@ public:
     void KeepKey(int64_t nIndex);
     void ReturnKey(int64_t nIndex);
     bool GetKeyFromPool(CPubKey &key);
+    uint256 GetContract();
     int64_t GetOldestKeyPoolTime();
     void GetAllReserveKeys(std::set<CKeyID>& setAddress) const;
 
@@ -959,7 +962,7 @@ public:
         LOCK(cs_wallet);
         mapRequestCount[hash] = 0;
     };
-    
+
     unsigned int GetKeyPoolSize()
     {
         AssertLockHeld(cs_wallet); // setKeyPool
@@ -988,8 +991,8 @@ public:
 
     //! Verify the wallet database and perform salvage if required
     static bool Verify();
-    
-    /** 
+
+    /**
      * Address book entry changed.
      * @note called with lock cs_wallet held.
      */
@@ -998,7 +1001,7 @@ public:
             const std::string &purpose,
             ChangeType status)> NotifyAddressBookChanged;
 
-    /** 
+    /**
      * Wallet transaction added, removed or updated.
      * @note called with lock cs_wallet held.
      */
@@ -1015,6 +1018,11 @@ public:
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }
     /** Set whether this wallet broadcasts transactions. */
     void SetBroadcastTransactions(bool broadcast) { fBroadcastTransactions = broadcast; }
+
+    /** Get the Disable Confidential Transactions flag. */
+    bool GetDisableCt() const { return fDisableCt; }
+    /** Set the Disable Confidential Transactions flag. */
+    void SetDisableCt(bool disable) { fDisableCt = disable; }
 
     /* Mark a transaction (and it in-wallet descendants) as abandoned so its inputs may be respent. */
     bool AbandonTransaction(const uint256& hashTx);
@@ -1055,7 +1063,7 @@ public:
 
     /* Generates a new HD master key (will not be activated) */
     CPubKey GenerateNewHDMasterKey();
-    
+
     /* Set the current HD master key (will reset the chain child index counters) */
     bool SetHDMasterKey(const CPubKey& key);
 
@@ -1090,7 +1098,7 @@ public:
 };
 
 
-/** 
+/**
  * Account information.
  * Stored in wallet with key "acc"+string account name.
  */

@@ -6,7 +6,7 @@
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
-class CTTest (BitcoinTestFramework):
+class UnCTTest (BitcoinTestFramework):
 
     def __init__(self):
         super().__init__()
@@ -14,7 +14,7 @@ class CTTest (BitcoinTestFramework):
         self.setup_clean_chain = True
 
     def setup_network(self, split=False):
-        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, extra_args=[['-disablect=0'], ['-disablect=0'], ['-disablect=0']])
+        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir)
         connect_nodes_bi(self.nodes,0,1)
         connect_nodes_bi(self.nodes,1,2)
         connect_nodes_bi(self.nodes,0,2)
@@ -102,17 +102,11 @@ class CTTest (BitcoinTestFramework):
         assert_equal(sorted([(ele['address'], ele['amount']) for ele in received_by_address], key=lambda t: t[0]),
                 sorted(validate_by_address, key = lambda t: t[0]))
 
-        # Give an auditor (node 1) a blinding key to allow her to look at
-        # transaction values
         self.nodes[1].importaddress(address)
         received_by_address = self.nodes[1].listreceivedbyaddress(1, False, True)
-        #Node sees nothing unless it understands the values
-        assert_equal(len(received_by_address), 0)
-        assert_equal(len(self.nodes[1].listunspent(1, 9999999, [], True, "CBT")), 0)
+        assert_equal(len(received_by_address), 1)
+        assert_equal(len(self.nodes[1].listunspent(1, 9999999, [], True, "CBT")), 2)
 
-        # Import the blinding key
-        blindingkey = self.nodes[2].dumpblindingkey(address)
-        self.nodes[1].importblindingkey(address, blindingkey)
         # Check the auditor's gettransaction and listreceivedbyaddress
         # Needs rescan to update wallet txns
         assert_equal(self.nodes[1].gettransaction(confidential_tx_id, True)['amount']["CBT"], value1)
@@ -135,11 +129,10 @@ class CTTest (BitcoinTestFramework):
                                                   "nValue": unspent[0]["amount"]}],
                                                   {unconfidential_address: unspent[0]["amount"] - fee, "fee":fee});
 
-        # Test that blindrawtransaction adds an OP_RETURN output to balance blinders
+        # Test that blindrawtransaction DOES NOT add an OP_RETURN since unblinded
         temptx = self.nodes[0].blindrawtransaction(tx)
         decodedtx = self.nodes[0].decoderawtransaction(temptx)
-        assert_equal(decodedtx["vout"][-1]["scriptPubKey"]["asm"], "OP_RETURN")
-        assert_equal(len(decodedtx["vout"]), 3)
+        assert_equal(len(decodedtx["vout"]), 2)
 
         # Create same transaction but with a change/dummy output.
         # It should pass the blinding step.
@@ -188,21 +181,12 @@ class CTTest (BitcoinTestFramework):
         signed = self.nodes[0].signrawtransaction(blinded2)
         self.nodes[0].sendrawtransaction(signed["hex"])
 
-        # Check createblindedaddress functionality
-        blinded_addr = self.nodes[0].getnewaddress()
-        validated_addr = self.nodes[0].validateaddress(blinded_addr)
-        blinding_pubkey = self.nodes[0].validateaddress(blinded_addr)["confidential_key"]
-        blinding_key = self.nodes[0].dumpblindingkey(blinded_addr)
-        assert_equal(blinded_addr, self.nodes[1].createblindedaddress(validated_addr["unconfidential"], blinding_pubkey))
-
         # If a blinding key is over-ridden by a newly imported one, funds may be unaccounted for
         new_addr = self.nodes[0].getnewaddress()
         new_validated = self.nodes[0].validateaddress(new_addr)
         self.nodes[2].sendtoaddress(new_addr, 1)
         self.sync_all()
-        diff_blind = self.nodes[1].createblindedaddress(new_validated["unconfidential"], blinding_pubkey)
         assert_equal(len(self.nodes[0].listunspent(0, 0, [new_validated["unconfidential"]])), 1)
-        self.nodes[0].importblindingkey(diff_blind, blinding_key)
         # CT values for this wallet transaction  have been cached via importblindingkey
         # therefore result will be same even though we change blinding keys
         assert_equal(len(self.nodes[0].listunspent(0, 0, [new_validated["unconfidential"]])), 1)
@@ -331,11 +315,6 @@ class CTTest (BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
 
-        # Now have node 0 audit these issuances
-        blindingkey1 = self.nodes[1].dumpissuanceblindingkey(redata1["txid"], redata1["vin"])
-        blindingkey2 = self.nodes[2].dumpissuanceblindingkey(redata2["txid"], redata2["vin"])
-        blindingkey3 = self.nodes[2].dumpissuanceblindingkey(issuancedata["txid"], issuancedata["vin"])
-
         # Need addr to get transactions in wallet. TODO: importissuances?
         txdet1 = self.nodes[1].gettransaction(redata1["txid"])["details"]
         txdet2 = self.nodes[2].gettransaction(redata2["txid"])["details"]
@@ -353,21 +332,6 @@ class CTTest (BitcoinTestFramework):
 
         issuances = self.nodes[0].listissuances()
         assert_equal(len(issuances), 9)
-
-        for issue in issuances:
-            if issue['txid'] == redata1["txid"] and issue['vin'] == redata1["vin"]:
-                assert_equal(issue['assetamount'], Decimal('-1'))
-            if issue['txid'] == redata2["txid"] and issue['vin'] == redata2["vin"]:
-                assert_equal(issue['assetamount'], Decimal('-1'))
-            if issue['txid'] == issuancedata["txid"] and issue['vin'] == issuancedata["vin"]:
-                assert_equal(issue['assetamount'], Decimal('-1'))
-                assert_equal(issue['tokenamount'], Decimal('-1'))
-
-        self.nodes[0].importissuanceblindingkey(redata1["txid"], redata1["vin"], blindingkey1)
-        self.nodes[0].importissuanceblindingkey(redata2["txid"], redata2["vin"], blindingkey2)
-        self.nodes[0].importissuanceblindingkey(issuancedata["txid"], issuancedata["vin"], blindingkey3)
-
-        issuances = self.nodes[0].listissuances()
 
         for issue in issuances:
             if issue['txid'] == redata1["txid"] and issue['vin'] == redata1["vin"]:
@@ -394,67 +358,6 @@ class CTTest (BitcoinTestFramework):
         assert_equal(multi_asset_amount['CBT'], value1 + value3 )
         assert_equal(multi_asset_amount[test_asset], Decimal('0.3'))
 
-        # Check blinded multisig functionality
-        # Get two pubkeys
-        blinded_addr = self.nodes[0].getnewaddress()
-        pubkey = self.nodes[0].validateaddress(blinded_addr)["pubkey"]
-        blinded_addr2 = self.nodes[1].getnewaddress()
-        pubkey2 = self.nodes[1].validateaddress(blinded_addr2)["pubkey"]
-        pubkeys = [pubkey, pubkey2]
-        # Add multisig address
-        unconfidential_addr = self.nodes[0].addmultisigaddress(2, pubkeys)
-        self.nodes[1].addmultisigaddress(2, pubkeys)
-        self.nodes[0].importaddress(unconfidential_addr)
-        self.nodes[1].importaddress(unconfidential_addr)
-        # Use blinding key from node 0's original getnewaddress call
-        blinding_pubkey = self.nodes[0].validateaddress(blinded_addr)["confidential_key"]
-        blinding_key = self.nodes[0].dumpblindingkey(blinded_addr)
-        # Create blinded address from p2sh address and import corresponding privkey
-        blinded_multisig_addr = self.nodes[0].createblindedaddress(unconfidential_addr, blinding_pubkey)
-        self.nodes[0].importblindingkey(blinded_multisig_addr, blinding_key)
-        self.nodes[1].importblindingkey(blinded_multisig_addr, blinding_key)
-        # Send coins to blinded multisig address and check that they were received
-        self.nodes[2].sendtoaddress(blinded_multisig_addr, 1)
-        self.sync_all()
-        assert_equal(len(self.nodes[0].listunspent(0, 0, [unconfidential_addr])), 1)
-        assert_equal(len(self.nodes[1].listunspent(0, 0, [unconfidential_addr])), 1)
-
-        self.nodes[0].generate(1)
-        self.sync_all()
-
-        # Basic checks of rawblindrawtransaction functionality
-        blinded_addr = self.nodes[0].getnewaddress()
-        addr = self.nodes[0].validateaddress(blinded_addr)["unconfidential"]
-        txid1 = self.nodes[0].sendtoaddress(blinded_addr, 1)
-        txid2 = self.nodes[0].sendtoaddress(blinded_addr, 3)
-        unspent = self.nodes[0].listunspent(0, 0)
-        assert_equal(len(unspent), 4)
-        rawtx = self.nodes[0].createrawtransaction([{"txid":unspent[0]["txid"], "vout":unspent[0]["vout"]}, {"txid":unspent[1]["txid"], "vout":unspent[1]["vout"]}], {addr:unspent[0]["amount"]+unspent[1]["amount"]-Decimal("0.2"), "fee":Decimal("0.2")})
-        # Blinding will fail with 2 blinded inputs and 0 blinded outputs
-        # since it has no notion of a wallet to fill in a 0-value OP_RETURN output
-        try:
-            self.nodes[0].rawblindrawtransaction(rawtx, [unspent[0]["blinder"], unspent[1]["blinder"]], [unspent[0]["amount"], unspent[1]["amount"]], [unspent[0]["asset"], unspent[1]["asset"]], [unspent[0]["assetblinder"], unspent[1]["assetblinder"]])
-            raise AssertionError("Shouldn't be able to blind 2 input 0 output transaction via rawblindraw")
-        except JSONRPCException:
-            pass
-
-        # Blinded destination added, can blind, sign and send
-        rawtx = self.nodes[0].createrawtransaction([{"txid":unspent[0]["txid"], "vout":unspent[0]["vout"]}, {"txid":unspent[1]["txid"], "vout":unspent[1]["vout"]}], {blinded_addr:unspent[0]["amount"]+unspent[1]["amount"]-Decimal("0.002"), "fee":Decimal("0.002")})
-        signtx = self.nodes[0].signrawtransaction(rawtx)
-
-        try:
-            self.nodes[0].sendrawtransaction(signtx["hex"])
-            raise AssertionError("Shouldn't be able to send unblinded tx with emplaced pubkey in output without additional argument")
-        except JSONRPCException:
-            pass
-
-        blindtx = self.nodes[0].rawblindrawtransaction(rawtx, [unspent[0]["blinder"], unspent[1]["blinder"]], [unspent[0]["amount"], unspent[1]["amount"]], [unspent[0]["asset"], unspent[1]["asset"]], [unspent[0]["assetblinder"], unspent[1]["assetblinder"]])
-        signtx = self.nodes[0].signrawtransaction(blindtx)
-        txid = self.nodes[0].sendrawtransaction(signtx["hex"])
-        for output in self.nodes[0].decoderawtransaction(blindtx)["vout"]:
-            if "asset" in output and output["scriptPubKey"]["type"] != "fee":
-                raise AssertionError("An unblinded output exists")
-
         # Test fundrawtransaction with multiple assets
         issue = self.nodes[0].issueasset(1, 0)
         assetaddr = self.nodes[0].getnewaddress()
@@ -471,19 +374,5 @@ class CTTest (BitcoinTestFramework):
         signed = self.nodes[0].signrawtransaction(blinded)
         txid = self.nodes[0].sendrawtransaction(signed["hex"])
 
-        # Test corner case where wallet appends a OP_RETURN output, yet doesn't blind it
-        # due to the fact that the output value is 0-value and input pedersen commitments
-        # self-balance. This is rare corner case, but ok.
-        unblinded = self.nodes[0].validateaddress(self.nodes[0].getnewaddress())["unconfidential"]
-        self.nodes[0].sendtoaddress(unblinded, self.nodes[0].getbalance()["CBT"], "", "", True)
-        # Make tx with blinded destination and change outputs only
-        self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), self.nodes[0].getbalance()["CBT"]/2)
-        # Send back again, this transaction should have 3 outputs, all unblinded
-        txid = self.nodes[0].sendtoaddress(unblinded, self.nodes[0].getbalance()["CBT"], "", "", True)
-        outputs = self.nodes[0].getrawtransaction(txid, 1)["vout"]
-        assert_equal(len(outputs), 3)
-        assert("value" in outputs[0] and "value" in outputs[1] and "value" in outputs[2])
-        assert_equal(outputs[2]["scriptPubKey"]["type"], 'nulldata')
-
 if __name__ == '__main__':
-    CTTest ().main ()
+    UnCTTest ().main ()

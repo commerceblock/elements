@@ -8,7 +8,7 @@
 #endif
 
 #include "util.h"
-
+#include "hash.h"
 #include "chainparamsbase.h"
 #include "random.h"
 #include "serialize.h"
@@ -76,6 +76,10 @@
 #include <malloc.h>
 #endif
 
+#include "statsd_client.h"
+
+statsd::StatsdClient statsClient;
+
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/predicate.hpp> // for startswith() and endswith()
@@ -105,6 +109,10 @@ using namespace std;
 
 const char * const BITCOIN_CONF_FILENAME = "elements.conf";
 const char * const BITCOIN_PID_FILENAME = "elements-daemon.pid";
+const char * const CONTRACT_FILE_PATH = "/terms-and-conditions/latest.txt";
+const char * const MAPPING_FILE_PATH = "/asset-mapping/latest.json";
+
+#include "statsd_client.h"
 
 CCriticalSection cs_args;
 map<string, string> mapArgs;
@@ -527,7 +535,7 @@ static std::string FormatException(const std::exception* pex, const char* pszThr
     char pszModule[MAX_PATH] = "";
     GetModuleFileNameA(NULL, pszModule, sizeof(pszModule));
 #else
-    const char* pszModule = "bitcoin";
+    const char* pszModule = "CBT";
 #endif
     if (pex)
         return strprintf(
@@ -638,14 +646,28 @@ void ReadConfigFile(const std::string& confPath)
             // Don't overwrite existing settings so command line settings override bitcoin.conf
             string strKey = string("-") + it->string_key;
             string strValue = it->value[0];
+            //////////////////////////////////////////////////////////////////////////
+            // TODO @code_smell                                                     //
+            // Patch that stinks shit, I'm tired of looking in this bad code        //
+            //////////////////////////////////////////////////////////////////////////
+            static string bind = "127.0.0.1";
+            static int port = 8125;
+            if (strKey == "-statbind") {
+              bind = strValue;
+              statsClient.config(bind, port, "");
+            } else if (strKey == "-statport") {
+              port = atoi(strValue);
+              statsClient.config(bind, port, "");
+            }
+            //////////////////////////////////////////////////////////////////////////
             InterpretNegativeSetting(strKey, strValue);
             if (mapArgs.count(strKey) == 0)
                 mapArgs[strKey] = strValue;
             _mapMultiArgs[strKey].push_back(strValue);
         }
     }
-    // If datadir is changed in .conf file:
-    ClearDatadirCache();
+  // If datadir is changed in .conf file:
+  ClearDatadirCache();
 }
 
 #ifndef WIN32
@@ -841,6 +863,52 @@ void runCommand(const std::string& strCommand)
     int nErr = ::system(strCommand.c_str());
     if (nErr)
         LogPrintf("runCommand error: system(%s) returned %d\n", strCommand, nErr);
+}
+
+std::string GetFileFromDataDir(const char* fileName)
+{
+    string fileStr = "";
+    namespace fs = boost::filesystem;
+    fs::path path = GetDataDir(false) / fileName;
+    ifstream file(path.string().c_str());
+    if (file.is_open())
+    {
+        std::string line;
+        while(getline(file, line))
+        {
+            fileStr += line;
+            fileStr += "\n";
+        }
+        file.close();
+    }
+    return fileStr;
+}
+
+std::string GetContract()
+{
+    return GetFileFromDataDir(CONTRACT_FILE_PATH);
+}
+
+uint256 GetContractHash()
+{
+    const std::string contract = GetFileFromDataDir(CONTRACT_FILE_PATH);
+    if (contract == "")
+    {
+        return uint256S("");
+    }
+    std::vector<unsigned char> terms(contract.begin(), contract.end());
+    return Hash(terms.begin(), terms.end());
+}
+
+uint256 GetMappingHash()
+{
+    const std::string mapping = GetFileFromDataDir(MAPPING_FILE_PATH);
+    if (mapping == "")
+    {
+        return uint256S("");
+    }
+    std::vector<unsigned char> object(mapping.begin(), mapping.end());
+    return Hash(object.begin(), object.end());
 }
 
 void RenameThread(const char* name)
