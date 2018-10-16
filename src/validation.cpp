@@ -1522,8 +1522,8 @@ bool AcceptToMemoryPool(CTxMemPool &pool, CValidationState &state,
   statsClient.timing("AcceptToMemoryPool_ms", diff.total_milliseconds(), 1.0f);
   statsClient.gauge("transactions.txInMemoryPool", pool.size(), 0.1f);
   statsClient.inc("transactions.accepted", 1.0f);
-  statsClient.count("transactions.inputs", tx.vin.size(), 1.0f);
-  statsClient.count("transactions.outputs", tx.vout.size(), 1.0f);
+  // statsClient.count("transactions.inputs", tx.vin.size(), 1.0f);
+  // statsClient.count("transactions.outputs", tx.vout.size(), 1.0f);
   return retrn;
 }
 
