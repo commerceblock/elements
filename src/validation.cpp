@@ -2203,12 +2203,12 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
-
+    statsClient.gauge("transactions.txInUTXOSet", view.GetCacheSize(), 1.0f);
     if (pfClean) {
         *pfClean = fClean;
         return true;
     }
-
+    statsClient.gauge("transactions.txInUTXOSet", view.GetCacheSize(), 1.0f);
     return fClean;
 }
 
