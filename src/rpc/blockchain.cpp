@@ -870,11 +870,11 @@ static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
         if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
             ss << key;
             bool frozenTx = false;
-      
+
 	    //loop over vouts within a single transaction
 	    for (unsigned int i=0; i<coins.vout.size(); i++) {
 	        const CTxOut &out = coins.vout[i];
-	
+
 		//check if the tx is flagged frozen (i.e. one output is a zero address)
 		txnouttype whichType;
 		std::vector<std::vector<unsigned char> > vSolutions;
@@ -885,11 +885,11 @@ static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
 		  if(keyId == frzId) frozenTx = true;
 		}
 	    }
-      
+
 	    //loop over all vouts within a single transaction
 	    for (unsigned int i=0; i<coins.vout.size(); i++) {
 	        const CTxOut &out = coins.vout[i];
-	
+
 		//null vouts are spent
 		if (!out.IsNull()) {
 		    ss << VARINT(i+1);
@@ -995,6 +995,12 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
         ret.push_back(Pair("txouts", (int64_t)stats.nTransactionOutputs));
         ret.push_back(Pair("bytes_serialized", (int64_t)stats.nSerializedSize));
         ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
+        statsClient.gauge("utxoset.tx", stats.nTransactions, 1.0f);
+        statsClient.gauge("utxoset.txOutputs", stats.nTransactionOutputs, 1.0f);
+        statsClient.gauge("utxoset.dbSizeBytes", stats.nSerializedSize, 1.0f);
+        statsClient.gauge("utxoset.blockHeight", stats.nHeight, 1.0f);
+        statsClient.gauge("utxoset.totalBTCAmount", (double)stats.nTotalAmount / (double)COIN, 1.0f);
+
     } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
     }
