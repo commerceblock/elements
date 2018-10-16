@@ -1056,482 +1056,467 @@ static bool IsCurrentForFeeEstimation()
     return true;
 }
 
-bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const CTransactionRef& ptx, bool fLimitFree,
-                              bool* pfMissingInputs, int64_t nAcceptTime, std::list<CTransactionRef>* plTxnReplaced,
-                              bool fOverrideMempoolLimit, const CAmount& nAbsurdFee, std::vector<uint256>& vHashTxnToUncache)
-{
-    const CTransaction& tx = *ptx;
-    const uint256 hash = tx.GetHash();
-    AssertLockHeld(cs_main);
-    if (pfMissingInputs)
-        *pfMissingInputs = false;
-
-    if (!CheckTransaction(tx, state))
-        return false; // state filled in by CheckTransaction
-
-    // Coinbase is only valid in a block, not as a loose transaction
-    if (tx.IsCoinBase())
-        return state.DoS(100, false, REJECT_INVALID, "coinbase");
-
-    // Reject transactions with witness before segregated witness activates (override with -prematurewitness)
-    bool witnessEnabled = IsWitnessEnabled(chainActive.Tip(), Params().GetConsensus());
-    if (!GetBoolArg("-prematurewitness",false) && tx.HasWitness() && !witnessEnabled) {
-        return state.DoS(0, false, REJECT_NONSTANDARD, "no-witness-yet", true);
-    }
-
-    // Rather not work on nonstandard transactions (unless -testnet/-regtest)
-    std::string reason;
-    if (fRequireStandard && !IsStandardTx(tx, reason))
-        return state.DoS(0, false, REJECT_NONSTANDARD, reason);
-
-    // Accept only transactions that have P2PKH outputs with addresses in the whitelist
-    if (fRequireWhitelistCheck){
-      if(!IsWhitelisted(tx))
+bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
+                              const CTransactionRef &ptx, bool fLimitFree,
+                              bool *pfMissingInputs, int64_t nAcceptTime,
+                              std::list<CTransactionRef> *plTxnReplaced,
+                              bool fOverrideMempoolLimit,
+                              const CAmount &nAbsurdFee,
+                              std::vector<uint256> &vHashTxnToUncache) {
+  const CTransaction &tx = *ptx;
+  const uint256 hash = tx.GetHash();
+  AssertLockHeld(cs_main);
+  if (pfMissingInputs)
+    *pfMissingInputs = false;
+  if (!CheckTransaction(tx, state))
+    return false; // state filled in by CheckTransaction
+  // Coinbase is only valid in a block, not as a loose transaction
+  if (tx.IsCoinBase())
+    return state.DoS(100, false, REJECT_INVALID, "coinbase");
+  // Reject transactions with witness before segregated witness activates
+  // (override with -prematurewitness)
+  bool witnessEnabled =
+      IsWitnessEnabled(chainActive.Tip(), Params().GetConsensus());
+  if (!GetBoolArg("-prematurewitness", false) && tx.HasWitness() &&
+      !witnessEnabled)
+    return state.DoS(0, false, REJECT_NONSTANDARD, "no-witness-yet", true);
+  // Rather not work on nonstandard transactions (unless -testnet/-regtest)
+  std::string reason;
+  if (fRequireStandard && !IsStandardTx(tx, reason))
+    return state.DoS(0, false, REJECT_NONSTANDARD, reason);
+  // Accept only transactions that have P2PKH outputs with addresses in the
+  // whitelist
+  if (fRequireWhitelistCheck)
+    if (!IsWhitelisted(tx))
       return state.DoS(0, false, REJECT_NONSTANDARD, "non-whitelisted-address");
-    }
-
-    // Accept only transactions that have no asset issuance inputs
-    if(fblockissuancetx){
-      if(GetNumIssuances(tx) > 0){
-	return state.DoS(0, false, REJECT_NONSTANDARD, "blocked-asset-issuance-txn");
+  // Accept only transactions that have no asset issuance inputs
+  if (fblockissuancetx)
+    if (GetNumIssuances(tx) > 0)
+      return state.DoS(0, false, REJECT_NONSTANDARD,
+                       "blocked-asset-issuance-txn");
+  // Only accept nLockTime-using transactions that can be mined in the next
+  // block; we don't want our mempool filled up with transactions that can't
+  // be mined yet.
+  if (!CheckFinalTx(tx, STANDARD_LOCKTIME_VERIFY_FLAGS))
+    return state.DoS(0, false, REJECT_NONSTANDARD, "non-final");
+  // is it already in the memory pool?
+  if (pool.exists(hash))
+    return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-in-mempool");
+  // Check for conflicts with in-memory transactions
+  std::set<uint256> setConflicts;
+  {
+    LOCK(pool.cs); // protect pool.mapNextTx
+    BOOST_FOREACH (const CTxIn &txin, tx.vin) {
+      auto itConflicting = pool.mapNextTx.find(txin.prevout);
+      if (itConflicting != pool.mapNextTx.end()) {
+        setConflicts.insert(itConflicting->second->GetHash());
       }
     }
-
-    // Only accept nLockTime-using transactions that can be mined in the next
-    // block; we don't want our mempool filled up with transactions that can't
-    // be mined yet.
-    if (!CheckFinalTx(tx, STANDARD_LOCKTIME_VERIFY_FLAGS))
-        return state.DoS(0, false, REJECT_NONSTANDARD, "non-final");
-
-    // is it already in the memory pool?
-    if (pool.exists(hash))
-        return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-in-mempool");
-
-    // Check for conflicts with in-memory transactions
-    std::set<uint256> setConflicts;
+  }
+  {
+    CCoinsView dummy;
+    CCoinsViewCache view(&dummy);
+    std::set<std::pair<uint256, COutPoint>> setPeginsSpent;
+    LockPoints lp;
     {
-    LOCK(pool.cs); // protect pool.mapNextTx
-    BOOST_FOREACH(const CTxIn &txin, tx.vin)
-    {
-        auto itConflicting = pool.mapNextTx.find(txin.prevout);
-        if (itConflicting != pool.mapNextTx.end()) {
-            setConflicts.insert(itConflicting->second->GetHash());
+      LOCK(pool.cs);
+      CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
+      view.SetBackend(viewMemPool);
+      // do we already have it?
+      bool fHadTxInCache = pcoinsTip->HaveCoinsInCache(hash);
+      if (view.HaveCoins(hash)) {
+        if (!fHadTxInCache)
+          vHashTxnToUncache.push_back(hash);
+        return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-known");
+      }
+      // do all inputs exist?
+      // Note that this does not check for the presence of actual outputs (see
+      // the next check for that), and only helps with filling in
+      // pfMissingInputs (to determine missing vs spent).
+      BOOST_FOREACH (const CTxIn txin, tx.vin) {
+        // Don't look for coins that only exist in parent chain
+        if (txin.m_is_pegin)
+          continue;
+        if (!pcoinsTip->HaveCoinsInCache(txin.prevout.hash))
+          vHashTxnToUncache.push_back(txin.prevout.hash);
+        if (!view.HaveCoins(txin.prevout.hash)) {
+          if (pfMissingInputs)
+            *pfMissingInputs = true;
+          return false; // fMissingInputs and !state.IsInvalid() is used to
+                        // detect this condition, don't set state.Invalid()
         }
+      }
+      // are the actual inputs available?
+      if (!view.HaveInputs(tx))
+        return state.Invalid(false, REJECT_DUPLICATE, "bad-txns-inputs-spent");
+      // Extract peg-in inputs, pass set to mempool entry. Validity of pegins
+      // checked in CheckInputs
+      for (unsigned int i = 0; i < tx.vin.size(); i++) {
+        if (tx.vin[i].m_is_pegin) {
+          // Quick check of pegin witness and prevout to extract db entry
+          if (tx.wit.vtxinwit.size() <= i ||
+              tx.wit.vtxinwit[i].m_pegin_witness.stack.size() < 6 ||
+              uint256(tx.wit.vtxinwit[i].m_pegin_witness.stack[2]).IsNull() ||
+              tx.vin[i].prevout.hash.IsNull()) {
+            return state.Invalid(false, REJECT_INVALID, "pegin-no-witness");
+          }
+          std::pair<uint256, COutPoint> pegin = std::make_pair(
+              uint256(tx.wit.vtxinwit[i].m_pegin_witness.stack[2]),
+              tx.vin[i].prevout);
+          // This assumes non-null prevout and genesis block hash
+          if (view.IsWithdrawSpent(pegin)) {
+            return state.Invalid(false, REJECT_CONFLICT,
+                                 "pegin-already-claimed");
+          }
+          setPeginsSpent.insert(pegin);
+        }
+      }
+      // Bring the best block into scope
+      view.GetBestBlock();
+      // we have all inputs cached now, so switch back to dummy, so we don't
+      // need to keep lock on mempool
+      view.SetBackend(dummy);
+      // Only accept BIP68 sequence locked transactions that can be mined in the
+      // next block; we don't want our mempool filled up with transactions that
+      // can't be mined yet. Must keep pool.cs for this unless we change
+      // CheckSequenceLocks to take a CoinsViewCache instead of create its own
+      if (!CheckSequenceLocks(tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp))
+        return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
     }
+    // Check for non-standard pay-to-script-hash in inputs
+    if (fRequireStandard && !AreInputsStandard(tx, view))
+      return state.Invalid(false, REJECT_NONSTANDARD,
+                           "bad-txns-nonstandard-inputs");
+    // Accept only transactions that spend from scriptSig inputs with pubkeys
+    // that are NOT on the freezelist
+    // Pubkeys that are on the freezelist AND the burnlist that are sent to
+    // OP_RETURN outputs are passed
+    if (fRequireFreezelistCheck) {
+      if (IsFreezelisted(tx, view)) {
+        if (fEnableBurnlistCheck) {
+          if (!IsBurnlisted(tx, view))
+            return state.DoS(0, false, REJECT_NONSTANDARD,
+                             "freezelist-no-burnlist-address");
+        } else
+          return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-address");
+      }
     }
-
-    {
-        CCoinsView dummy;
-        CCoinsViewCache view(&dummy);
-        std::set<std::pair<uint256, COutPoint> > setPeginsSpent;
-
-        LockPoints lp;
-        {
-        LOCK(pool.cs);
-        CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
-        view.SetBackend(viewMemPool);
-
-        // do we already have it?
-        bool fHadTxInCache = pcoinsTip->HaveCoinsInCache(hash);
-        if (view.HaveCoins(hash)) {
-            if (!fHadTxInCache)
-                vHashTxnToUncache.push_back(hash);
-            return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-known");
-        }
-
-        // do all inputs exist?
-        // Note that this does not check for the presence of actual outputs (see the next check for that),
-        // and only helps with filling in pfMissingInputs (to determine missing vs spent).
-        BOOST_FOREACH(const CTxIn txin, tx.vin) {
-            // Don't look for coins that only exist in parent chain
-            if (txin.m_is_pegin) {
-                continue;
-            }
-            if (!pcoinsTip->HaveCoinsInCache(txin.prevout.hash))
-                vHashTxnToUncache.push_back(txin.prevout.hash);
-            if (!view.HaveCoins(txin.prevout.hash)) {
-                if (pfMissingInputs)
-                    *pfMissingInputs = true;
-                return false; // fMissingInputs and !state.IsInvalid() is used to detect this condition, don't set state.Invalid()
-            }
-        }
-
-        // are the actual inputs available?
-        if (!view.HaveInputs(tx))
-            return state.Invalid(false, REJECT_DUPLICATE, "bad-txns-inputs-spent");
-
-        // Extract peg-in inputs, pass set to mempool entry. Validity of pegins checked in CheckInputs
-        for (unsigned int i = 0; i < tx.vin.size(); i++) {
-            if (tx.vin[i].m_is_pegin) {
-                // Quick check of pegin witness and prevout to extract db entry
-                if (tx.wit.vtxinwit.size() <= i || tx.wit.vtxinwit[i].m_pegin_witness.stack.size() < 6 || uint256(tx.wit.vtxinwit[i].m_pegin_witness.stack[2]).IsNull() || tx.vin[i].prevout.hash.IsNull()) {
-                    return state.Invalid(false, REJECT_INVALID, "pegin-no-witness");
-                }
-                std::pair<uint256, COutPoint> pegin = std::make_pair(uint256(tx.wit.vtxinwit[i].m_pegin_witness.stack[2]), tx.vin[i].prevout);
-                // This assumes non-null prevout and genesis block hash
-                if (view.IsWithdrawSpent(pegin)) {
-                    return state.Invalid(false, REJECT_CONFLICT, "pegin-already-claimed");
-                }
-                setPeginsSpent.insert(pegin);
-            }
-        }
-
-        // Bring the best block into scope
-        view.GetBestBlock();
-
-        // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
-        view.SetBackend(dummy);
-
-        // Only accept BIP68 sequence locked transactions that can be mined in the next
-        // block; we don't want our mempool filled up with transactions that can't
-        // be mined yet.
-        // Must keep pool.cs for this unless we change CheckSequenceLocks to take a
-        // CoinsViewCache instead of create its own
-        if (!CheckSequenceLocks(tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp))
-            return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
-        }
-
-        // Check for non-standard pay-to-script-hash in inputs
-        if (fRequireStandard && !AreInputsStandard(tx, view))
-            return state.Invalid(false, REJECT_NONSTANDARD, "bad-txns-nonstandard-inputs");
-
-	// Accept only transactions that spend from scriptSig inputs with pubkeys that are NOT on the freezelist
-// Pubkeys that are on the freezelist AND the burnlist that are sent to OP_RETURN outputs are passed
-	if (fRequireFreezelistCheck){
-	  if(IsFreezelisted(tx,view)){
-	    if(fEnableBurnlistCheck){
-	      if(!IsBurnlisted(tx,view))
-		return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-no-burnlist-address");
-	    } else {
-	      return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-address");
-	    }
-	  }
-	}
-
-        // Check for non-standard witness in P2WSH
-        if (tx.HasWitness() && fRequireStandard && !IsWitnessStandard(tx, view))
-            return state.DoS(0, false, REJECT_NONSTANDARD, "bad-witness-nonstandard", true);
-
-        int64_t nSigOpsCost = GetTransactionSigOpCost(tx, view, STANDARD_SCRIPT_VERIFY_FLAGS);
-
-        if (!tx.HasValidFee())
-            return state.DoS(0, false, REJECT_INVALID, "bad-fees");
-        CAmount nFees = tx.GetFee().begin()->second;
-        CAsset feeAsset = tx.GetFee().begin()->first;
-
-        // nModifiedFees includes any fee deltas from PrioritiseTransaction
-        CAmount nModifiedFees = nFees;
-        double nPriorityDummy = 0;
-        pool.ApplyDeltas(hash, nPriorityDummy, nModifiedFees);
-
-        // Neuter priority in mempool
-        CAmount inChainInputValue = 0;
-        double dPriority = 0;
-
-        // Keep track of transactions that spend a coinbase, which we re-scan
-        // during reorgs to ensure COINBASE_MATURITY is still met.
-        // Also track withdraw lock spends to allow them through free relay
-        bool fSpendsCoinbase = false;
-        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-            if (txin.m_is_pegin) {
-                continue;
-            }
-            const CCoins *coins = view.AccessCoins(txin.prevout.hash);
-            if (coins->IsCoinBase()) {
-                fSpendsCoinbase = true;
-                break;
-            }
-        }
-
-        CTxMemPoolEntry entry(ptx, nFees, feeAsset, nAcceptTime, dPriority, chainActive.Height(),
-                              inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp, setPeginsSpent);
-        unsigned int nSize = entry.GetTxSize();
-
-        // Check that the transaction doesn't have an excessive number of
-        // sigops, making it impossible to mine. Since the coinbase transaction
-        // itself can contain sigops MAX_STANDARD_TX_SIGOPS is less than
-        // MAX_BLOCK_SIGOPS; we still consider this an invalid rather than
-        // merely non-standard transaction.
-        if (nSigOpsCost > MAX_STANDARD_TX_SIGOPS_COST)
-            return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops", false,
-                strprintf("%d", nSigOpsCost));
-
-        CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
-        if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
-            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d for asset %s", nFees, mempoolRejectFee, feeAsset.GetHex()));
-        }
-
-        // No transactions are allowed below minRelayTxFee except from disconnected blocks
-        if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize))
-        {
-            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
-        }
-
-        if (nAbsurdFee && nFees > nAbsurdFee)
-            return state.Invalid(false,
-                REJECT_HIGHFEE, "absurdly-high-fee",
-                strprintf("%d > %d for asset %s", nFees, nAbsurdFee, feeAsset.GetHex()));
-
-        // Calculate in-mempool ancestors, up to a limit.
-        CTxMemPool::setEntries setAncestors;
-        size_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-        size_t nLimitAncestorSize = GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT)*1000;
-        size_t nLimitDescendants = GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
-        size_t nLimitDescendantSize = GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT)*1000;
-        std::string errString;
-        if (!pool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize, nLimitDescendants, nLimitDescendantSize, errString)) {
-            return state.DoS(0, false, REJECT_NONSTANDARD, "too-long-mempool-chain", false, errString);
-        }
-
-        // A transaction that spends outputs that would be replaced by it is invalid. Now
-        // that we have the set of all ancestors we can detect this
-        // pathological case by making sure setConflicts and setAncestors don't
-        // intersect.
-        BOOST_FOREACH(CTxMemPool::txiter ancestorIt, setAncestors)
-        {
-            const uint256 &hashAncestor = ancestorIt->GetTx().GetHash();
-            if (setConflicts.count(hashAncestor))
-            {
-                return state.DoS(10, false,
-                                 REJECT_INVALID, "bad-txns-spends-conflicting-tx", false,
-                                 strprintf("%s spends conflicting transaction %s",
-                                           hash.ToString(),
-                                           hashAncestor.ToString()));
-            }
-        }
-
-        // Check if it's economically rational to mine this transaction rather
-        // than the ones it replaces.
-        CAmount nConflictingFees = 0;
-        size_t nConflictingSize = 0;
-        uint64_t nConflictingCount = 0;
-        CTxMemPool::setEntries allConflicting;
-
-        // If we don't hold the lock allConflicting might be incomplete; the
-        // subsequent RemoveStaged() and addUnchecked() calls don't guarantee
-        // mempool consistency for us.
-        LOCK(pool.cs);
-        const bool fReplacementTransaction = setConflicts.size();
-        if (fReplacementTransaction)
-        {
-            CFeeRate newFeeRate(nModifiedFees, nSize);
-            std::set<uint256> setConflictsParents;
-            const int maxDescendantsToVisit = 100;
-            CTxMemPool::setEntries setIterConflicting;
-            BOOST_FOREACH(const uint256 &hashConflicting, setConflicts)
-            {
-                CTxMemPool::txiter mi = pool.mapTx.find(hashConflicting);
-                if (mi == pool.mapTx.end())
-                    continue;
-
-                // Save these to avoid repeated lookups
-                setIterConflicting.insert(mi);
-
-                // Don't allow the replacement to reduce the feerate of the
-                // mempool.
-                //
-                // We usually don't want to accept replacements with lower
-                // feerates than what they replaced as that would lower the
-                // feerate of the next block. Requiring that the feerate always
-                // be increased is also an easy-to-reason about way to prevent
-                // DoS attacks via replacements.
-                //
-                // The mining code doesn't (currently) take children into
-                // account (CPFP) so we only consider the feerates of
-                // transactions being directly replaced, not their indirect
-                // descendants. While that does mean high feerate children are
-                // ignored when deciding whether or not to replace, we do
-                // require the replacement to pay more overall fees too,
-                // mitigating most cases.
-                CFeeRate oldFeeRate(mi->GetModifiedFee(), mi->GetTxSize());
-                if (newFeeRate <= oldFeeRate)
-                {
-                    return state.DoS(0, false,
-                            REJECT_INSUFFICIENTFEE, "insufficient fee", false,
-                            strprintf("rejecting replacement %s; new feerate %s <= old feerate %s",
-                                  hash.ToString(),
-                                  newFeeRate.ToString(),
-                                  oldFeeRate.ToString()));
-                }
-
-                BOOST_FOREACH(const CTxIn &txin, mi->GetTx().vin)
-                {
-                    setConflictsParents.insert(txin.prevout.hash);
-                }
-
-                nConflictingCount += mi->GetCountWithDescendants();
-            }
-            // This potentially overestimates the number of actual descendants
-            // but we just want to be conservative to avoid doing too much
-            // work.
-            if (nConflictingCount <= maxDescendantsToVisit) {
-                // If not too many to replace, then calculate the set of
-                // transactions that would have to be evicted
-                BOOST_FOREACH(CTxMemPool::txiter it, setIterConflicting) {
-                    pool.CalculateDescendants(it, allConflicting);
-                }
-                BOOST_FOREACH(CTxMemPool::txiter it, allConflicting) {
-                    nConflictingFees += it->GetModifiedFee();
-                    nConflictingSize += it->GetTxSize();
-                }
-            } else {
-                return state.DoS(0, false,
-                        REJECT_NONSTANDARD, "too many potential replacements", false,
-                        strprintf("rejecting replacement %s; too many potential replacements (%d > %d)\n",
-                            hash.ToString(),
-                            nConflictingCount,
-                            maxDescendantsToVisit));
-            }
-
-            for (unsigned int j = 0; j < tx.vin.size(); j++)
-            {
-                // We don't want to accept replacements that require low
-                // feerate junk to be mined first. Ideally we'd keep track of
-                // the ancestor feerates and make the decision based on that,
-                // but for now requiring all new inputs to be confirmed works.
-                if (!setConflictsParents.count(tx.vin[j].prevout.hash))
-                {
-                    // Rather than check the UTXO set - potentially expensive -
-                    // it's cheaper to just check if the new input refers to a
-                    // tx that's in the mempool.
-                    if (pool.mapTx.find(tx.vin[j].prevout.hash) != pool.mapTx.end())
-                        return state.DoS(0, false,
-                                         REJECT_NONSTANDARD, "replacement-adds-unconfirmed", false,
-                                         strprintf("replacement %s adds unconfirmed input, idx %d",
-                                                  hash.ToString(), j));
-                }
-            }
-
-            // The replacement must pay greater fees than the transactions it
-            // replaces - if we did the bandwidth used by those conflicting
-            // transactions would not be paid for.
-            if (nModifiedFees < nConflictingFees)
-            {
-                return state.DoS(0, false,
-                                 REJECT_INSUFFICIENTFEE, "insufficient fee", false,
-                                 strprintf("rejecting replacement %s, less fees than conflicting txs; %s < %s",
-                                          hash.ToString(), FormatMoney(nModifiedFees), FormatMoney(nConflictingFees)));
-            }
-
-            // Finally in addition to paying more fees than the conflicts the
-            // new transaction must pay for its own bandwidth.
-            CAmount nDeltaFees = nModifiedFees - nConflictingFees;
-            if (nDeltaFees < ::incrementalRelayFee.GetFee(nSize))
-            {
-                return state.DoS(0, false,
-                        REJECT_INSUFFICIENTFEE, "insufficient fee", false,
-                        strprintf("rejecting replacement %s, not enough additional fees to relay; %s < %s",
-                              hash.ToString(),
-                              FormatMoney(nDeltaFees),
-                              FormatMoney(::incrementalRelayFee.GetFee(nSize))));
-            }
-        }
-
-        unsigned int scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
-        if (!Params().RequireStandard()) {
-            scriptVerifyFlags = GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
-        }
-
-        std::set<std::pair<uint256, COutPoint> > setPeginsSpent2;
-
-        // Check against previous transactions
-        // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        PrecomputedTransactionData txdata(tx);
-        if (!CheckInputs(tx, state, view, true, scriptVerifyFlags, true, txdata, setPeginsSpent2)) {
-            // SCRIPT_VERIFY_CLEANSTACK requires SCRIPT_VERIFY_WITNESS, so we
-            // need to turn both off, and compare against just turning off CLEANSTACK
-            // to see if the failure is specifically due to witness validation.
-            setPeginsSpent2.clear();
-            CValidationState stateDummy; // Want reported failures to be from first CheckInputs
-            if (!tx.HasWitness() && CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~(SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_CLEANSTACK), true, txdata, setPeginsSpent2)) {
-                setPeginsSpent2.clear();
-                if (!CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~SCRIPT_VERIFY_CLEANSTACK, true, txdata, setPeginsSpent2)) {
-                setPeginsSpent2.clear();
-                // Only the witness is missing, so the transaction itself may be fine.
-                    state.SetCorruptionPossible();
-                }
-            }
-            return false; // state filled in by CheckInputs
-        }
-
-        assert(setPeginsSpent2 == setPeginsSpent);
-        setPeginsSpent2.clear();
-
-        // Check again against just the consensus-critical mandatory script
-        // verification flags, in case of bugs in the standard flags that cause
-        // transactions to pass as valid when they're actually invalid. For
-        // instance the STRICTENC flag was incorrectly allowing certain
-        // CHECKSIG NOT scripts to pass, even though they were invalid.
+    // Check for non-standard witness in P2WSH
+    if (tx.HasWitness() && fRequireStandard && !IsWitnessStandard(tx, view))
+      return state.DoS(0, false, REJECT_NONSTANDARD, "bad-witness-nonstandard",
+                       true);
+    int64_t nSigOpsCost =
+        GetTransactionSigOpCost(tx, view, STANDARD_SCRIPT_VERIFY_FLAGS);
+    if (!tx.HasValidFee())
+      return state.DoS(0, false, REJECT_INVALID, "bad-fees");
+    CAmount nFees = tx.GetFee().begin()->second;
+    CAsset feeAsset = tx.GetFee().begin()->first;
+    // nModifiedFees includes any fee deltas from PrioritiseTransaction
+    CAmount nModifiedFees = nFees;
+    double nPriorityDummy = 0;
+    pool.ApplyDeltas(hash, nPriorityDummy, nModifiedFees);
+    // Neuter priority in mempool
+    CAmount inChainInputValue = 0;
+    double dPriority = 0;
+    // Keep track of transactions that spend a coinbase, which we re-scan
+    // during reorgs to ensure COINBASE_MATURITY is still met.
+    // Also track withdraw lock spends to allow them through free relay
+    bool fSpendsCoinbase = false;
+    BOOST_FOREACH (const CTxIn &txin, tx.vin) {
+      if (txin.m_is_pegin)
+        continue;
+      const CCoins *coins = view.AccessCoins(txin.prevout.hash);
+      if (coins->IsCoinBase()) {
+        fSpendsCoinbase = true;
+        break;
+      }
+    }
+    CTxMemPoolEntry entry(ptx, nFees, feeAsset, nAcceptTime, dPriority,
+                          chainActive.Height(), inChainInputValue,
+                          fSpendsCoinbase, nSigOpsCost, lp, setPeginsSpent);
+    unsigned int nSize = entry.GetTxSize();
+    // Check that the transaction doesn't have an excessive number of
+    // sigops, making it impossible to mine. Since the coinbase transaction
+    // itself can contain sigops MAX_STANDARD_TX_SIGOPS is less than
+    // MAX_BLOCK_SIGOPS; we still consider this an invalid rather than
+    // merely non-standard transaction.
+    if (nSigOpsCost > MAX_STANDARD_TX_SIGOPS_COST)
+      return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops",
+                       false, strprintf("%d", nSigOpsCost));
+    CAmount mempoolRejectFee =
+        pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) *
+                       1000000)
+            .GetFee(nSize);
+    if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
+      return state.DoS(0, false, REJECT_INSUFFICIENTFEE,
+                       "mempool min fee not met", false,
+                       strprintf("%d < %d for asset %s", nFees,
+                                 mempoolRejectFee, feeAsset.GetHex()));
+    }
+    // No transactions are allowed below minRelayTxFee except from disconnected
+    // blocks
+    if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize))
+      return state.DoS(0, false, REJECT_INSUFFICIENTFEE,
+                       "min relay fee not met");
+    if (nAbsurdFee && nFees > nAbsurdFee)
+      return state.Invalid(false, REJECT_HIGHFEE, "absurdly-high-fee",
+                           strprintf("%d > %d for asset %s", nFees, nAbsurdFee,
+                                     feeAsset.GetHex()));
+    // Calculate in-mempool ancestors, up to a limit.
+    CTxMemPool::setEntries setAncestors;
+    size_t nLimitAncestors =
+        GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
+    size_t nLimitAncestorSize =
+        GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;
+    size_t nLimitDescendants =
+        GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
+    size_t nLimitDescendantSize =
+        GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000;
+    std::string errString;
+    if (!pool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors,
+                                        nLimitAncestorSize, nLimitDescendants,
+                                        nLimitDescendantSize, errString))
+      return state.DoS(0, false, REJECT_NONSTANDARD, "too-long-mempool-chain",
+                       false, errString);
+    // A transaction that spends outputs that would be replaced by it is
+    // invalid. Now that we have the set of all ancestors we can detect this
+    // pathological case by making sure setConflicts and setAncestors don't
+    // intersect.
+    BOOST_FOREACH (CTxMemPool::txiter ancestorIt, setAncestors) {
+      const uint256 &hashAncestor = ancestorIt->GetTx().GetHash();
+      if (setConflicts.count(hashAncestor))
+        return state.DoS(10, false, REJECT_INVALID,
+                         "bad-txns-spends-conflicting-tx", false,
+                         strprintf("%s spends conflicting transaction %s",
+                                   hash.ToString(), hashAncestor.ToString()));
+    }
+    // Check if it's economically rational to mine this transaction rather
+    // than the ones it replaces.
+    CAmount nConflictingFees = 0;
+    size_t nConflictingSize = 0;
+    uint64_t nConflictingCount = 0;
+    CTxMemPool::setEntries allConflicting;
+    // If we don't hold the lock allConflicting might be incomplete; the
+    // subsequent RemoveStaged() and addUnchecked() calls don't guarantee
+    // mempool consistency for us.
+    LOCK(pool.cs);
+    const bool fReplacementTransaction = setConflicts.size();
+    if (fReplacementTransaction) {
+      CFeeRate newFeeRate(nModifiedFees, nSize);
+      std::set<uint256> setConflictsParents;
+      const int maxDescendantsToVisit = 100;
+      CTxMemPool::setEntries setIterConflicting;
+      BOOST_FOREACH (const uint256 &hashConflicting, setConflicts) {
+        CTxMemPool::txiter mi = pool.mapTx.find(hashConflicting);
+        if (mi == pool.mapTx.end())
+          continue;
+        // Save these to avoid repeated lookups
+        setIterConflicting.insert(mi);
+        // Don't allow the replacement to reduce the feerate of the
+        // mempool.
         //
-        // There is a similar check in CreateNewBlock() to prevent creating
-        // invalid blocks, however allowing such transactions into the mempool
-        // can be exploited as a DoS attack.
-        if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata, setPeginsSpent2))
-        {
-            return error("%s: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s, %s",
-                __func__, hash.ToString(), FormatStateMessage(state));
+        // We usually don't want to accept replacements with lower
+        // feerates than what they replaced as that would lower the
+        // feerate of the next block. Requiring that the feerate always
+        // be increased is also an easy-to-reason about way to prevent
+        // DoS attacks via replacements.
+        //
+        // The mining code doesn't (currently) take children into
+        // account (CPFP) so we only consider the feerates of
+        // transactions being directly replaced, not their indirect
+        // descendants. While that does mean high feerate children are
+        // ignored when deciding whether or not to replace, we do
+        // require the replacement to pay more overall fees too,
+        // mitigating most cases.
+        CFeeRate oldFeeRate(mi->GetModifiedFee(), mi->GetTxSize());
+        if (newFeeRate <= oldFeeRate) {
+          return state.DoS(
+              0, false, REJECT_INSUFFICIENTFEE, "insufficient fee", false,
+              strprintf(
+                  "rejecting replacement %s; new feerate %s <= old feerate %s",
+                  hash.ToString(), newFeeRate.ToString(),
+                  oldFeeRate.ToString()));
         }
-
-        assert(setPeginsSpent2 == setPeginsSpent);
-
-        // Remove conflicting transactions from the mempool
-        BOOST_FOREACH(const CTxMemPool::txiter it, allConflicting)
-        {
-            LogPrint("mempool", "replacing tx %s with %s for %s BTC additional fees, %d delta bytes\n",
-                    it->GetTx().GetHash().ToString(),
-                    hash.ToString(),
-                    FormatMoney(nModifiedFees - nConflictingFees),
-                    (int)nSize - (int)nConflictingSize);
-            if (plTxnReplaced)
-                plTxnReplaced->push_back(it->GetSharedTx());
+        BOOST_FOREACH (const CTxIn &txin, mi->GetTx().vin) {
+          setConflictsParents.insert(txin.prevout.hash);
         }
-        pool.RemoveStaged(allConflicting, false, MemPoolRemovalReason::REPLACED);
-
-        // This transaction should only count for fee estimation if it isn't a
-        // BIP 125 replacement transaction (may not be widely supported), the
-        // node is not behind, and the transaction is not dependent on any other
-        // transactions in the mempool.
-        bool validForFeeEstimation = !fReplacementTransaction && IsCurrentForFeeEstimation() && pool.HasNoInputsOf(tx);
-
-        // Store transaction in memory
-        pool.addUnchecked(hash, entry, setAncestors, validForFeeEstimation);
-
-        // trim mempool and check if tx was trimmed
-        if (!fOverrideMempoolLimit) {
-            LimitMempoolSize(pool, GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000, GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
-            if (!pool.exists(hash))
-                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
+        nConflictingCount += mi->GetCountWithDescendants();
+      }
+      // This potentially overestimates the number of actual descendants
+      // but we just want to be conservative to avoid doing too much
+      // work.
+      if (nConflictingCount <= maxDescendantsToVisit) {
+        // If not too many to replace, then calculate the set of
+        // transactions that would have to be evicted
+        BOOST_FOREACH (CTxMemPool::txiter it, setIterConflicting) {
+          pool.CalculateDescendants(it, allConflicting);
         }
+        BOOST_FOREACH (CTxMemPool::txiter it, allConflicting) {
+          nConflictingFees += it->GetModifiedFee();
+          nConflictingSize += it->GetTxSize();
+        }
+      } else
+        return state.DoS(0, false, REJECT_NONSTANDARD,
+                         "too many potential replacements", false,
+                         strprintf("rejecting replacement %s; too many "
+                                   "potential replacements (%d > %d)\n",
+                                   hash.ToString(), nConflictingCount,
+                                   maxDescendantsToVisit));
+      for (unsigned int j = 0; j < tx.vin.size(); j++) {
+        // We don't want to accept replacements that require low
+        // feerate junk to be mined first. Ideally we'd keep track of
+        // the ancestor feerates and make the decision based on that,
+        // but for now requiring all new inputs to be confirmed works.
+        if (!setConflictsParents.count(tx.vin[j].prevout.hash)) {
+          // Rather than check the UTXO set - potentially expensive -
+          // it's cheaper to just check if the new input refers to a
+          // tx that's in the mempool.
+          if (pool.mapTx.find(tx.vin[j].prevout.hash) != pool.mapTx.end())
+            return state.DoS(
+                0, false, REJECT_NONSTANDARD, "replacement-adds-unconfirmed",
+                false,
+                strprintf("replacement %s adds unconfirmed input, idx %d",
+                          hash.ToString(), j));
+        }
+      }
+      // The replacement must pay greater fees than the transactions it
+      // replaces - if we did the bandwidth used by those conflicting
+      // transactions would not be paid for.
+      if (nModifiedFees < nConflictingFees)
+        return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient fee",
+                         false,
+                         strprintf("rejecting replacement %s, less fees than "
+                                   "conflicting txs; %s < %s",
+                                   hash.ToString(), FormatMoney(nModifiedFees),
+                                   FormatMoney(nConflictingFees)));
+      // Finally in addition to paying more fees than the conflicts the
+      // new transaction must pay for its own bandwidth.
+      CAmount nDeltaFees = nModifiedFees - nConflictingFees;
+      if (nDeltaFees < ::incrementalRelayFee.GetFee(nSize))
+        return state.DoS(
+            0, false, REJECT_INSUFFICIENTFEE, "insufficient fee", false,
+            strprintf("rejecting replacement %s, not enough additional fees to "
+                      "relay; %s < %s",
+                      hash.ToString(), FormatMoney(nDeltaFees),
+                      FormatMoney(::incrementalRelayFee.GetFee(nSize))));
     }
-
-    GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
-
-    return true;
+    unsigned int scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
+    if (!Params().RequireStandard())
+      scriptVerifyFlags = GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
+    std::set<std::pair<uint256, COutPoint>> setPeginsSpent2;
+    // Check against previous transactions
+    // This is done last to help prevent CPU exhaustion denial-of-service
+    // attacks.
+    PrecomputedTransactionData txdata(tx);
+    if (!CheckInputs(tx, state, view, true, scriptVerifyFlags, true, txdata,
+                     setPeginsSpent2)) {
+      // SCRIPT_VERIFY_CLEANSTACK requires SCRIPT_VERIFY_WITNESS, so we
+      // need to turn both off, and compare against just turning off CLEANSTACK
+      // to see if the failure is specifically due to witness validation.
+      setPeginsSpent2.clear();
+      CValidationState
+          stateDummy; // Want reported failures to be from first CheckInputs
+      if (!tx.HasWitness() &&
+          CheckInputs(tx, stateDummy, view, true,
+                      scriptVerifyFlags &
+                          ~(SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_CLEANSTACK),
+                      true, txdata, setPeginsSpent2)) {
+        setPeginsSpent2.clear();
+        if (!CheckInputs(tx, stateDummy, view, true,
+                         scriptVerifyFlags & ~SCRIPT_VERIFY_CLEANSTACK, true,
+                         txdata, setPeginsSpent2)) {
+          setPeginsSpent2.clear();
+          // Only the witness is missing, so the transaction itself may be fine.
+          state.SetCorruptionPossible();
+        }
+      }
+      return false; // state filled in by CheckInputs
+    }
+    assert(setPeginsSpent2 == setPeginsSpent);
+    setPeginsSpent2.clear();
+    // Check again against just the consensus-critical mandatory script
+    // verification flags, in case of bugs in the standard flags that cause
+    // transactions to pass as valid when they're actually invalid. For
+    // instance the STRICTENC flag was incorrectly allowing certain
+    // CHECKSIG NOT scripts to pass, even though they were invalid.
+    //
+    // There is a similar check in CreateNewBlock() to prevent creating
+    // invalid blocks, however allowing such transactions into the mempool
+    // can be exploited as a DoS attack.
+    if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true,
+                     txdata, setPeginsSpent2)) {
+      return error("%s: BUG! PLEASE REPORT THIS! ConnectInputs failed against "
+                   "MANDATORY but not STANDARD flags %s, %s",
+                   __func__, hash.ToString(), FormatStateMessage(state));
+    }
+    assert(setPeginsSpent2 == setPeginsSpent);
+    // Remove conflicting transactions from the mempool
+    BOOST_FOREACH (const CTxMemPool::txiter it, allConflicting) {
+      LogPrint("mempool",
+               "replacing tx %s with %s for %s BTC additional fees, %d delta "
+               "bytes\n",
+               it->GetTx().GetHash().ToString(), hash.ToString(),
+               FormatMoney(nModifiedFees - nConflictingFees),
+               (int)nSize - (int)nConflictingSize);
+      if (plTxnReplaced)
+        plTxnReplaced->push_back(it->GetSharedTx());
+    }
+    pool.RemoveStaged(allConflicting, false, MemPoolRemovalReason::REPLACED);
+    // This transaction should only count for fee estimation if it isn't a
+    // BIP 125 replacement transaction (may not be widely supported), the
+    // node is not behind, and the transaction is not dependent on any other
+    // transactions in the mempool.
+    bool validForFeeEstimation = !fReplacementTransaction &&
+                                 IsCurrentForFeeEstimation() &&
+                                 pool.HasNoInputsOf(tx);
+    // Store transaction in memory
+    pool.addUnchecked(hash, entry, setAncestors, validForFeeEstimation);
+    // trim mempool and check if tx was trimmed
+    if (!fOverrideMempoolLimit) {
+      LimitMempoolSize(
+          pool, GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000,
+          GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
+      if (!pool.exists(hash))
+        return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
+    }
+  }
+  GetMainSignals().SyncTransaction(tx, NULL,
+                                   CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
+  return true;
 }
 
-bool AcceptToMemoryPoolWithTime(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx, bool fLimitFree,
-                        bool* pfMissingInputs, int64_t nAcceptTime, std::list<CTransactionRef>* plTxnReplaced,
-                        bool fOverrideMempoolLimit, const CAmount nAbsurdFee)
-{
-    std::vector<uint256> vHashTxToUncache;
-    bool res = AcceptToMemoryPoolWorker(pool, state, tx, fLimitFree, pfMissingInputs, nAcceptTime, plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee, vHashTxToUncache);
-    if (!res) {
-        BOOST_FOREACH(const uint256& hashTx, vHashTxToUncache)
-            pcoinsTip->Uncache(hashTx);
-    }
-    // After we've (potentially) uncached entries, ensure our coins cache is still within its size limits
-    CValidationState stateDummy;
-    FlushStateToDisk(stateDummy, FLUSH_STATE_PERIODIC);
-    return res;
+bool AcceptToMemoryPoolWithTime(CTxMemPool &pool, CValidationState &state,
+                                const CTransactionRef &tx, bool fLimitFree,
+                                bool *pfMissingInputs, int64_t nAcceptTime,
+                                std::list<CTransactionRef> *plTxnReplaced,
+                                bool fOverrideMempoolLimit,
+                                const CAmount nAbsurdFee) {
+  std::vector<uint256> vHashTxToUncache;
+  bool res = AcceptToMemoryPoolWorker(
+      pool, state, tx, fLimitFree, pfMissingInputs, nAcceptTime, plTxnReplaced,
+      fOverrideMempoolLimit, nAbsurdFee, vHashTxToUncache);
+  if (!res)
+    BOOST_FOREACH (const uint256 &hashTx, vHashTxToUncache)
+      pcoinsTip->Uncache(hashTx);
+  // After we've (potentially) uncached entries, ensure our coins cache is still
+  // within its size limits
+  CValidationState stateDummy;
+  FlushStateToDisk(stateDummy, FLUSH_STATE_PERIODIC);
+  return res;
 }
 
-bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx, bool fLimitFree,
-                        bool* pfMissingInputs, std::list<CTransactionRef>* plTxnReplaced,
-                        bool fOverrideMempoolLimit, const CAmount nAbsurdFee)
-{
-  boost::posix_time::ptime start = boost::posix_time::microsec_clock::local_time();
-  bool retrn = AcceptToMemoryPoolWithTime(pool, state, tx, fLimitFree, pfMissingInputs, GetTime(), plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee);
-  boost::posix_time::ptime finish = boost::posix_time::second_clock::local_time();
+bool AcceptToMemoryPool(CTxMemPool &pool, CValidationState &state,
+                        const CTransactionRef &tx, bool fLimitFree,
+                        bool *pfMissingInputs,
+                        std::list<CTransactionRef> *plTxnReplaced,
+                        bool fOverrideMempoolLimit, const CAmount nAbsurdFee) {
+  boost::posix_time::ptime start =
+      boost::posix_time::microsec_clock::local_time();
+  bool retrn = AcceptToMemoryPoolWithTime(
+      pool, state, tx, fLimitFree, pfMissingInputs, GetTime(), plTxnReplaced,
+      fOverrideMempoolLimit, nAbsurdFee);
+  boost::posix_time::ptime finish =
+      boost::posix_time::second_clock::local_time();
   boost::posix_time::time_duration diff = finish - start;
   statsClient.timing("AcceptToMemoryPool_ms", diff.total_milliseconds(), 1.0f);
   statsClient.gauge("transactions.txInMemoryPool", pool.size(), 0.1f);
