@@ -3766,7 +3766,7 @@ UniValue claimpegin(const JSONRPCRequest& request)
 
 UniValue createrawissuance(const JSONRPCRequest& request)
 {
-  if (request.fHelp || request.params.size() !=10)
+  if (request.fHelp || request.params.size() !=9)
     throw runtime_error(
             "createrawissuance assetaddress assetamount tokenaddress tokenamount changeaddress feeamount inputtxid vout\n"
             "\nCreate a raw unsigned asset issuance transaction to specified addresses with a policyAsset outpoint as input.\n"
@@ -3778,9 +3778,8 @@ UniValue createrawissuance(const JSONRPCRequest& request)
 	    "5. \"changeaddress\"         (string, required) Address to return the policyAsset input.\n"
 	    "6. \"changeamount\"          (numeric or string, required) Return policyAsset amount.\n"
 	    "7. \"changenum\"             (numeric or string, required) Number of change outputs to be generated\n"
-	    "8. \"feeamount\"             (numeric or string, required) Fee output amount.\n"
-            "9. \"inputtxid\"             (string, required) policyAsset input TXID.\n"
-	    "10. \"vout\"                  (numeric or string, required) policyAsset TXID output index\n"
+            "8. \"inputtxid\"             (string, required) policyAsset input TXID.\n"
+	    "9. \"vout\"                  (numeric or string, required) policyAsset TXID output index\n"
             "\nResult:\n"
             "{                        (json object)\n"
             "  \"rawtx\":\"<rawtx>\",   (string) Hex encoded raw unsigned issuance transaction.\n"
@@ -3789,8 +3788,8 @@ UniValue createrawissuance(const JSONRPCRequest& request)
             "  \"token\":\"<token>\", (string) Token type for issuance.\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("createrawissuance", "\"2dhfx249gZKqMGKtKAgceuCyDiHVEeVZWzU\" 100.0 \"2dp5EWgkc4RyzVvBvAyRAMuJ1hS84BgSBLj\" 1.0 \"2djpn7hq9Jh3jx3sjhPXuhUpJQWHrtXrKLr\" 99.9995 1 0.0005 \"42b7101f4596d39cfb5f5e5ca7b6873474607b04f365590f478261ad74dae717\" 1 ")
-            + HelpExampleRpc("createrawissuance", "\"2dhfx249gZKqMGKtKAgceuCyDiHVEeVZWzU\" 100.0 \"2dp5EWgkc4RyzVvBvAyRAMuJ1hS84BgSBLj\" 1.0 \"2djpn7hq9Jh3jx3sjhPXuhUpJQWHrtXrKLr\" 99.9995 1 0.0005 \"42b7101f4596d39cfb5f5e5ca7b6873474607b04f365590f478261ad74dae717\" 1 ")
+            + HelpExampleCli("createrawissuance", "\"2dhfx249gZKqMGKtKAgceuCyDiHVEeVZWzU\" 100.0 \"2dp5EWgkc4RyzVvBvAyRAMuJ1hS84BgSBLj\" 1.0 \"2djpn7hq9Jh3jx3sjhPXuhUpJQWHrtXrKLr\" 10.0 1 \"42b7101f4596d39cfb5f5e5ca7b6873474607b04f365590f478261ad74dae717\" 1 ")
+            + HelpExampleRpc("createrawissuance", "\"2dhfx249gZKqMGKtKAgceuCyDiHVEeVZWzU\" 100.0 \"2dp5EWgkc4RyzVvBvAyRAMuJ1hS84BgSBLj\" 1.0 \"2djpn7hq9Jh3jx3sjhPXuhUpJQWHrtXrKLr\" 10.0 1 \"42b7101f4596d39cfb5f5e5ca7b6873474607b04f365590f478261ad74dae717\" 1 ")
 			);
   //Get the output addresses
   CBitcoinAddress assetAddr(request.params[0].get_str());
@@ -3810,21 +3809,20 @@ UniValue createrawissuance(const JSONRPCRequest& request)
   CAmount nAmount = AmountFromValue(request.params[1]);
   CAmount nTokens = AmountFromValue(request.params[3]);
   CAmount nChange = AmountFromValue(request.params[5]);
-  CAmount nFee = AmountFromValue(request.params[7]);
 
   if (nAmount == 0 && nTokens == 0) {
     throw JSONRPCError(RPC_TYPE_ERROR, "Issuance must have one non-zero component");
   }
 
   //get number of change outputs required
-  int nChangeOutputs = request.params[6].get_int();
+  int nChangeOutputs = atoi(request.params[6].get_str());
 
   bool fBlindIssuances = false;
 
   //get the input outpoint from RPC
   uint256 prevtxhash;
-  prevtxhash.SetHex(request.params[8].get_str());
-  uint32_t nout = atoi(request.params[9].get_str());
+  prevtxhash.SetHex(request.params[7].get_str());
+  uint32_t nout = atoi(request.params[8].get_str());
   COutPoint policyOutpoint(prevtxhash,nout);
 
   CMutableTransaction rawTx;
@@ -3848,8 +3846,6 @@ UniValue createrawissuance(const JSONRPCRequest& request)
   for(int it=0;it<nChangeOutputs;it++) {
     rawTx.vout.push_back(txoutChange);
   }
-  CTxOut out(pAsset, nFee, CScript());
-  rawTx.vout.push_back(out);
 
   //standard sequence number
   uint32_t nSequence = (rawTx.nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
@@ -3968,6 +3964,93 @@ UniValue issueasset(const JSONRPCRequest& request)
     ret.push_back(Pair("txid", wtx.tx->GetHash().GetHex()));
     ret.push_back(Pair("vin", 0));
     ret.push_back(Pair("entropy", entropy.GetHex()));
+    ret.push_back(Pair("asset", asset.GetHex()));
+    ret.push_back(Pair("token", token.GetHex()));
+    return ret;
+}
+
+UniValue createrawreissuance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() !=7)
+        throw runtime_error(
+            "createrawissuance assetaddress assetamount tokenaddress tokenamount changeaddress feeamount inputtxid vout\n"
+            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a policyAsset outpoint as input.\n"
+            "\nArguments:\n"
+            "1. \"assetaddress\"          (string, required) Address to send re-issued asset to.\n"
+            "2. \"assetamount\"           (numeric or string, required) Amount of re-issued asset to generate.\n"
+            "3. \"tokenaddress\"          (string, required) Address to return the reissuance token to.\n"
+            "4. \"tokenamount\"           (numeric or string, required) Amount of returned re-issuance tokens to generate.\n"
+            "5. \"inputtxid\"             (string, required) re-issuance token input TXID.\n"
+            "6. \"vout\"                  (numeric or string, required) re-issuance token TXID output index\n"
+            "7. \"entropy\"               (string, required) the issuance entropy.\n"
+            "\nResult:\n"
+            "{                        (json object)\n"
+            "  \"hex\":\"<hex>\",   (string) Hex encoded raw unsigned issuance transaction.\n"
+            "  \"asset\":\"<asset>\",   (string) Re-issued asset ID\n"
+            "  \"token\":\"<token>\",   (string) Re-issuance token ID\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("createrawissuance", "\"2dhfx249gZKqMGKtKAgceuCyDiHVEeVZWzU\" 0.01 \"2dp5EWgkc4RyzVvBvAyRAMuJ1hS84BgSBLj\" 1.0 \"42b7101f4596d39cfb5f5e5ca7b6873474607b04f365590f478261ad74dae717\" 1 c8213b3ee67b02bcca0148d8581d0f616b822d317d5b26432d2f1f03beda2fa7")
+            + HelpExampleRpc("createrawissuance", "\"2dhfx249gZKqMGKtKAgceuCyDiHVEeVZWzU\" 0.01 \"2dp5EWgkc4RyzVvBvAyRAMuJ1hS84BgSBLj\" 1.0 \"42b7101f4596d39cfb5f5e5ca7b6873474607b04f365590f478261ad74dae717\" 1 c8213b3ee67b02bcca0148d8581d0f616b822d317d5b26432d2f1f03beda2fa7")
+            );
+
+    //Get the output addresses
+    CBitcoinAddress assetAddr(request.params[0].get_str());
+    CBitcoinAddress tokenAddr(request.params[2].get_str());
+
+    if (!assetAddr.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Asset token address");
+
+    if (!tokenAddr.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Reissuance token address");
+
+    //get the output amounts
+    CAmount nAmount = AmountFromValue(request.params[1]);
+    CAmount nTokens = AmountFromValue(request.params[3]);
+
+    if (nAmount == 0 || nTokens == 0) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Re-issuance must be non-zero component");
+    }
+
+    //get the input outpoint from RPC
+    uint256 prevtxhash;
+    prevtxhash.SetHex(request.params[4].get_str());
+    uint32_t nout = atoi(request.params[5].get_str());
+    COutPoint tokenOutpoint(prevtxhash,nout);
+
+    CMutableTransaction rawTx;
+
+    // Calculate asset and token IDs from the input entropy
+    uint256 entropy;
+    entropy.SetHex(request.params[6].get_str());
+    CAsset asset;
+    CalculateAsset(asset, entropy);
+    CAsset token;
+    CalculateReissuanceToken(token, entropy, false);
+
+    //generate the outputs
+    CTxOut txoutAsset(asset,nAmount,GetScriptForDestination(assetAddr.Get()));
+    rawTx.vout.push_back(txoutAsset);
+    CTxOut txoutToken(token,nTokens,GetScriptForDestination(tokenAddr.Get()));
+    rawTx.vout.push_back(txoutToken);
+
+    //standard sequence number
+    uint32_t nSequence = (rawTx.nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
+
+    //generate input from the provided outpoint
+    CTxIn in(tokenOutpoint, CScript(), nSequence);
+
+    //push single input to raw transaction
+    rawTx.vin.push_back(in);
+
+    //set flags and amounts for asset issuance and reissuance token in the input
+    rawTx.vin[0].assetIssuance.assetBlindingNonce = CAssetIssuance::UNBLINDED_REISSUANCE_NONCE;
+    rawTx.vin[0].assetIssuance.nAmount = nAmount;
+    rawTx.vin[0].assetIssuance.assetEntropy = entropy;
+
+    //return result
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("hex", EncodeHexTx(rawTx)));
     ret.push_back(Pair("asset", asset.GetHex()));
     ret.push_back(Pair("token", token.GetHex()));
     return ret;
@@ -4246,7 +4329,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "importissuanceblindingkey",&importissuanceblindingkey,true,   {"txid", "vin", "blindingkey"} },
     { "wallet",             "keypoolrefill",            &keypoolrefill,            true,   {"newsize"} },
     { "wallet",             "issueasset",               &issueasset,               true,   {"assetamount", "tokenamount", "blind"} },
-    { "wallet",             "createrawissuance",        &createrawissuance,        true,   {"assetaddress", "assetamount", "tokenaddress", "tokenamount", "changeaddress", "changeamount", "feeamount", "inputtxid", "vout"} },
+    { "wallet",             "createrawissuance",        &createrawissuance,        true,   {"assetaddress", "assetamount", "tokenaddress", "tokenamount", "changeaddress", "changeamount", "numchange", "inputtxid", "vout"} },
+    { "wallet",             "createrawreissuance",      &createrawreissuance,      true,   {"assetaddress", "assetamount", "tokenaddress", "tokenamount", "inputtxid", "vout", "asset", "entropy", "token"} },
     { "wallet",             "listaccounts",             &listaccounts,             false,  {"minconf","include_watchonly"} },
     { "wallet",             "listaddressgroupings",     &listaddressgroupings,     false,  {} },
     { "wallet",             "listlockunspent",          &listlockunspent,          false,  {} },

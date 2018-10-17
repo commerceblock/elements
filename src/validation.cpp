@@ -1089,11 +1089,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
   if (fRequireWhitelistCheck)
     if (!IsWhitelisted(tx))
       return state.DoS(0, false, REJECT_NONSTANDARD, "non-whitelisted-address");
-  // Accept only transactions that have no asset issuance inputs
-  if (fblockissuancetx)
-    if (GetNumIssuances(tx) > 0)
-      return state.DoS(0, false, REJECT_NONSTANDARD,
-                       "blocked-asset-issuance-txn");
   // Only accept nLockTime-using transactions that can be mined in the next
   // block; we don't want our mempool filled up with transactions that can't
   // be mined yet.
@@ -1247,15 +1242,17 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
         pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) *
                        1000000)
             .GetFee(nSize);
-    if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
+    if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee &&
+        tx.vin[0].assetIssuance.IsNull())
       return state.DoS(0, false, REJECT_INSUFFICIENTFEE,
                        "mempool min fee not met", false,
                        strprintf("%d < %d for asset %s", nFees,
                                  mempoolRejectFee, feeAsset.GetHex()));
-    }
     // No transactions are allowed below minRelayTxFee except from disconnected
     // blocks
-    if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize))
+    
+    if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize) &&
+        tx.vin[0].assetIssuance.IsNull())
       return state.DoS(0, false, REJECT_INSUFFICIENTFEE,
                        "min relay fee not met");
     if (nAbsurdFee && nFees > nAbsurdFee)
@@ -1314,6 +1311,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
         setIterConflicting.insert(mi);
         // Don't allow the replacement to reduce the feerate of the
         // mempool.
+
         //
         // We usually don't want to accept replacements with lower
         // feerates than what they replaced as that would lower the
