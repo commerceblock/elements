@@ -33,7 +33,7 @@ namespace {
 //   removed the check, ocean that would otherwise be on this list could be
 //   left as disconnected singleton lists.)
 // - LRU:  contains the items not currently referenced by clients, in LRU order
-// Elements are moved between these lists by the Ref() and Unref() methods,
+// Ocean are moved between these lists by the Ref() and Unref() methods,
 // when they detect an element in the cache acquiring or losing its only
 // external reference.
 

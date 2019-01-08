@@ -1,4 +1,4 @@
-Sidechain Elements 0.14.1
+Sidechain Ocean 0.14.1
 =====================
 
 Setup
@@ -24,7 +24,7 @@ Unpack the files into a directory, and then run ocean-qt.exe.
 
 ### OS X
 
-Drag Elements to your applications folder, and then run Elements.
+Drag Ocean to your applications folder, and then run Ocean.
 
 ### Need Help?
 

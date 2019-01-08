@@ -16,8 +16,8 @@ BEGIN
     BEGIN
         BLOCK "040904E4" // U.S. English - multilingual (hex)
         BEGIN
-            VALUE "CompanyName",        "Elements project"
-            VALUE "FileDescription",    "ocean-tx (CLI Elements Core transaction editor utility)"
+            VALUE "CompanyName",        "Ocean project"
+            VALUE "FileDescription",    "ocean-tx (CLI Ocean Core transaction editor utility)"
             VALUE "FileVersion",        VER_FILEVERSION_STR
             VALUE "InternalName",       "ocean-tx"
             VALUE "LegalCopyright",     COPYRIGHT_STR

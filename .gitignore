@@ -75,7 +75,7 @@ src/qt/test/moc*.cpp
 *.qm
 Makefile
 ocean-qt
-Elements-Qt.app
+Ocean-Qt.app
 
 # Unit-tests
 Makefile.test

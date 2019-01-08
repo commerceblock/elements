@@ -40,7 +40,7 @@ e2-dae
 # this tutorial.
 
 # We have 21M OP_TRUE value in each wallet
-# This is useful for testing and non-sidechain applications of Elements
+# This is useful for testing and non-sidechain applications of Ocean
 e1-cli getwalletinfo
 e2-cli getwalletinfo
 
@@ -59,7 +59,7 @@ e2-cli getwalletinfo
 #* `validateaddress <address>
 #* `listreceivedbyaddress <minconf> <include_empty> <include_watchonly>`
 
-#   Elements Only API
+#   Ocean Only API
 
 #* `blindrawtransaction <hex>`
 #* `dumpblindingkey <address>`
@@ -77,7 +77,7 @@ e2-cli generate 101
 e1-cli getwalletinfo
 e2-cli getwalletinfo
 
-# Have Bob send coins to himself using a blinded Elements address!
+# Have Bob send coins to himself using a blinded Ocean address!
 # Blinded addresses start with `CTE`, unblinded `2`
 ADDR=$(e2-cli getnewaddress)
 
@@ -280,7 +280,7 @@ e2-cli stop
 
 ######## Pegging #######
 
-# Everything pegging related can be done inside the Elements daemon directly, except for
+# Everything pegging related can be done inside the Ocean daemon directly, except for
 # pegging out. This is due to the multisig pool aka Watchmen that controls the bitcoin
 # on the Bitcoin blockchain. That is the easiest part to get wrong, and by far the most
 # important as there is no going back if you lose the funds.

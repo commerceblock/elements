@@ -9,7 +9,7 @@ packages:
 - "autoconf"
 reference_datetime: "2016-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/ElementsProject/gitian.sigs.ep.git
+- "url": "https://github.com/OceanProject/gitian.sigs.ep.git
   "dir": "signature"
 files:
 - "osslsigncode-1.7.1.tar.gz"

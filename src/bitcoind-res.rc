@@ -16,8 +16,8 @@ BEGIN
     BEGIN
         BLOCK "040904E4" // U.S. English - multilingual (hex)
         BEGIN
-            VALUE "CompanyName",        "Elements Project"
-            VALUE "FileDescription",    "oceand (Elements Core node with a JSON-RPC server)"
+            VALUE "CompanyName",        "Ocean Project"
+            VALUE "FileDescription",    "oceand (Ocean Core node with a JSON-RPC server)"
             VALUE "FileVersion",        VER_FILEVERSION_STR
             VALUE "InternalName",       "oceand"
             VALUE "LegalCopyright",     COPYRIGHT_STR

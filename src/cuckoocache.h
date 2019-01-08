@@ -21,7 +21,7 @@
  * 1) bit_packed_atomic_flags is bit-packed atomic flags for garbage collection
  *
  * 2) cache is a cache which is performant in memory usage and lookup speed. It
- * is lockfree for erase operations. Elements are lazily erased on the next
+ * is lockfree for erase operations. Ocean are lazily erased on the next
  * insert.
  */
 namespace CuckooCache

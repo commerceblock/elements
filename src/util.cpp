@@ -961,9 +961,9 @@ std::string CopyrightHolders(const std::string& strPrefix)
 {
     std::string strCopyrightHolders = strPrefix + strprintf(_(COPYRIGHT_HOLDERS), _(COPYRIGHT_HOLDERS_SUBSTITUTION));
 
-    // Check for untranslated substitution to make sure Elements Core copyright is not removed by accident
-    if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Elements Core") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + "The Elements Core developers";
+    // Check for untranslated substitution to make sure Ocean Core copyright is not removed by accident
+    if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Ocean Core") == std::string::npos) {
+        strCopyrightHolders += "\n" + strPrefix + "The Ocean Core developers";
     }
     return strCopyrightHolders;
 }

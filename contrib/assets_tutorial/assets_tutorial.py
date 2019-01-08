@@ -94,7 +94,7 @@ time.sleep(3)
 # understands. This is useful for testing basic functionality and for
 # blockchains that have no pegging functionality. A fee currency is required
 # for anti-DoS purposes as well as asset issuance, which consumes inputs for entropy.
-# In Elements there is no block subsidy. In a production sidechain it can
+# In Ocean there is no block subsidy. In a production sidechain it can
 # be configured to start with no outputs, necessitating peg-in functionality
 # for asset issuance.
 e1.getwalletinfo()
@@ -118,7 +118,7 @@ sync_all(e1, e2)
 e1.getwalletinfo()
 e2.getwalletinfo()
 
-# Have e2 send coins to themself using a blinded Elements address
+# Have e2 send coins to themself using a blinded Ocean address
 # Blinded addresses start with `CTE`, unblinded `2`
 addr = e2.getnewaddress()
 
@@ -389,7 +389,7 @@ time.sleep(5)
 
 ######## Pegging #######
 
-# Everything pegging related can be done inside the Elements daemon directly, except for
+# Everything pegging related can be done inside the Ocean daemon directly, except for
 # pegging out. This is due to the multisig pool aka Watchmen that controls the bitcoin
 # on the Bitcoin blockchain. That is the easiest part to get wrong, and by far the most
 # important as there is no going back if you lose the funds.
@@ -453,7 +453,7 @@ sync_all(e1, e2)
 #### Pegging Out ####
 
 # This command would trigger watchmen to send payment to Bitcoin address on mainchain
-# The Bitcoin-side functionality is not supported directly in Elements.
+# The Bitcoin-side functionality is not supported directly in Ocean.
 # The watchmen will notice this transaction and send the funds from their collective
 # wallet.
 e1.sendtomainchain(bitcoin.getnewaddress(), 10)

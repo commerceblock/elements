@@ -29,16 +29,16 @@
   <string>????</string>
 
   <key>CFBundleExecutable</key>
-  <string>Elements-Qt</string>
+  <string>Ocean-Qt</string>
   
   <key>CFBundleName</key>
-  <string>Elements-Qt</string>
+  <string>Ocean-Qt</string>
 
   <key>LSHasLocalizedDisplayName</key>
   <true/>
 
   <key>CFBundleIdentifier</key>
-  <string>org.oceanproject.Elements-Qt</string>
+  <string>org.oceanproject.Ocean-Qt</string>
 
   <key>CFBundleURLTypes</key>
   <array>
@@ -46,7 +46,7 @@
       <key>CFBundleTypeRole</key>
       <string>Editor</string>
       <key>CFBundleURLName</key>
-      <string>org.oceanproject.ElementsPayment</string>
+      <string>org.oceanproject.OceanPayment</string>
       <key>CFBundleURLSchemes</key>
       <array>
         <string>ocean</string>
@@ -60,7 +60,7 @@
       <key>UTTypeIdentifier</key>
       <string>org.oceanproject.paymentrequest</string>
       <key>UTTypeDescription</key>
-      <string>Elements payment request</string>
+      <string>Ocean payment request</string>
       <key>UTTypeConformsTo</key>
       <array>
         <string>public.data</string>
