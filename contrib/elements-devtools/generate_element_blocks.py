@@ -8,9 +8,9 @@ import argparse
 def sign_block(datadir):
     """
     Gets a new blocks hex, generates a signature for that block,
-    then submits the signed block to the running elementsd
+    then submits the signed block to the running oceand
     """
-    bc=["./elements-cli", "-regtest"]
+    bc=["./ocean-cli", "-regtest"]
     if datadir is not None:
         bc.append("-datadir=" + datadir)
     new_block = subprocess.check_output(bc + ["getnewblockhex"]).strip('\n')

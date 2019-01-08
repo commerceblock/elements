@@ -103,8 +103,8 @@ namespace boost {
 
 using namespace std;
 
-const char * const BITCOIN_CONF_FILENAME = "elements.conf";
-const char * const BITCOIN_PID_FILENAME = "elements-daemon.pid";
+const char * const BITCOIN_CONF_FILENAME = "ocean.conf";
+const char * const BITCOIN_PID_FILENAME = "ocean-daemon.pid";
 const char * const CONTRACT_FILE_PATH = "/terms-and-conditions/latest.txt";
 const char * const MAPPING_FILE_PATH = "/asset-mapping/latest.json";
 

@@ -1,5 +1,5 @@
 ---
-name: "elements-dmg-signer"
+name: "ocean-dmg-signer"
 suites:
 - "trusty"
 architectures:
@@ -11,7 +11,7 @@ remotes:
 - "url": "https://github.com/ElementsProject/gitian.sigs.ep.git"
   "dir": "signature"
 files:
-- "elements-osx-unsigned.tar.gz"
+- "ocean-osx-unsigned.tar.gz"
 script: |
   WRAP_DIR=$HOME/wrapped
   mkdir -p ${WRAP_DIR}
@@ -28,8 +28,8 @@ script: |
     chmod +x ${WRAP_DIR}/${prog}
   done
 
-  UNSIGNED=elements-osx-unsigned.tar.gz
-  SIGNED=elements-osx-signed.dmg
+  UNSIGNED=ocean-osx-unsigned.tar.gz
+  SIGNED=ocean-osx-signed.dmg
 
   tar -xf ${UNSIGNED}
   OSX_VOLNAME="$(cat osx_volname)"

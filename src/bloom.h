@@ -59,7 +59,7 @@ private:
 
 public:
     /**
-     * Creates a new bloom filter which will provide the given fp rate when filled with the given number of elements
+     * Creates a new bloom filter which will provide the given fp rate when filled with the given number of ocean
      * Note that if the given parameters will result in a filter outside the bounds of the protocol limits,
      * the filter created will be as close to the given parameters as possible within the protocol limits.
      * This will apply if nFPRate is very low or nElements is unreasonably high.

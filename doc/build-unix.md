@@ -24,7 +24,7 @@ make
 make install # optional
 ```
 
-This will build elements-qt as well if the dependencies are met.
+This will build ocean-qt as well if the dependencies are met.
 
 Dependencies
 ---------------------
@@ -124,7 +124,7 @@ libqrencode (optional) can be installed with:
 
     sudo apt-get install libqrencode-dev
 
-Once these are installed, they will be found by configure and a elements-qt executable will be
+Once these are installed, they will be found by configure and a ocean-qt executable will be
 built by default.
 
 Dependency Build Instructions: Fedora
@@ -147,7 +147,7 @@ libqrencode (optional) can be installed with:
 
 Notes
 -----
-The release is built with GCC and then "strip elementsd" to strip the debug
+The release is built with GCC and then "strip oceand" to strip the debug
 symbols, which reduces the executable size by about 90%.
 
 

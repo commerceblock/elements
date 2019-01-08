@@ -30,7 +30,7 @@ namespace {
 // by clients but erased from the cache are in neither list.  The lists are:
 // - in-use:  contains the items currently referenced by clients, in no
 //   particular order.  (This list is used for invariant checking.  If we
-//   removed the check, elements that would otherwise be on this list could be
+//   removed the check, ocean that would otherwise be on this list could be
 //   left as disconnected singleton lists.)
 // - LRU:  contains the items not currently referenced by clients, in LRU order
 // Elements are moved between these lists by the Ref() and Unref() methods,

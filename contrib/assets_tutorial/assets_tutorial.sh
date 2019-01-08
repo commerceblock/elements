@@ -2,15 +2,15 @@
 ## Preparations
 
 # First we need to set up our config files to walk through this demo
-# Let's have some testing user directories for 1 bitcoin node and 2 elements nodes.
-rm -r ~/bitcoindir ; rm -r ~/elementsdir1 ; rm -r ~/elementsdir2
-mkdir ~/bitcoindir ; mkdir ~/elementsdir1 ; mkdir ~/elementsdir2
+# Let's have some testing user directories for 1 bitcoin node and 2 ocean nodes.
+rm -r ~/bitcoindir ; rm -r ~/oceandir1 ; rm -r ~/oceandir2
+mkdir ~/bitcoindir ; mkdir ~/oceandir1 ; mkdir ~/oceandir2
 
 # Also configure the nodes by copying the configuration files from
 # this directory (and read them):
 cp ./contrib/assets_tutorial/bitcoin.conf ~/bitcoindir/bitcoin.conf
-cp ./contrib/assets_tutorial/elements1.conf ~/elementsdir1/elements.conf
-cp ./contrib/assets_tutorial/elements2.conf ~/elementsdir2/elements.conf
+cp ./contrib/assets_tutorial/ocean1.conf ~/oceandir1/ocean.conf
+cp ./contrib/assets_tutorial/ocean2.conf ~/oceandir2/ocean.conf
 
 # Set some aliases:
 cd src
@@ -19,10 +19,10 @@ shopt -s expand_aliases
 ELEMENTSPATH="."
 BITCOINPATH="."
 
-alias e1-cli="$ELEMENTSPATH/elements-cli -datadir=$HOME/elementsdir1"
-alias e1-dae="$ELEMENTSPATH/elementsd -datadir=$HOME/elementsdir1"
-alias e2-cli="$ELEMENTSPATH/elements-cli -datadir=$HOME/elementsdir2"
-alias e2-dae="$ELEMENTSPATH/elementsd -datadir=$HOME/elementsdir2"
+alias e1-cli="$ELEMENTSPATH/ocean-cli -datadir=$HOME/oceandir1"
+alias e1-dae="$ELEMENTSPATH/oceand -datadir=$HOME/oceandir1"
+alias e2-cli="$ELEMENTSPATH/ocean-cli -datadir=$HOME/oceandir2"
+alias e2-dae="$ELEMENTSPATH/oceand -datadir=$HOME/oceandir2"
 
 alias b-cli="$BITCOINPATH/bitcoin-cli -datadir=$HOME/bitcoindir"
 alias b-dae="$BITCOINPATH/bitcoind -datadir=$HOME/bitcoindir"
@@ -30,7 +30,7 @@ alias b-dae="$BITCOINPATH/bitcoind -datadir=$HOME/bitcoindir"
 # Should throw an error, can't connect to bitcoin daemon to validate pegins
 e1-dae
 
-# Need to start bitcoind first, elementsd will wait until bitcoind gives warmup finished status
+# Need to start bitcoind first, oceand will wait until bitcoind gives warmup finished status
 b-dae
 e1-dae
 e2-dae
@@ -157,7 +157,7 @@ e1-cli issueasset 0 1 false
 # Then two issuances for that particular asset will show
 e1-cli listissuances $ASSET
 
-# To label the asset add this to your elements.conf file then restart your daemon:
+# To label the asset add this to your ocean.conf file then restart your daemon:
 # assetdir=$ASSET:yourlabelhere
 # It really doesn't matter what you call it, labels are local things only.
 
@@ -216,12 +216,12 @@ SIGNBLOCKARG="-signblockscript=5221$(echo $PUBKEY1)21$(echo $PUBKEY2)52ae"
 # Wipe out the chain and wallet to get funds with new genesis block
 # You can not swap out blocksigner sets as of now for security reasons,
 # so we start fresh on a new chain.
-rm -r ~/elementsdir1/elementsregtest/blocks
-rm -r ~/elementsdir1/elementsregtest/chainstate
-rm ~/elementsdir1/elementsregtest/wallet.dat
-rm -r ~/elementsdir2/elementsregtest/blocks
-rm -r ~/elementsdir2/elementsregtest/chainstate
-rm ~/elementsdir2/elementsregtest/wallet.dat
+rm -r ~/oceandir1/oceanregtest/blocks
+rm -r ~/oceandir1/oceanregtest/chainstate
+rm ~/oceandir1/oceanregtest/wallet.dat
+rm -r ~/oceandir2/oceanregtest/blocks
+rm -r ~/oceandir2/oceanregtest/chainstate
+rm ~/oceandir2/oceanregtest/wallet.dat
 
 e1-dae $SIGNBLOCKARG
 e2-dae $SIGNBLOCKARG
@@ -286,12 +286,12 @@ e2-cli stop
 # important as there is no going back if you lose the funds.
 
 # Wipe out the chain and wallet to get funds with new genesis block
-rm -r ~/elementsdir1/elementsregtest/blocks
-rm -r ~/elementsdir1/elementsregtest/chainstate
-rm ~/elementsdir1/elementsregtest/wallet.dat
-rm -r ~/elementsdir2/elementsregtest/blocks
-rm -r ~/elementsdir2/elementsregtest/chainstate
-rm ~/elementsdir2/elementsregtest/wallet.dat
+rm -r ~/oceandir1/oceanregtest/blocks
+rm -r ~/oceandir1/oceanregtest/chainstate
+rm ~/oceandir1/oceanregtest/wallet.dat
+rm -r ~/oceandir2/oceanregtest/blocks
+rm -r ~/oceandir2/oceanregtest/chainstate
+rm ~/oceandir2/oceanregtest/wallet.dat
 
 FEDPEGARG="-fedpegscript=5221$(echo $PUBKEY1)21$(echo $PUBKEY2)52ae"
 
