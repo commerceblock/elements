@@ -510,7 +510,7 @@ BOOST_AUTO_TEST_CASE(rolling_bloom)
     // false positive rate is 1%, so we should get about 100 hits if
     // testing 10,000 random keys. We get worst-case false positive
     // behavior when the filter is as full as possible, which is
-    // when we've inserted one minus an integer multiple of nElement*2.
+    // when we've inserted one minus an integer multiple of nOcean*2.
     unsigned int nHits = 0;
     for (int i = 0; i < 10000; i++) {
         if (rb1.contains(RandomData()))

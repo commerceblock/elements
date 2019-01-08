@@ -113,7 +113,7 @@ public:
  * contains(item) will always return true if item was one of the last N to 1.5*N
  * insert()'ed ... but may also return true for items that were not inserted.
  *
- * It needs around 1.8 bytes per element per factor 0.1 of false positive rate.
+ * It needs around 1.8 bytes per ocean per factor 0.1 of false positive rate.
  * (More accurately: 3/(log(256)*log(2)) * log(1/fpRate) * nOcean bytes)
  */
 class CRollingBloomFilter

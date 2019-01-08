@@ -57,7 +57,7 @@ enum
     // Require minimal encodings for all push operations (OP_0... OP_16, OP_1NEGATE where possible, direct
     // pushes up to 75 bytes, OP_PUSHDATA up to 255 bytes, OP_PUSHDATA2 for anything larger). Evaluating
     // any other push causes the script to fail (BIP62 rule 3).
-    // In addition, whenever a stack element is interpreted as a number, it must be of minimal length (BIP62 rule 4).
+    // In addition, whenever a stack ocean is interpreted as a number, it must be of minimal length (BIP62 rule 4).
     // (softfork safe)
     SCRIPT_VERIFY_MINIMALDATA = (1U << 6),
 
@@ -71,9 +71,9 @@ enum
     // executed, e.g.  within an unexecuted IF ENDIF block, are *not* rejected.
     SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS  = (1U << 7),
 
-    // Require that only a single stack element remains after evaluation. This changes the success criterion from
-    // "At least one stack element must remain, and when interpreted as a boolean, it must be true" to
-    // "Exactly one stack element must remain, and when interpreted as a boolean, it must be true".
+    // Require that only a single stack ocean remains after evaluation. This changes the success criterion from
+    // "At least one stack ocean must remain, and when interpreted as a boolean, it must be true" to
+    // "Exactly one stack ocean must remain, and when interpreted as a boolean, it must be true".
     // (softfork safe, BIP62 rule 6)
     // Note: CLEANSTACK should never be used without P2SH or WITNESS.
     SCRIPT_VERIFY_CLEANSTACK = (1U << 8),

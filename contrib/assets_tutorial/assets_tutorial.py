@@ -9,14 +9,14 @@ import subprocess
 import shutil
 from decimal import *
 from pdb import set_trace
-ELEMENTSPATH=""
+OCEANPATH=""
 BITCOINPATH=""
 
 if len(sys.argv) == 2:
-    ELEMENTSPATH=sys.argv[0]
+    OCEANPATH=sys.argv[0]
     BITCOINPATH=sys.argv[1]
 else:
-    ELEMENTSPATH="./src"
+    OCEANPATH="./src"
     BITCOINPATH="./../bitcoin/src"
 
 def startbitcoind(datadir, conf, args=""):
@@ -24,7 +24,7 @@ def startbitcoind(datadir, conf, args=""):
     return AuthServiceProxy("http://"+conf["rpcuser"]+":"+conf["rpcpassword"]+"@127.0.0.1:"+conf["rpcport"])
 
 def startoceand(datadir, conf, args=""):
-    subprocess.Popen((ELEMENTSPATH+"/oceand  -datadir="+datadir+" "+args).split(), stdout=subprocess.PIPE)
+    subprocess.Popen((OCEANPATH+"/oceand  -datadir="+datadir+" "+args).split(), stdout=subprocess.PIPE)
     return AuthServiceProxy("http://"+conf["rpcuser"]+":"+conf["rpcpassword"]+"@127.0.0.1:"+conf["rpcport"])
 
 def loadConfig(filename):

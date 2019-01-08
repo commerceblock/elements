@@ -91,7 +91,7 @@ double test_cache(size_t megabytes, double load)
             *(ptr++) = insecure_rand.rand32();
     }
     /** We make a copy of the hashes because future optimizations of the
-     * cuckoocache may overwrite the inserted element, so the test is
+     * cuckoocache may overwrite the inserted ocean, so the test is
      * "future proofed".
      */
     std::vector<uint256> hashes_insert_copy = hashes;
@@ -162,7 +162,7 @@ void test_cache_erase(size_t megabytes)
             *(ptr++) = insecure_rand.rand32();
     }
     /** We make a copy of the hashes because future optimizations of the
-     * cuckoocache may overwrite the inserted element, so the test is
+     * cuckoocache may overwrite the inserted ocean, so the test is
      * "future proofed".
      */
     std::vector<uint256> hashes_insert_copy = hashes;
@@ -225,7 +225,7 @@ void test_cache_erase_parallel(size_t megabytes)
             *(ptr++) = insecure_rand.rand32();
     }
     /** We make a copy of the hashes because future optimizations of the
-     * cuckoocache may overwrite the inserted element, so the test is
+     * cuckoocache may overwrite the inserted ocean, so the test is
      * "future proofed".
      */
     std::vector<uint256> hashes_insert_copy = hashes;

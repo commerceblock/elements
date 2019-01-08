@@ -15,7 +15,7 @@
 #pragma pack(push, 1)
 /** Implements a drop-in replacement for std::vector<T> which stores up to N
  *  ocean directly (without heap allocation). The types Size and Diff are
- *  used to store element counts, and can be any unsigned + signed type.
+ *  used to store ocean counts, and can be any unsigned + signed type.
  *
  *  Storage layout is either:
  *  - Direct allocation:

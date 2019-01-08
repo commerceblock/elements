@@ -3875,8 +3875,8 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
         uniqueGroupings.insert(merged);
 
         // update setmap
-        BOOST_FOREACH(CTxDestination element, *merged)
-            setmap[element] = merged;
+        BOOST_FOREACH(CTxDestination ocean, *merged)
+            setmap[ocean] = merged;
     }
 
     set< set<CTxDestination> > ret;

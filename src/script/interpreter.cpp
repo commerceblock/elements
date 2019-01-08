@@ -153,20 +153,20 @@ bool static IsValidSignatureEncoding(const std::vector<unsigned char> &sig) {
     // Make sure the length covers the entire signature.
     if (sig[1] != sig.size() - 3) return false;
 
-    // Extract the length of the R element.
+    // Extract the length of the R ocean.
     unsigned int lenR = sig[3];
 
-    // Make sure the length of the S element is still inside the signature.
+    // Make sure the length of the S ocean is still inside the signature.
     if (5 + lenR >= sig.size()) return false;
 
-    // Extract the length of the S element.
+    // Extract the length of the S ocean.
     unsigned int lenS = sig[5 + lenR];
 
     // Verify that the length of the signature matches the sum of the length
     // of the ocean.
     if ((size_t)(lenR + lenS + 7) != sig.size()) return false;
  
-    // Check whether the R element is an integer.
+    // Check whether the R ocean is an integer.
     if (sig[2] != 0x02) return false;
 
     // Zero-length integers are not allowed for R.
@@ -179,7 +179,7 @@ bool static IsValidSignatureEncoding(const std::vector<unsigned char> &sig) {
     // otherwise be interpreted as a negative number.
     if (lenR > 1 && (sig[4] == 0x00) && !(sig[5] & 0x80)) return false;
 
-    // Check whether the S element is an integer.
+    // Check whether the S ocean is an integer.
     if (sig[lenR + 4] != 0x02) return false;
 
     // Zero-length integers are not allowed for S.

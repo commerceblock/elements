@@ -177,7 +177,7 @@ extern const char *NOTFOUND;
  */
 extern const char *FILTERLOAD;
 /**
- * The filteradd message tells the receiving peer to add a single element to a
+ * The filteradd message tells the receiving peer to add a single ocean to a
  * previously-set bloom filter, such as a new public key.
  * @since protocol version 70001 as described by BIP37.
  *   Only available with service bit NODE_BLOOM since protocol version

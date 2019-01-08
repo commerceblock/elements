@@ -82,7 +82,7 @@ private:
                     fAllOk &= fOk;
                     nTodo -= nNow;
                     if (nTodo == 0 && !fMaster)
-                        // We processed the last element; inform the master it can exit and return the result
+                        // We processed the last ocean; inform the master it can exit and return the result
                         condMaster.notify_one();
                 } else {
                     // first iteration

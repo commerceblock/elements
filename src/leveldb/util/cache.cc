@@ -23,7 +23,7 @@ namespace {
 // Cache entries have an "in_cache" boolean indicating whether the cache has a
 // reference on the entry.  The only ways that this can become false without the
 // entry being passed to its "deleter" are via Erase(), via Insert() when
-// an element with a duplicate key is inserted, or on destruction of the cache.
+// an ocean with a duplicate key is inserted, or on destruction of the cache.
 //
 // The cache keeps two linked lists of items in the cache.  All items in the
 // cache are in one list or the other, and never both.  Items still referenced
@@ -34,7 +34,7 @@ namespace {
 //   left as disconnected singleton lists.)
 // - LRU:  contains the items not currently referenced by clients, in LRU order
 // Ocean are moved between these lists by the Ref() and Unref() methods,
-// when they detect an element in the cache acquiring or losing its only
+// when they detect an ocean in the cache acquiring or losing its only
 // external reference.
 
 // An entry is a variable length heap-allocated structure.  Entries

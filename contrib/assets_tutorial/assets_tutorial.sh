@@ -16,13 +16,13 @@ cp ./contrib/assets_tutorial/ocean2.conf ~/oceandir2/ocean.conf
 cd src
 shopt -s expand_aliases
 
-ELEMENTSPATH="."
+OCEANPATH="."
 BITCOINPATH="."
 
-alias e1-cli="$ELEMENTSPATH/ocean-cli -datadir=$HOME/oceandir1"
-alias e1-dae="$ELEMENTSPATH/oceand -datadir=$HOME/oceandir1"
-alias e2-cli="$ELEMENTSPATH/ocean-cli -datadir=$HOME/oceandir2"
-alias e2-dae="$ELEMENTSPATH/oceand -datadir=$HOME/oceandir2"
+alias e1-cli="$OCEANPATH/ocean-cli -datadir=$HOME/oceandir1"
+alias e1-dae="$OCEANPATH/oceand -datadir=$HOME/oceandir1"
+alias e2-cli="$OCEANPATH/ocean-cli -datadir=$HOME/oceandir2"
+alias e2-dae="$OCEANPATH/oceand -datadir=$HOME/oceandir2"
 
 alias b-cli="$BITCOINPATH/bitcoin-cli -datadir=$HOME/bitcoindir"
 alias b-dae="$BITCOINPATH/bitcoind -datadir=$HOME/bitcoindir"

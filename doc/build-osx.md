@@ -24,7 +24,7 @@ In case you want to build the disk image with `make deploy` (.dmg / optional), y
 
 NOTE: Building with Qt4 is still supported, however, could result in a broken UI. Building with Qt5 is recommended.
 
-Build `Element`
+Build `Ocean`
 ------------------------
 
 1. Clone the ocean source code and cd into `ocean`
@@ -53,7 +53,7 @@ Build `Element`
 Running
 -------
 
-Element is now available at `./src/ocean`
+Ocean is now available at `./src/ocean`
 
 Before running, it's recommended you create an RPC configuration file.
 

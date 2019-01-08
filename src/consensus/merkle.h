@@ -21,7 +21,7 @@ uint256 ComputeMerkleRootFromBranch(const uint256& leaf, const std::vector<uint2
  * branches 3x as fast, and without the mutation vulnerability. Cannot
  * be substituted for the non-fast variants because the hash values are
  * different. ComputeFastMerkleBranch returns a pair with the second
- * element being the path used to validate the branch.
+ * ocean being the path used to validate the branch.
  *
  * Because the fast Merkle branch does not do unnecessary hash operations,
  * the path used to validate a branch is derived from but not necessarily
@@ -32,7 +32,7 @@ uint256 ComputeMerkleRootFromBranch(const uint256& leaf, const std::vector<uint2
  *
  * To understand why this works, consider a list of 303 ocean from
  * which a fast Merkle tree is constructed, and we request the branch to
- * the 292nd element. The binary encoded positions of the last and
+ * the 292nd ocean. The binary encoded positions of the last and
  * desired ocean are as follows:
  *
  *   0b 1 0 0 1 0 1 1 1 0 # decimal 302 (zero-indexed)
@@ -48,18 +48,18 @@ uint256 ComputeMerkleRootFromBranch(const uint256& leaf, const std::vector<uint2
  * remaining power of two on the left, and the residual on the right.
  *
  * Notice specifically that the sizes of the sub-trees correspnd to the
- * set bits in the zero-based index of the final element. For each 1 at,
+ * set bits in the zero-based index of the final ocean. For each 1 at,
  * index n, there is a branch with 2^n ocean on the left and the
  * remaining amount on the right.
  *
- * So, for an element whose path traverse the right-side of the tree, the
+ * So, for an ocean whose path traverse the right-side of the tree, the
  * intervening levels (e.g. 2^7 and 2^6) are missing. These correspond to
  * zeros in the binary expansion, and they are removed from the path
  * description. However once the path takes a left-turn into the tree (a
- * zero where a one is present in the expansion of the last element), the
+ * zero where a one is present in the expansion of the last ocean), the
  * sub-tree is full and no more 0's can be pruned out.
  *
- * So the path for element 292 becomes:
+ * So the path for ocean 292 becomes:
  *
  *     0b 1 - - 1 - 0 0 1 1 # decimal 291
  *

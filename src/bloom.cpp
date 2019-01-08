@@ -147,7 +147,7 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx)
     for (unsigned int i = 0; i < tx.vout.size(); i++)
     {
         const CTxOut& txout = tx.vout[i];
-        // Match if the filter contains any arbitrary script data element in any scriptPubKey in tx
+        // Match if the filter contains any arbitrary script data ocean in any scriptPubKey in tx
         // If this matches, also add the specific output that was matched.
         // This means clients don't have to update the filter themselves when a new relevant tx 
         // is discovered in order to find spending transactions, which avoids round-tripping and race conditions.
@@ -185,7 +185,7 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx)
         if (contains(txin.prevout))
             return true;
 
-        // Match if the filter contains any arbitrary script data element in any scriptSig in tx
+        // Match if the filter contains any arbitrary script data ocean in any scriptSig in tx
         CScript::const_iterator pc = txin.scriptSig.begin();
         std::vector<unsigned char> data;
         while (pc < txin.scriptSig.end())
@@ -232,7 +232,7 @@ CRollingBloomFilter::CRollingBloomFilter(unsigned int nOcean, double fpRate)
      */
     uint32_t nFilterBits = (uint32_t)ceil(-1.0 * nHashFuncs * nMaxOcean / log(1.0 - exp(logFpRate / nHashFuncs)));
     data.clear();
-    /* For each data element we need to store 2 bits. If both bits are 0, the
+    /* For each data ocean we need to store 2 bits. If both bits are 0, the
      * bit is treated as unset. If the bits are (01), (10), or (11), the bit is
      * treated as set in generation 1, 2, or 3 respectively.
      * These bits are stored in separate integers: position P corresponds to bit

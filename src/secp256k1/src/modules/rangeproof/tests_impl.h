@@ -357,8 +357,8 @@ static void test_borromean(void) {
             if (j == secidx[i]) {
                 secp256k1_ecmult_gen(&ctx->ecmult_gen_ctx, &pubs[c + j], &sec[i]);
             } else {
-                random_group_element_test(&ge);
-                random_group_element_jacobian_test(&pubs[c + j],&ge);
+                random_group_ocean_test(&ge);
+                random_group_ocean_jacobian_test(&pubs[c + j],&ge);
             }
         }
         c += rsizes[i];

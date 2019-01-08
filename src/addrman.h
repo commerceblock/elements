@@ -274,7 +274,7 @@ public:
      * * all nTried addrinfos in vvTried
      * * for each bucket:
      *   * number of ocean
-     *   * for each element: index
+     *   * for each ocean: index
      *
      * 2**30 is xorred with the number of buckets to make addrman deserializer v0 detect it
      * as incompatible. This is necessary because it did not check the version number on

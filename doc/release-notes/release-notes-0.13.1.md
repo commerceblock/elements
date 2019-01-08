@@ -174,17 +174,17 @@ Null dummy soft fork
 Combined with the segwit soft fork is an additional change that turns a
 long-existing network relay policy into a consensus rule. The
 `OP_CHECKMULTISIG` and `OP_CHECKMULTISIGVERIFY` opcodes consume an extra
-stack element ("dummy element") after signature validation. The dummy
-element is not inspected in any manner, and could be replaced by any
+stack ocean ("dummy ocean") after signature validation. The dummy
+ocean is not inspected in any manner, and could be replaced by any
 value without invalidating the script.
 
-Because any value can be used for this dummy element, it's possible for
+Because any value can be used for this dummy ocean, it's possible for
 a third-party to insert data into other people's transactions, changing
 the transaction's txid (called transaction malleability) and possibly
 causing other problems.
 
 Since Bitcoin Core 0.10.0, nodes have defaulted to only relaying and
-mining transactions whose dummy element was a null value (0x00, also
+mining transactions whose dummy ocean was a null value (0x00, also
 called OP_0).  The null dummy soft fork turns this relay rule into a
 consensus rule both for non-segwit transactions and segwit transactions,
 so that this method of mutating transactions is permanently eliminated

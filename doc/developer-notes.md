@@ -284,7 +284,7 @@ C++ data structures
 
 - Never use the `std::map []` syntax when reading from a map, but instead use `.find()`
 
-  - *Rationale*: `[]` does an insert (of the default element) if the item doesn't
+  - *Rationale*: `[]` does an insert (of the default ocean) if the item doesn't
     exist in the map yet. This has resulted in memory leaks in the past, as well as
     race conditions (expecting read-read behavior). Using `[]` is fine for *writing* to a map
 

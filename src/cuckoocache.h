@@ -151,17 +151,17 @@ public:
  *   - The name "allow_erase" is used because the real discard happens later.
  *   - The name "please_keep" is used because ocean may be erased anyways on insert.
  *
- * @tparam Element should be a movable and copyable type
+ * @tparam Ocean should be a movable and copyable type
  * @tparam Hash should be a function/callable which takes a template parameter
- * hash_select and an Element and extracts a hash from it. Should return
+ * hash_select and an Ocean and extracts a hash from it. Should return
  * high-entropy hashes for `Hash h; h<0>(e) ... h<7>(e)`.
  */
-template <typename Element, typename Hash>
+template <typename Ocean, typename Hash>
 class cache
 {
 private:
     /** table stores all the ocean */
-    std::vector<Element> table;
+    std::vector<Ocean> table;
 
     /** size stores the total available slots in the hash table */
     uint32_t size;
@@ -170,7 +170,7 @@ private:
      * garbage collection to be allowed to occur from const methods */
     mutable bit_packed_atomic_flags collection_flags;
 
-    /** epoch_flags tracks how recently an element was inserted into
+    /** epoch_flags tracks how recently an ocean was inserted into
      * the cache. true denotes recent, false denotes not-recent. See insert()
      * method for full semantics.
      */
@@ -210,12 +210,12 @@ private:
     const Hash hash_function;
 
     /** compute_hashes is convenience for not having to write out this
-     * expression everywhere we use the hash values of an Element.
+     * expression everywhere we use the hash values of an Ocean.
      *
-     * @param e the element whose hashes will be returned
+     * @param e the ocean whose hashes will be returned
      * @returns std::array<uint32_t, 8> of deterministic hashes derived from e
      */
-    inline std::array<uint32_t, 8> compute_hashes(const Element& e) const
+    inline std::array<uint32_t, 8> compute_hashes(const Ocean& e) const
     {
         return {{hash_function.template operator()<0>(e) & hash_mask,
                  hash_function.template operator()<1>(e) & hash_mask,
@@ -234,7 +234,7 @@ private:
         return ~(uint32_t)0;
     }
 
-    /** allow_erase marks the element at index n as discardable. Threadsafe
+    /** allow_erase marks the ocean at index n as discardable. Threadsafe
      * without any concurrent insert.
      * @param n the index to allow erasure of
      */
@@ -243,7 +243,7 @@ private:
         collection_flags.bit_set(n);
     }
 
-    /** please_keep marks the element at index n as an entry that should be kept.
+    /** please_keep marks the ocean at index n as an entry that should be kept.
      * Threadsafe without any concurrent insert.
      * @param n the index to prioritize keeping
      */
@@ -342,14 +342,14 @@ public:
      */
     uint32_t setup_bytes(size_t bytes)
     {
-        return setup(bytes/sizeof(Element));
+        return setup(bytes/sizeof(Ocean));
     }
 
     /** insert loops at most depth_limit times trying to insert a hash
      * at various locations in the table via a variant of the Cuckoo Algorithm
      * with eight hash locations.
      *
-     * It drops the last tried element if it runs out of depth before
+     * It drops the last tried ocean if it runs out of depth before
      * encountering an open slot.
      *
      * Thus
@@ -359,19 +359,19 @@ public:
      *
      * is not guaranteed to return true.
      *
-     * @param e the element to insert
+     * @param e the ocean to insert
      * @post one of the following: All previously inserted ocean and e are
-     * now in the table, one previously inserted element is evicted from the
+     * now in the table, one previously inserted ocean is evicted from the
      * table, the entry attempted to be inserted is evicted.
      *
      */
-    inline void insert(Element e)
+    inline void insert(Ocean e)
     {
         epoch_check();
         uint32_t last_loc = invalid();
         bool last_epoch = true;
         std::array<uint32_t, 8> locs = compute_hashes(e);
-        // Make sure we have not already inserted this element
+        // Make sure we have not already inserted this ocean
         // If we have, make sure that it does not get deleted
         for (uint32_t loc : locs)
             if (table[loc] == e) {
@@ -389,7 +389,7 @@ public:
                 epoch_flags[loc] = last_epoch;
                 return;
             }
-            /** Swap with the element at the location that was
+            /** Swap with the ocean at the location that was
             * not the last one looked at. Example:
             *
             * 1) On first iteration, last_loc == invalid(), find returns last, so
@@ -398,9 +398,9 @@ public:
             *    go to locs[k+1 % 8], i.e., next of the 8 indices wrapping around
             *    to 0 if needed.
             *
-            * This prevents moving the element we just put in.
+            * This prevents moving the ocean we just put in.
             *
-            * The swap is not a move -- we must switch onto the evicted element
+            * The swap is not a move -- we must switch onto the evicted ocean
             * for the next iteration.
             */
             last_loc = locs[(1 + (std::find(locs.begin(), locs.end(), last_loc) - locs.begin())) & 7];
@@ -415,7 +415,7 @@ public:
         }
     }
 
-    /* contains iterates through the hash locations for a given element
+    /* contains iterates through the hash locations for a given ocean
      * and checks to see if it is present.
      *
      * contains does not check garbage collected state (in other words,
@@ -431,16 +431,16 @@ public:
      *
      * This is a great property for re-org performance for example.
      *
-     * contains returns a bool set true if the element was found.
+     * contains returns a bool set true if the ocean was found.
      *
-     * @param e the element to check
+     * @param e the ocean to check
      * @param erase
      *
-     * @post if erase is true and the element is found, then the garbage collect
+     * @post if erase is true and the ocean is found, then the garbage collect
      * flag is set
-     * @returns true if the element is found, false otherwise
+     * @returns true if the ocean is found, false otherwise
      */
-    inline bool contains(const Element& e, const bool erase) const
+    inline bool contains(const Ocean& e, const bool erase) const
     {
         std::array<uint32_t, 8> locs = compute_hashes(e);
         for (uint32_t loc : locs)

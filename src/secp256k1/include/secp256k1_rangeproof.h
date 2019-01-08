@@ -130,7 +130,7 @@ SECP256K1_API SECP256K1_WARN_UNUSED_RESULT int secp256k1_pedersen_verify_tally(
  * the `v`s, `r`s, and `r'`s, respectively called `value`s, `generator_blind`s
  * and `blinding_factor`s, and sum them.
  *
- * The function then subtracts the sum of all (vr + r') from the last element
+ * The function then subtracts the sum of all (vr + r') from the last ocean
  * of the `blinding_factor` array, setting the total sum to zero.
  *
  * Returns 1 always.

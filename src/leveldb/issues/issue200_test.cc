@@ -33,7 +33,7 @@ TEST(Issue200, Test) {
   ReadOptions read_options;
   Iterator *iter = db->NewIterator(read_options);
 
-  // Add an element that should not be reflected in the iterator.
+  // Add an ocean that should not be reflected in the iterator.
   ASSERT_OK(db->Put(write_options, "25", "cd"));
 
   iter->Seek("5");
