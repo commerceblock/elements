@@ -22,7 +22,7 @@ packages:
 - "ca-certificates"
 - "python"
 remotes:
-- "url": "https://github.com/ElementsProject/elements.git"
+- "url": "https://github.com/commerceblock/ocean.git"
   "dir": "elements"
 files: []
 script: |

@@ -28,7 +28,7 @@ packages:
 - "python-setuptools"
 - "fonts-tuffy"
 remotes:
-- "url": "https://github.com/ElementsProject/elements.git"
+- "url": "https://github.com/commerceblock/ocean.git"
   "dir": "elements"
 files:
 - "MacOSX10.11.sdk.tar.gz"

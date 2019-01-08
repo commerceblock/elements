@@ -29,7 +29,7 @@ Build `Element`
 
 1. Clone the elements source code and cd into `elements`
 
-        git clone https://github.com/ElementsProject/elements.git
+        git clone https://github.com/commerceblock/ocean.git
         cd elements
 
 2.  Build sidechain elements:

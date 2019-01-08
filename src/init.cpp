@@ -537,7 +537,7 @@ std::string HelpMessage(HelpMessageMode mode)
 
 std::string LicenseInfo()
 {
-    const std::string URL_SOURCE_CODE = "<https://github.com/ElementsProject/elements>";
+    const std::string URL_SOURCE_CODE = "<https://github.com/commerceblock/ocean>";
     const std::string URL_WEBSITE = "<https://www.elementsproject.org>";
 
     return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2015, COPYRIGHT_YEAR) + " ") + "\n" +
