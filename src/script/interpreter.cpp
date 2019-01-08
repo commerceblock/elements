@@ -302,7 +302,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
             //
             if (!script.GetOp(pc, opcode, vchPushValue))
                 return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
-            if (vchPushValue.size() > MAX_SCRIPT_ELEMENT_SIZE)
+            if (vchPushValue.size() > MAX_SCRIPT_OCEAN_SIZE)
                 return set_error(serror, SCRIPT_ERR_PUSH_SIZE);
 
             // Note how OP_RESERVED does not count towards the opcode limit.
@@ -714,7 +714,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                     valtype vch1 = stacktop(-2);
                     valtype vch2 = stacktop(-1);
 
-                    if (vch1.size() + vch2.size() > MAX_SCRIPT_ELEMENT_SIZE)
+                    if (vch1.size() + vch2.size() > MAX_SCRIPT_OCEAN_SIZE)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
 
                     valtype vch3;
@@ -808,8 +808,8 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                             break;
                         }
 
-                        if (length > MAX_SCRIPT_ELEMENT_SIZE)
-                            length = MAX_SCRIPT_ELEMENT_SIZE;
+                        if (length > MAX_SCRIPT_OCEAN_SIZE)
+                            length = MAX_SCRIPT_OCEAN_SIZE;
 
                         // start + length cannot overflow because of the restrictions immediately abo
                         if (start + length > vch1.size()) {
@@ -894,7 +894,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                     unsigned int full_bytes = bn.getint() / 8;
                     unsigned int bits = bn.getint() % 8;
 
-                    if (vch1.size() + full_bytes + (bits ? 1 : 0) > MAX_SCRIPT_ELEMENT_SIZE)
+                    if (vch1.size() + full_bytes + (bits ? 1 : 0) > MAX_SCRIPT_OCEAN_SIZE)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
 
                     valtype vch2;
@@ -1778,9 +1778,9 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
         return set_success(serror);
     }
 
-    // Disallow stack item size > MAX_SCRIPT_ELEMENT_SIZE in witness stack
+    // Disallow stack item size > MAX_SCRIPT_OCEAN_SIZE in witness stack
     for (unsigned int i = 0; i < stack.size(); i++) {
-        if (stack.at(i).size() > MAX_SCRIPT_ELEMENT_SIZE)
+        if (stack.at(i).size() > MAX_SCRIPT_OCEAN_SIZE)
             return set_error(serror, SCRIPT_ERR_PUSH_SIZE);
     }
 

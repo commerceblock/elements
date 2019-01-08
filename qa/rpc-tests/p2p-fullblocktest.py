@@ -1049,11 +1049,11 @@ class FullBlockTest(ComparisonTestFramework):
         #
         tip(72)
         b73 = block(73)
-        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 1 + 5 + 1
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_OCEAN_SIZE + 1 + 5 + 1
         a = bytearray([OP_CHECKSIG] * size)
         a[MAX_BLOCK_SIGOPS - 1] = int("4e",16) # OP_PUSHDATA4
 
-        ocean_size = MAX_SCRIPT_ELEMENT_SIZE + 1
+        ocean_size = MAX_SCRIPT_OCEAN_SIZE + 1
         a[MAX_BLOCK_SIGOPS] = ocean_size % 256
         a[MAX_BLOCK_SIGOPS+1] = ocean_size // 256
         a[MAX_BLOCK_SIGOPS+2] = 0
@@ -1078,7 +1078,7 @@ class FullBlockTest(ComparisonTestFramework):
         #
         tip(72)
         b74 = block(74)
-        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 42 # total = 20,561
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_OCEAN_SIZE + 42 # total = 20,561
         a = bytearray([OP_CHECKSIG] * size)
         a[MAX_BLOCK_SIGOPS] = 0x4e
         a[MAX_BLOCK_SIGOPS+1] = 0xfe
@@ -1091,7 +1091,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         tip(72)
         b75 = block(75)
-        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 42
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_OCEAN_SIZE + 42
         a = bytearray([OP_CHECKSIG] * size)
         a[MAX_BLOCK_SIGOPS-1] = 0x4e
         a[MAX_BLOCK_SIGOPS] = 0xff
@@ -1106,7 +1106,7 @@ class FullBlockTest(ComparisonTestFramework):
         # Check that if we push an ocean filled with CHECKSIGs, they are not counted
         tip(75)
         b76 = block(76)
-        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 1 + 5
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_OCEAN_SIZE + 1 + 5
         a = bytearray([OP_CHECKSIG] * size)
         a[MAX_BLOCK_SIGOPS-1] = 0x4e # PUSHDATA4, but leave the following bytes as just checksigs
         tx = create_and_sign_tx(out[23].tx, 0, 1, CScript(a))

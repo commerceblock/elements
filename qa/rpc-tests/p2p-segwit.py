@@ -715,7 +715,7 @@ class SegWitTest(BitcoinTestFramework):
     def test_max_witness_push_length(self):
         ''' Should only allow up to 520 byte pushes in witness stack '''
         print("\tTesting maximum witness push size")
-        MAX_SCRIPT_ELEMENT_SIZE = 520
+        MAX_SCRIPT_OCEAN_SIZE = 520
         assert(len(self.utxo))
 
         block = self.build_next_block()
@@ -734,14 +734,14 @@ class SegWitTest(BitcoinTestFramework):
         tx2.vout.append(CTxOut(tx.vout[0].nValue-1000, CScript([OP_TRUE])))
         tx2.wit.vtxinwit.append(CTxInWitness())
         # First try a 521-byte stack ocean
-        tx2.wit.vtxinwit[0].scriptWitness.stack = [ b'a'*(MAX_SCRIPT_ELEMENT_SIZE+1), witness_program ]
+        tx2.wit.vtxinwit[0].scriptWitness.stack = [ b'a'*(MAX_SCRIPT_OCEAN_SIZE+1), witness_program ]
         tx2.rehash()
 
         self.update_witness_block_with_transactions(block, [tx, tx2])
         self.test_node.test_witness_block(block, accepted=False)
 
         # Now reduce the length of the stack ocean
-        tx2.wit.vtxinwit[0].scriptWitness.stack[0] = b'a'*(MAX_SCRIPT_ELEMENT_SIZE)
+        tx2.wit.vtxinwit[0].scriptWitness.stack[0] = b'a'*(MAX_SCRIPT_OCEAN_SIZE)
 
         add_witness_commitment(block)
         block.solve()

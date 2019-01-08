@@ -40,8 +40,8 @@ bool CBasicKeyStore::AddKeyPubKey(const CKey& key, const CPubKey &pubkey)
 
 bool CBasicKeyStore::AddCScript(const CScript& redeemScript)
 {
-    if (redeemScript.size() > MAX_SCRIPT_ELEMENT_SIZE)
-        return error("CBasicKeyStore::AddCScript(): redeemScripts > %i bytes are invalid", MAX_SCRIPT_ELEMENT_SIZE);
+    if (redeemScript.size() > MAX_SCRIPT_OCEAN_SIZE)
+        return error("CBasicKeyStore::AddCScript(): redeemScripts > %i bytes are invalid", MAX_SCRIPT_OCEAN_SIZE);
 
     LOCK(cs_KeyStore);
     mapScripts[CScriptID(redeemScript)] = redeemScript;
