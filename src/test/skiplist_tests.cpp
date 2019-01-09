@@ -134,7 +134,7 @@ BOOST_AUTO_TEST_CASE(findearliestatleast_test)
 
     // Verify that FindEarliestAtLeast is correct.
     for (unsigned int i=0; i<10000; ++i) {
-        // Pick a random element in vBlocksMain.
+        // Pick a random ocean in vBlocksMain.
         int r = insecure_rand() % vBlocksMain.size();
         int64_t test_time = vBlocksMain[r].nTime;
         CBlockIndex *ret = chain.FindEarliestAtLeast(test_time);

@@ -21,7 +21,7 @@ import re
 import sys
 import os
 import io
-import xml.etree.ElementTree as ET
+import xml.etree.OceanTree as ET
 
 # Name of transifex tool
 TX = 'tx'

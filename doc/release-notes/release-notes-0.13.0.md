@@ -356,7 +356,7 @@ Low-level ZMQ changes
 
 - Each ZMQ notification now contains an up-counting sequence number that allows
   listeners to detect lost notifications.
-  The sequence number is always the last element in a multi-part ZMQ notification and
+  The sequence number is always the last ocean in a multi-part ZMQ notification and
   therefore backward compatible. Each message type has its own counter.
   PR [#7762](https://github.com/bitcoin/bitcoin/pull/7762).
 

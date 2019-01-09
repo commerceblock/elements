@@ -7,13 +7,13 @@
 #ifndef _SECP256K1_FIELD_
 #define _SECP256K1_FIELD_
 
-/** Field element module.
+/** Field ocean module.
  *
- *  Field elements can be represented in several ways, but code accessing
+ *  Field ocean can be represented in several ways, but code accessing
  *  it (and implementations) need to take certain properties into account:
- *  - Each field element can be normalized or not.
- *  - Each field element has a magnitude, which represents how far away
- *    its representation is away from normalization. Normalized elements
+ *  - Each field ocean can be normalized or not.
+ *  - Each field ocean has a magnitude, which represents how far away
+ *    its representation is away from normalization. Normalized ocean
  *    always have a magnitude of 1, but a magnitude of 1 doesn't imply
  *    normality.
  */
@@ -32,66 +32,66 @@
 
 #include "util.h"
 
-/** Normalize a field element. */
+/** Normalize a field ocean. */
 static void secp256k1_fe_normalize(secp256k1_fe *r);
 
-/** Weakly normalize a field element: reduce it magnitude to 1, but don't fully normalize. */
+/** Weakly normalize a field ocean: reduce it magnitude to 1, but don't fully normalize. */
 static void secp256k1_fe_normalize_weak(secp256k1_fe *r);
 
-/** Normalize a field element, without constant-time guarantee. */
+/** Normalize a field ocean, without constant-time guarantee. */
 static void secp256k1_fe_normalize_var(secp256k1_fe *r);
 
-/** Verify whether a field element represents zero i.e. would normalize to a zero value. The field
+/** Verify whether a field ocean represents zero i.e. would normalize to a zero value. The field
  *  implementation may optionally normalize the input, but this should not be relied upon. */
 static int secp256k1_fe_normalizes_to_zero(secp256k1_fe *r);
 
-/** Verify whether a field element represents zero i.e. would normalize to a zero value. The field
+/** Verify whether a field ocean represents zero i.e. would normalize to a zero value. The field
  *  implementation may optionally normalize the input, but this should not be relied upon. */
 static int secp256k1_fe_normalizes_to_zero_var(secp256k1_fe *r);
 
-/** Set a field element equal to a small integer. Resulting field element is normalized. */
+/** Set a field ocean equal to a small integer. Resulting field ocean is normalized. */
 static void secp256k1_fe_set_int(secp256k1_fe *r, int a);
 
-/** Sets a field element equal to zero, initializing all fields. */
+/** Sets a field ocean equal to zero, initializing all fields. */
 static void secp256k1_fe_clear(secp256k1_fe *a);
 
-/** Verify whether a field element is zero. Requires the input to be normalized. */
+/** Verify whether a field ocean is zero. Requires the input to be normalized. */
 static int secp256k1_fe_is_zero(const secp256k1_fe *a);
 
-/** Check the "oddness" of a field element. Requires the input to be normalized. */
+/** Check the "oddness" of a field ocean. Requires the input to be normalized. */
 static int secp256k1_fe_is_odd(const secp256k1_fe *a);
 
-/** Compare two field elements. Requires magnitude-1 inputs. */
+/** Compare two field ocean. Requires magnitude-1 inputs. */
 static int secp256k1_fe_equal(const secp256k1_fe *a, const secp256k1_fe *b);
 
 /** Same as secp256k1_fe_equal, but may be variable time. */
 static int secp256k1_fe_equal_var(const secp256k1_fe *a, const secp256k1_fe *b);
 
-/** Compare two field elements. Requires both inputs to be normalized */
+/** Compare two field ocean. Requires both inputs to be normalized */
 static int secp256k1_fe_cmp_var(const secp256k1_fe *a, const secp256k1_fe *b);
 
-/** Set a field element equal to 32-byte big endian value. If successful, the resulting field element is normalized. */
+/** Set a field ocean equal to 32-byte big endian value. If successful, the resulting field ocean is normalized. */
 static int secp256k1_fe_set_b32(secp256k1_fe *r, const unsigned char *a);
 
-/** Convert a field element to a 32-byte big endian value. Requires the input to be normalized */
+/** Convert a field ocean to a 32-byte big endian value. Requires the input to be normalized */
 static void secp256k1_fe_get_b32(unsigned char *r, const secp256k1_fe *a);
 
-/** Set a field element equal to the additive inverse of another. Takes a maximum magnitude of the input
+/** Set a field ocean equal to the additive inverse of another. Takes a maximum magnitude of the input
  *  as an argument. The magnitude of the output is one higher. */
 static void secp256k1_fe_negate(secp256k1_fe *r, const secp256k1_fe *a, int m);
 
-/** Multiplies the passed field element with a small integer constant. Multiplies the magnitude by that
+/** Multiplies the passed field ocean with a small integer constant. Multiplies the magnitude by that
  *  small integer. */
 static void secp256k1_fe_mul_int(secp256k1_fe *r, int a);
 
-/** Adds a field element to another. The result has the sum of the inputs' magnitudes as magnitude. */
+/** Adds a field ocean to another. The result has the sum of the inputs' magnitudes as magnitude. */
 static void secp256k1_fe_add(secp256k1_fe *r, const secp256k1_fe *a);
 
-/** Sets a field element to be the product of two others. Requires the inputs' magnitudes to be at most 8.
+/** Sets a field ocean to be the product of two others. Requires the inputs' magnitudes to be at most 8.
  *  The output magnitude is 1 (but not guaranteed to be normalized). */
 static void secp256k1_fe_mul(secp256k1_fe *r, const secp256k1_fe *a, const secp256k1_fe * SECP256K1_RESTRICT b);
 
-/** Sets a field element to be the square of another. Requires the input's magnitude to be at most 8.
+/** Sets a field ocean to be the square of another. Requires the input's magnitude to be at most 8.
  *  The output magnitude is 1 (but not guaranteed to be normalized). */
 static void secp256k1_fe_sqr(secp256k1_fe *r, const secp256k1_fe *a);
 
@@ -102,25 +102,25 @@ static void secp256k1_fe_sqr(secp256k1_fe *r, const secp256k1_fe *a);
  *  itself. */
 static int secp256k1_fe_sqrt(secp256k1_fe *r, const secp256k1_fe *a);
 
-/** Checks whether a field element is a quadratic residue. */
+/** Checks whether a field ocean is a quadratic residue. */
 static int secp256k1_fe_is_quad_var(const secp256k1_fe *a);
 
-/** Sets a field element to be the (modular) inverse of another. Requires the input's magnitude to be
+/** Sets a field ocean to be the (modular) inverse of another. Requires the input's magnitude to be
  *  at most 8. The output magnitude is 1 (but not guaranteed to be normalized). */
 static void secp256k1_fe_inv(secp256k1_fe *r, const secp256k1_fe *a);
 
 /** Potentially faster version of secp256k1_fe_inv, without constant-time guarantee. */
 static void secp256k1_fe_inv_var(secp256k1_fe *r, const secp256k1_fe *a);
 
-/** Calculate the (modular) inverses of a batch of field elements. Requires the inputs' magnitudes to be
+/** Calculate the (modular) inverses of a batch of field ocean. Requires the inputs' magnitudes to be
  *  at most 8. The output magnitudes are 1 (but not guaranteed to be normalized). The inputs and
  *  outputs must not overlap in memory. */
 static void secp256k1_fe_inv_all_var(secp256k1_fe *r, const secp256k1_fe *a, size_t len);
 
-/** Convert a field element to the storage type. */
+/** Convert a field ocean to the storage type. */
 static void secp256k1_fe_to_storage(secp256k1_fe_storage *r, const secp256k1_fe *a);
 
-/** Convert a field element back from the storage type. */
+/** Convert a field ocean back from the storage type. */
 static void secp256k1_fe_from_storage(secp256k1_fe *r, const secp256k1_fe_storage *a);
 
 /** If flag is true, set *r equal to *a; otherwise leave it. Constant-time. */

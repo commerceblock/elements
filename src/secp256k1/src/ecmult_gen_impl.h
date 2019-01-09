@@ -35,7 +35,7 @@ static void secp256k1_ecmult_gen_context_build(secp256k1_ecmult_gen_context *ctx
     /* get the generator */
     secp256k1_gej_set_ge(&gj, &secp256k1_ge_const_g);
 
-    /* Construct a group element with no known corresponding scalar (nothing up my sleeve). */
+    /* Construct a group ocean with no known corresponding scalar (nothing up my sleeve). */
     {
         static const unsigned char nums_b32[33] = "The scalar for this x is unknown";
         secp256k1_fe nums_x;

@@ -103,8 +103,8 @@ namespace boost {
 
 using namespace std;
 
-const char * const BITCOIN_CONF_FILENAME = "elements.conf";
-const char * const BITCOIN_PID_FILENAME = "elements-daemon.pid";
+const char * const BITCOIN_CONF_FILENAME = "ocean.conf";
+const char * const BITCOIN_PID_FILENAME = "ocean-daemon.pid";
 const char * const CONTRACT_FILE_PATH = "/terms-and-conditions/latest.txt";
 const char * const MAPPING_FILE_PATH = "/asset-mapping/latest.json";
 
@@ -961,9 +961,9 @@ std::string CopyrightHolders(const std::string& strPrefix)
 {
     std::string strCopyrightHolders = strPrefix + strprintf(_(COPYRIGHT_HOLDERS), _(COPYRIGHT_HOLDERS_SUBSTITUTION));
 
-    // Check for untranslated substitution to make sure Elements Core copyright is not removed by accident
-    if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Elements Core") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + "The Elements Core developers";
+    // Check for untranslated substitution to make sure Ocean Core copyright is not removed by accident
+    if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Ocean Core") == std::string::npos) {
+        strCopyrightHolders += "\n" + strPrefix + "The Ocean Core developers";
     }
     return strCopyrightHolders;
 }

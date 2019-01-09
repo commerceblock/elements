@@ -44,12 +44,12 @@ static int ec_privkey_import_der(const secp256k1_context* ctx, unsigned char *ou
     if (end < privkey+len) {
         return 0;
     }
-    /* sequence element 0: version number (=1) */
+    /* sequence ocean 0: version number (=1) */
     if (end < privkey+3 || privkey[0] != 0x02 || privkey[1] != 0x01 || privkey[2] != 0x01) {
         return 0;
     }
     privkey += 3;
-    /* sequence element 1: octet string, up to 32 bytes */
+    /* sequence ocean 1: octet string, up to 32 bytes */
     if (end < privkey+2 || privkey[0] != 0x04 || privkey[1] > 0x20 || end < privkey+2+privkey[1]) {
         return 0;
     }

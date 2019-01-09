@@ -245,7 +245,7 @@ public:
     }
 };
 
-// For ~WITHDRAW entries, the first element is the txhash, the second is IsNull()
+// For ~WITHDRAW entries, the first ocean is the txhash, the second is IsNull()
 // For WITHDRAW entries, the first is the genesis hash, the second is the txo (on the other chain) spent
 typedef std::pair<uint256, COutPoint> CCoinsMapKey;
 class SaltedTxidHasher

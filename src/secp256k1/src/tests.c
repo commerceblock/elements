@@ -58,7 +58,7 @@ static void uncounting_illegal_callback_fn(const char* str, void* data) {
     (*p)--;
 }
 
-void random_field_element_test(secp256k1_fe *fe) {
+void random_field_ocean_test(secp256k1_fe *fe) {
     do {
         unsigned char b32[32];
         secp256k1_rand256_test(b32);
@@ -68,7 +68,7 @@ void random_field_element_test(secp256k1_fe *fe) {
     } while(1);
 }
 
-void random_field_element_magnitude(secp256k1_fe *fe) {
+void random_field_ocean_magnitude(secp256k1_fe *fe) {
     secp256k1_fe zero;
     int n = secp256k1_rand_int(9);
     secp256k1_fe_normalize(fe);
@@ -82,10 +82,10 @@ void random_field_element_magnitude(secp256k1_fe *fe) {
     VERIFY_CHECK(fe->magnitude == n);
 }
 
-void random_group_element_test(secp256k1_ge *ge) {
+void random_group_ocean_test(secp256k1_ge *ge) {
     secp256k1_fe fe;
     do {
-        random_field_element_test(&fe);
+        random_field_ocean_test(&fe);
         if (secp256k1_ge_set_xo_var(ge, &fe, secp256k1_rand_bits(1))) {
             secp256k1_fe_normalize(&ge->y);
             break;
@@ -93,10 +93,10 @@ void random_group_element_test(secp256k1_ge *ge) {
     } while(1);
 }
 
-void random_group_element_jacobian_test(secp256k1_gej *gej, const secp256k1_ge *ge) {
+void random_group_ocean_jacobian_test(secp256k1_gej *gej, const secp256k1_ge *ge) {
     secp256k1_fe z2, z3;
     do {
-        random_field_element_test(&gej->z);
+        random_field_ocean_test(&gej->z);
         if (!secp256k1_fe_is_zero(&gej->z)) {
             break;
         }
@@ -1790,7 +1790,7 @@ void run_field_inv_var(void) {
 void run_field_inv_all_var(void) {
     secp256k1_fe x[16], xi[16], xii[16];
     int i;
-    /* Check it's safe to call for 0 elements */
+    /* Check it's safe to call for 0 ocean */
     secp256k1_fe_inv_all_var(xi, x, 0);
     for (i = 0; i < count; i++) {
         size_t j;
@@ -1949,7 +1949,7 @@ void test_ge(void) {
     for (i = 0; i < runs; i++) {
         int j;
         secp256k1_ge g;
-        random_group_element_test(&g);
+        random_group_ocean_test(&g);
 #ifdef USE_ENDOMORPHISM
         if (i >= runs - 2) {
             secp256k1_ge_mul_lambda(&g, &ge[1]);
@@ -1963,15 +1963,15 @@ void test_ge(void) {
         secp256k1_ge_neg(&ge[3 + 4 * i], &g);
         secp256k1_ge_neg(&ge[4 + 4 * i], &g);
         secp256k1_gej_set_ge(&gej[1 + 4 * i], &ge[1 + 4 * i]);
-        random_group_element_jacobian_test(&gej[2 + 4 * i], &ge[2 + 4 * i]);
+        random_group_ocean_jacobian_test(&gej[2 + 4 * i], &ge[2 + 4 * i]);
         secp256k1_gej_set_ge(&gej[3 + 4 * i], &ge[3 + 4 * i]);
-        random_group_element_jacobian_test(&gej[4 + 4 * i], &ge[4 + 4 * i]);
+        random_group_ocean_jacobian_test(&gej[4 + 4 * i], &ge[4 + 4 * i]);
         for (j = 0; j < 4; j++) {
-            random_field_element_magnitude(&ge[1 + j + 4 * i].x);
-            random_field_element_magnitude(&ge[1 + j + 4 * i].y);
-            random_field_element_magnitude(&gej[1 + j + 4 * i].x);
-            random_field_element_magnitude(&gej[1 + j + 4 * i].y);
-            random_field_element_magnitude(&gej[1 + j + 4 * i].z);
+            random_field_ocean_magnitude(&ge[1 + j + 4 * i].x);
+            random_field_ocean_magnitude(&ge[1 + j + 4 * i].y);
+            random_field_ocean_magnitude(&gej[1 + j + 4 * i].x);
+            random_field_ocean_magnitude(&gej[1 + j + 4 * i].y);
+            random_field_ocean_magnitude(&gej[1 + j + 4 * i].z);
         }
     }
 
@@ -1982,7 +1982,7 @@ void test_ge(void) {
             if (i == 0) {
                 /* The point at infinity does not have a meaningful z inverse. Any should do. */
                 do {
-                    random_field_element_test(&zs[i]);
+                    random_field_ocean_test(&zs[i]);
                 } while(secp256k1_fe_is_zero(&zs[i]));
             } else {
                 zs[i] = gej[i].z;
@@ -1994,9 +1994,9 @@ void test_ge(void) {
 
     /* Generate random zf, and zfi2 = 1/zf^2, zfi3 = 1/zf^3 */
     do {
-        random_field_element_test(&zf);
+        random_field_ocean_test(&zf);
     } while(secp256k1_fe_is_zero(&zf));
-    random_field_element_magnitude(&zf);
+    random_field_ocean_magnitude(&zf);
     secp256k1_fe_inv_var(&zfi3, &zf);
     secp256k1_fe_sqr(&zfi2, &zfi3);
     secp256k1_fe_mul(&zfi3, &zfi3, &zfi2);
@@ -2029,8 +2029,8 @@ void test_ge(void) {
                 secp256k1_ge ge2_zfi = ge[i2]; /* the second term with x and y rescaled for z = 1/zf */
                 secp256k1_fe_mul(&ge2_zfi.x, &ge2_zfi.x, &zfi2);
                 secp256k1_fe_mul(&ge2_zfi.y, &ge2_zfi.y, &zfi3);
-                random_field_element_magnitude(&ge2_zfi.x);
-                random_field_element_magnitude(&ge2_zfi.y);
+                random_field_ocean_magnitude(&ge2_zfi.x);
+                random_field_ocean_magnitude(&ge2_zfi.y);
                 secp256k1_gej_add_zinv_var(&resj, &gej[i1], &ge2_zfi, &zf);
                 ge_equals_gej(&ref, &resj);
             }
@@ -2152,7 +2152,7 @@ void test_add_neg_y_diff_x(void) {
      * lam  = (1 - x^3).roots()[1][0]
      *
      * # random "bad pair"
-     * P = C.random_element()
+     * P = C.random_ocean()
      * Q = -int(lam) * P
      * print "    P: %x %x" % P.xy()
      * print "    Q: %x %x" % Q.xy()
@@ -2487,7 +2487,7 @@ void ecmult_const_mult_zero_one(void) {
     secp256k1_ge point;
     secp256k1_scalar_negate(&negone, &one);
 
-    random_group_element_test(&point);
+    random_group_ocean_test(&point);
     secp256k1_ecmult_const(&res1, &point, &zero, 3);
     secp256k1_ge_set_gej(&res2, &res1);
     CHECK(secp256k1_ge_is_infinity(&res2));
@@ -2547,9 +2547,9 @@ void test_wnaf(const secp256k1_scalar *number, int w) {
         int v = wnaf[i];
         secp256k1_scalar_mul(&x, &x, &two);
         if (v) {
-            CHECK(zeroes == -1 || zeroes >= w-1); /* check that distance between non-zero elements is at least w-1 */
+            CHECK(zeroes == -1 || zeroes >= w-1); /* check that distance between non-zero ocean is at least w-1 */
             zeroes=0;
-            CHECK((v & 1) == 1); /* check non-zero elements are odd */
+            CHECK((v & 1) == 1); /* check non-zero ocean are odd */
             CHECK(v <= (1 << (w-1)) - 1); /* check range below */
             CHECK(v >= -(1 << (w-1)) - 1); /* check range above */
         } else {

@@ -19,7 +19,7 @@
 #include <vector>
 
 // Maximum number of bytes pushable to the stack
-static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520;
+static const unsigned int MAX_SCRIPT_OCEAN_SIZE = 520;
 
 // Maximum number of non-push operations per script
 static const int MAX_OPS_PER_SCRIPT = 201;
@@ -672,7 +672,7 @@ public:
 
 struct CScriptWitness
 {
-    // Note that this encodes the data elements being pushed, rather than
+    // Note that this encodes the data ocean being pushed, rather than
     // encoding them as a CScript that pushes them.
     std::vector<std::vector<unsigned char> > stack;
 

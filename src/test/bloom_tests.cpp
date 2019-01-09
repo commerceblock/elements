@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(bloom_create_insert_key)
 // classes is the following bloom filter tests. These tests, inhereted from
 // upstream, do bloom filter matching on bitcoin blocks. However the bitcoin
 // serialization classes are not compatible with the native bloom filter
-// functionality, so these must be disabled until such time as elements
+// functionality, so these must be disabled until such time as ocean
 // versions of these tests can be constructed.
 
 #if 0
@@ -510,7 +510,7 @@ BOOST_AUTO_TEST_CASE(rolling_bloom)
     // false positive rate is 1%, so we should get about 100 hits if
     // testing 10,000 random keys. We get worst-case false positive
     // behavior when the filter is as full as possible, which is
-    // when we've inserted one minus an integer multiple of nElement*2.
+    // when we've inserted one minus an integer multiple of nOcean*2.
     unsigned int nHits = 0;
     for (int i = 0; i < 10000; i++) {
         if (rb1.contains(RandomData()))

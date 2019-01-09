@@ -10,7 +10,7 @@
 #include "num.h"
 #include "field.h"
 
-/** A group element of the secp256k1 curve, in affine coordinates. */
+/** A group ocean of the secp256k1 curve, in affine coordinates. */
 typedef struct {
     secp256k1_fe x;
     secp256k1_fe y;
@@ -20,7 +20,7 @@ typedef struct {
 #define SECP256K1_GE_CONST(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) {SECP256K1_FE_CONST((a),(b),(c),(d),(e),(f),(g),(h)), SECP256K1_FE_CONST((i),(j),(k),(l),(m),(n),(o),(p)), 0}
 #define SECP256K1_GE_CONST_INFINITY {SECP256K1_FE_CONST(0, 0, 0, 0, 0, 0, 0, 0), SECP256K1_FE_CONST(0, 0, 0, 0, 0, 0, 0, 0), 1}
 
-/** A group element of the secp256k1 curve, in jacobian coordinates. */
+/** A group ocean of the secp256k1 curve, in jacobian coordinates. */
 typedef struct {
     secp256k1_fe x; /* actual X: x/z^2 */
     secp256k1_fe y; /* actual Y: y/z^3 */
@@ -40,34 +40,34 @@ typedef struct {
 
 #define SECP256K1_GE_STORAGE_CONST_GET(t) SECP256K1_FE_STORAGE_CONST_GET(t.x), SECP256K1_FE_STORAGE_CONST_GET(t.y)
 
-/** Set a group element equal to the point with given X and Y coordinates */
+/** Set a group ocean equal to the point with given X and Y coordinates */
 static void secp256k1_ge_set_xy(secp256k1_ge *r, const secp256k1_fe *x, const secp256k1_fe *y);
 
-/** Set a group element (affine) equal to the point with the given X coordinate
+/** Set a group ocean (affine) equal to the point with the given X coordinate
  *  and a Y coordinate that is a quadratic residue modulo p. The return value
  *  is true iff a coordinate with the given X coordinate exists.
  */
 static int secp256k1_ge_set_xquad(secp256k1_ge *r, const secp256k1_fe *x);
 
-/** Set a group element (affine) equal to the point with the given X coordinate, and given oddness
+/** Set a group ocean (affine) equal to the point with the given X coordinate, and given oddness
  *  for Y. Return value indicates whether the result is valid. */
 static int secp256k1_ge_set_xo_var(secp256k1_ge *r, const secp256k1_fe *x, int odd);
 
-/** Check whether a group element is the point at infinity. */
+/** Check whether a group ocean is the point at infinity. */
 static int secp256k1_ge_is_infinity(const secp256k1_ge *a);
 
-/** Check whether a group element is valid (i.e., on the curve). */
+/** Check whether a group ocean is valid (i.e., on the curve). */
 static int secp256k1_ge_is_valid_var(const secp256k1_ge *a);
 
 static void secp256k1_ge_neg(secp256k1_ge *r, const secp256k1_ge *a);
 
-/** Set a group element equal to another which is given in jacobian coordinates */
+/** Set a group ocean equal to another which is given in jacobian coordinates */
 static void secp256k1_ge_set_gej(secp256k1_ge *r, secp256k1_gej *a);
 
-/** Set a batch of group elements equal to the inputs given in jacobian coordinates */
+/** Set a batch of group ocean equal to the inputs given in jacobian coordinates */
 static void secp256k1_ge_set_all_gej_var(secp256k1_ge *r, const secp256k1_gej *a, size_t len, const secp256k1_callback *cb);
 
-/** Set a batch of group elements equal to the inputs given in jacobian
+/** Set a batch of group ocean equal to the inputs given in jacobian
  *  coordinates (with known z-ratios). zr must contain the known z-ratios such
  *  that mul(a[i].z, zr[i+1]) == a[i+1].z. zr[0] is ignored. */
 static void secp256k1_ge_set_table_gej_var(secp256k1_ge *r, const secp256k1_gej *a, const secp256k1_fe *zr, size_t len);
@@ -79,22 +79,22 @@ static void secp256k1_ge_set_table_gej_var(secp256k1_ge *r, const secp256k1_gej 
  *  stored in globalz. */
 static void secp256k1_ge_globalz_set_table_gej(size_t len, secp256k1_ge *r, secp256k1_fe *globalz, const secp256k1_gej *a, const secp256k1_fe *zr);
 
-/** Set a group element (jacobian) equal to the point at infinity. */
+/** Set a group ocean (jacobian) equal to the point at infinity. */
 static void secp256k1_gej_set_infinity(secp256k1_gej *r);
 
-/** Set a group element (jacobian) equal to another which is given in affine coordinates. */
+/** Set a group ocean (jacobian) equal to another which is given in affine coordinates. */
 static void secp256k1_gej_set_ge(secp256k1_gej *r, const secp256k1_ge *a);
 
-/** Compare the X coordinate of a group element (jacobian). */
+/** Compare the X coordinate of a group ocean (jacobian). */
 static int secp256k1_gej_eq_x_var(const secp256k1_fe *x, const secp256k1_gej *a);
 
 /** Set r equal to the inverse of a (i.e., mirrored around the X axis) */
 static void secp256k1_gej_neg(secp256k1_gej *r, const secp256k1_gej *a);
 
-/** Check whether a group element is the point at infinity. */
+/** Check whether a group ocean is the point at infinity. */
 static int secp256k1_gej_is_infinity(const secp256k1_gej *a);
 
-/** Check whether a group element's y coordinate is a quadratic residue. */
+/** Check whether a group ocean's y coordinate is a quadratic residue. */
 static int secp256k1_gej_has_quad_y_var(const secp256k1_gej *a);
 
 /** Set r equal to the double of a. If rzr is not-NULL, r->z = a->z * *rzr (where infinity means an implicit z = 0).
@@ -129,10 +129,10 @@ static void secp256k1_gej_clear(secp256k1_gej *r);
 /** Clear a secp256k1_ge to prevent leaking sensitive information. */
 static void secp256k1_ge_clear(secp256k1_ge *r);
 
-/** Convert a group element to the storage type. */
+/** Convert a group ocean to the storage type. */
 static void secp256k1_ge_to_storage(secp256k1_ge_storage *r, const secp256k1_ge *a);
 
-/** Convert a group element back from the storage type. */
+/** Convert a group ocean back from the storage type. */
 static void secp256k1_ge_from_storage(secp256k1_ge *r, const secp256k1_ge_storage *a);
 
 /** If flag is true, set *r equal to *a; otherwise leave it. Constant-time. */

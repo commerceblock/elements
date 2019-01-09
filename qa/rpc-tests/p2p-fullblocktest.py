@@ -1036,26 +1036,26 @@ class FullBlockTest(ComparisonTestFramework):
         #                                                                                    \-> b** (22)
         #
 
-        # b73 - tx with excessive sigops that are placed after an excessively large script element.
+        # b73 - tx with excessive sigops that are placed after an excessively large script ocean.
         #       The purpose of the test is to make sure those sigops are counted.
         #
         #       script is a bytearray of size 20,526
         #
         #       bytearray[0-19,998]     : OP_CHECKSIG
         #       bytearray[19,999]       : OP_PUSHDATA4
-        #       bytearray[20,000-20,003]: 521  (max_script_element_size+1, in little-endian format)
-        #       bytearray[20,004-20,525]: unread data (script_element)
+        #       bytearray[20,000-20,003]: 521  (max_script_ocean_size+1, in little-endian format)
+        #       bytearray[20,004-20,525]: unread data (script_ocean)
         #       bytearray[20,526]       : OP_CHECKSIG (this puts us over the limit)
         #
         tip(72)
         b73 = block(73)
-        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 1 + 5 + 1
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_OCEAN_SIZE + 1 + 5 + 1
         a = bytearray([OP_CHECKSIG] * size)
         a[MAX_BLOCK_SIGOPS - 1] = int("4e",16) # OP_PUSHDATA4
 
-        element_size = MAX_SCRIPT_ELEMENT_SIZE + 1
-        a[MAX_BLOCK_SIGOPS] = element_size % 256
-        a[MAX_BLOCK_SIGOPS+1] = element_size // 256
+        ocean_size = MAX_SCRIPT_OCEAN_SIZE + 1
+        a[MAX_BLOCK_SIGOPS] = ocean_size % 256
+        a[MAX_BLOCK_SIGOPS+1] = ocean_size // 256
         a[MAX_BLOCK_SIGOPS+2] = 0
         a[MAX_BLOCK_SIGOPS+3] = 0
 
@@ -1064,21 +1064,21 @@ class FullBlockTest(ComparisonTestFramework):
         assert_equal(get_legacy_sigopcount_block(b73), MAX_BLOCK_SIGOPS+1)
         yield rejected(RejectResult(16, b'bad-blk-sigops'))
 
-        # b74/75 - if we push an invalid script element, all prevous sigops are counted,
-        #          but sigops after the element are not counted.
+        # b74/75 - if we push an invalid script ocean, all prevous sigops are counted,
+        #          but sigops after the ocean are not counted.
         #
-        #       The invalid script element is that the push_data indicates that
+        #       The invalid script ocean is that the push_data indicates that
         #       there will be a large amount of data (0xffffff bytes), but we only
         #       provide a much smaller number.  These bytes are CHECKSIGS so they would
         #       cause b75 to fail for excessive sigops, if those bytes were counted.
         #
-        #       b74 fails because we put MAX_BLOCK_SIGOPS+1 before the element
-        #       b75 succeeds because we put MAX_BLOCK_SIGOPS before the element
+        #       b74 fails because we put MAX_BLOCK_SIGOPS+1 before the ocean
+        #       b75 succeeds because we put MAX_BLOCK_SIGOPS before the ocean
         #
         #
         tip(72)
         b74 = block(74)
-        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 42 # total = 20,561
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_OCEAN_SIZE + 42 # total = 20,561
         a = bytearray([OP_CHECKSIG] * size)
         a[MAX_BLOCK_SIGOPS] = 0x4e
         a[MAX_BLOCK_SIGOPS+1] = 0xfe
@@ -1091,7 +1091,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         tip(72)
         b75 = block(75)
-        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 42
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_OCEAN_SIZE + 42
         a = bytearray([OP_CHECKSIG] * size)
         a[MAX_BLOCK_SIGOPS-1] = 0x4e
         a[MAX_BLOCK_SIGOPS] = 0xff
@@ -1103,10 +1103,10 @@ class FullBlockTest(ComparisonTestFramework):
         yield accepted()
         save_spendable_output()
 
-        # Check that if we push an element filled with CHECKSIGs, they are not counted
+        # Check that if we push an ocean filled with CHECKSIGs, they are not counted
         tip(75)
         b76 = block(76)
-        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 1 + 5
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_OCEAN_SIZE + 1 + 5
         a = bytearray([OP_CHECKSIG] * size)
         a[MAX_BLOCK_SIGOPS-1] = 0x4e # PUSHDATA4, but leave the following bytes as just checksigs
         tx = create_and_sign_tx(out[23].tx, 0, 1, CScript(a))

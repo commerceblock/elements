@@ -23,7 +23,7 @@
 
 /** Implements arithmetic modulo FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F,
  *  represented as 5 uint64_t's in base 2^52. The values are allowed to contain >52 each. In particular,
- *  each FieldElem has a 'magnitude' associated with it. Internally, a magnitude M means each element
+ *  each FieldElem has a 'magnitude' associated with it. Internally, a magnitude M means each ocean
  *  is at most M*(2^53-1), except the most significant one, which is limited to M*(2^49-1). All operations
  *  accept any input with magnitude at most M, and have different rules for propagating magnitude to their
  *  output.
@@ -65,7 +65,7 @@ static void secp256k1_fe_normalize(secp256k1_fe *r) {
     t3 += (t2 >> 52); t2 &= 0xFFFFFFFFFFFFFULL; m &= t2;
     t4 += (t3 >> 52); t3 &= 0xFFFFFFFFFFFFFULL; m &= t3;
 
-    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t4 >> 49 == 0);
 
     /* At most a single final reduction is needed; check if the value is >= the field characteristic */
@@ -107,7 +107,7 @@ static void secp256k1_fe_normalize_weak(secp256k1_fe *r) {
     t3 += (t2 >> 52); t2 &= 0xFFFFFFFFFFFFFULL;
     t4 += (t3 >> 52); t3 &= 0xFFFFFFFFFFFFFULL;
 
-    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t4 >> 49 == 0);
 
     r->n[0] = t0; r->n[1] = t1; r->n[2] = t2; r->n[3] = t3; r->n[4] = t4;
@@ -132,7 +132,7 @@ static void secp256k1_fe_normalize_var(secp256k1_fe *r) {
     t3 += (t2 >> 52); t2 &= 0xFFFFFFFFFFFFFULL; m &= t2;
     t4 += (t3 >> 52); t3 &= 0xFFFFFFFFFFFFFULL; m &= t3;
 
-    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t4 >> 49 == 0);
 
     /* At most a single final reduction is needed; check if the value is >= the field characteristic */
@@ -179,7 +179,7 @@ static int secp256k1_fe_normalizes_to_zero(secp256k1_fe *r) {
     t4 += (t3 >> 52); t3 &= 0xFFFFFFFFFFFFFULL; z0 |= t3; z1 &= t3;
                                                 z0 |= t4; z1 &= t4 ^ 0xF000000000000ULL;
 
-    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t4 >> 49 == 0);
 
     return (z0 == 0) | (z1 == 0xFFFFFFFFFFFFFULL);
@@ -220,7 +220,7 @@ static int secp256k1_fe_normalizes_to_zero_var(secp256k1_fe *r) {
     t4 += (t3 >> 52); t3 &= 0xFFFFFFFFFFFFFULL; z0 |= t3; z1 &= t3;
                                                 z0 |= t4; z1 &= t4 ^ 0xF000000000000ULL;
 
-    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 48 of t4 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t4 >> 49 == 0);
 
     return (z0 == 0) | (z1 == 0xFFFFFFFFFFFFFULL);
@@ -305,7 +305,7 @@ static int secp256k1_fe_set_b32(secp256k1_fe *r, const unsigned char *a) {
     return 1;
 }
 
-/** Convert a field element to a 32-byte big endian value. Requires the input to be normalized */
+/** Convert a field ocean to a 32-byte big endian value. Requires the input to be normalized */
 static void secp256k1_fe_get_b32(unsigned char *r, const secp256k1_fe *a) {
     int i;
 #ifdef VERIFY

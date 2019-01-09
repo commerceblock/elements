@@ -221,7 +221,7 @@ protected:
     //! nTime and nServices of the found node are updated, if necessary.
     CAddrInfo* Create(const CAddress &addr, const CNetAddr &addrSource, int *pnId = NULL);
 
-    //! Swap two elements in vRandom.
+    //! Swap two ocean in vRandom.
     void SwapRandom(unsigned int nRandomPos1, unsigned int nRandomPos2);
 
     //! Move an entry from the "new" table(s) to the "tried" table
@@ -273,8 +273,8 @@ public:
      * * all nNew addrinfos in vvNew
      * * all nTried addrinfos in vvTried
      * * for each bucket:
-     *   * number of elements
-     *   * for each element: index
+     *   * number of ocean
+     *   * for each ocean: index
      *
      * 2**30 is xorred with the number of buckets to make addrman deserializer v0 detect it
      * as incompatible. This is necessary because it did not check the version number on

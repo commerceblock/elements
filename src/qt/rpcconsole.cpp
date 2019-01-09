@@ -220,19 +220,19 @@ bool RPCConsole::RPCParseCommandLine(std::string &strResult, const std::string &
                             if (curarg.size() && fExecute)
                             {
                                 // if we have a value query, query arrays with index and objects with a string key
-                                UniValue subelement;
+                                UniValue subocean;
                                 if (lastResult.isArray())
                                 {
                                     for(char argch: curarg)
                                         if (!std::isdigit(argch))
                                             throw std::runtime_error("Invalid result query");
-                                    subelement = lastResult[atoi(curarg.c_str())];
+                                    subocean = lastResult[atoi(curarg.c_str())];
                                 }
                                 else if (lastResult.isObject())
-                                    subelement = find_value(lastResult, curarg);
+                                    subocean = find_value(lastResult, curarg);
                                 else
                                     throw std::runtime_error("Invalid result query"); //no array or object: abort
-                                lastResult = subelement;
+                                lastResult = subocean;
                             }
 
                             state = STATE_COMMAND_EXECUTED;

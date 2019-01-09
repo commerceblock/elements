@@ -60,7 +60,7 @@ static void secp256k1_fe_normalize(secp256k1_fe *r) {
     t8 += (t7 >> 26); t7 &= 0x3FFFFFFUL; m &= t7;
     t9 += (t8 >> 26); t8 &= 0x3FFFFFFUL; m &= t8;
 
-    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t9 >> 23 == 0);
 
     /* At most a single final reduction is needed; check if the value is >= the field characteristic */
@@ -114,7 +114,7 @@ static void secp256k1_fe_normalize_weak(secp256k1_fe *r) {
     t8 += (t7 >> 26); t7 &= 0x3FFFFFFUL;
     t9 += (t8 >> 26); t8 &= 0x3FFFFFFUL;
 
-    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t9 >> 23 == 0);
 
     r->n[0] = t0; r->n[1] = t1; r->n[2] = t2; r->n[3] = t3; r->n[4] = t4;
@@ -146,7 +146,7 @@ static void secp256k1_fe_normalize_var(secp256k1_fe *r) {
     t8 += (t7 >> 26); t7 &= 0x3FFFFFFUL; m &= t7;
     t9 += (t8 >> 26); t8 &= 0x3FFFFFFUL; m &= t8;
 
-    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t9 >> 23 == 0);
 
     /* At most a single final reduction is needed; check if the value is >= the field characteristic */
@@ -205,7 +205,7 @@ static int secp256k1_fe_normalizes_to_zero(secp256k1_fe *r) {
     t9 += (t8 >> 26); t8 &= 0x3FFFFFFUL; z0 |= t8; z1 &= t8;
                                          z0 |= t9; z1 &= t9 ^ 0x3C00000UL;
 
-    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t9 >> 23 == 0);
 
     return (z0 == 0) | (z1 == 0x3FFFFFFUL);
@@ -257,7 +257,7 @@ static int secp256k1_fe_normalizes_to_zero_var(secp256k1_fe *r) {
     t9 += (t8 >> 26); t8 &= 0x3FFFFFFUL; z0 |= t8; z1 &= t8;
                                          z0 |= t9; z1 &= t9 ^ 0x3C00000UL;
 
-    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field element) */
+    /* ... except for a possible carry at bit 22 of t9 (i.e. bit 256 of the field ocean) */
     VERIFY_CHECK(t9 >> 23 == 0);
 
     return (z0 == 0) | (z1 == 0x3FFFFFFUL);
@@ -343,7 +343,7 @@ static int secp256k1_fe_set_b32(secp256k1_fe *r, const unsigned char *a) {
     return 1;
 }
 
-/** Convert a field element to a 32-byte big endian value. Requires the input to be normalized */
+/** Convert a field ocean to a 32-byte big endian value. Requires the input to be normalized */
 static void secp256k1_fe_get_b32(unsigned char *r, const secp256k1_fe *a) {
     int i;
 #ifdef VERIFY

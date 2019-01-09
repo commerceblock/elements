@@ -715,7 +715,7 @@ class SegWitTest(BitcoinTestFramework):
     def test_max_witness_push_length(self):
         ''' Should only allow up to 520 byte pushes in witness stack '''
         print("\tTesting maximum witness push size")
-        MAX_SCRIPT_ELEMENT_SIZE = 520
+        MAX_SCRIPT_OCEAN_SIZE = 520
         assert(len(self.utxo))
 
         block = self.build_next_block()
@@ -733,15 +733,15 @@ class SegWitTest(BitcoinTestFramework):
         tx2.vin.append(CTxIn(COutPoint(tx.sha256, 0), b""))
         tx2.vout.append(CTxOut(tx.vout[0].nValue-1000, CScript([OP_TRUE])))
         tx2.wit.vtxinwit.append(CTxInWitness())
-        # First try a 521-byte stack element
-        tx2.wit.vtxinwit[0].scriptWitness.stack = [ b'a'*(MAX_SCRIPT_ELEMENT_SIZE+1), witness_program ]
+        # First try a 521-byte stack ocean
+        tx2.wit.vtxinwit[0].scriptWitness.stack = [ b'a'*(MAX_SCRIPT_OCEAN_SIZE+1), witness_program ]
         tx2.rehash()
 
         self.update_witness_block_with_transactions(block, [tx, tx2])
         self.test_node.test_witness_block(block, accepted=False)
 
-        # Now reduce the length of the stack element
-        tx2.wit.vtxinwit[0].scriptWitness.stack[0] = b'a'*(MAX_SCRIPT_ELEMENT_SIZE)
+        # Now reduce the length of the stack ocean
+        tx2.wit.vtxinwit[0].scriptWitness.stack[0] = b'a'*(MAX_SCRIPT_OCEAN_SIZE)
 
         add_witness_commitment(block)
         block.solve()
@@ -1907,12 +1907,12 @@ class SegWitTest(BitcoinTestFramework):
         # Non-standard nodes should accept
         self.test_node.test_transaction_acceptance(p2wsh_txs[0], True, True)
 
-        # Stack element size over 80 bytes is non-standard
+        # Stack ocean size over 80 bytes is non-standard
         p2wsh_txs[1].wit.vtxinwit[0].scriptWitness.stack = [pad * 81] * 100 + [scripts[1]]
         self.std_node.test_transaction_acceptance(p2wsh_txs[1], True, False, b'bad-witness-nonstandard')
         # Non-standard nodes should accept
         self.test_node.test_transaction_acceptance(p2wsh_txs[1], True, True)
-        # Standard nodes should accept if element size is not over 80 bytes
+        # Standard nodes should accept if ocean size is not over 80 bytes
         p2wsh_txs[1].wit.vtxinwit[0].scriptWitness.stack = [pad * 80] * 100 + [scripts[1]]
         self.std_node.test_transaction_acceptance(p2wsh_txs[1], True, True)
 

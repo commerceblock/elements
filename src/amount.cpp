@@ -78,22 +78,22 @@ CAmountMap operator-(const CAmountMap& a, const CAmountMap& b)
 
 bool operator<(const CAmountMap& a, const CAmountMap& b)
 {
-    bool smallerElement = false;
+    bool smallerOcean = false;
     for(std::map<CAsset, CAmount>::const_iterator it = b.begin(); it != b.end(); ++it) {
         CAmount aValue = a.count(it->first) ? a.find(it->first)->second : 0;
         if (aValue > it->second)
             return false;
         if (aValue < it->second)
-            smallerElement = true;
+            smallerOcean = true;
     }
     for(std::map<CAsset, CAmount>::const_iterator it = a.begin(); it != a.end(); ++it) {
         CAmount bValue = b.count(it->first) ? b.find(it->first)->second : 0;
         if (it->second > bValue)
             return false;
         if (it->second < bValue)
-            smallerElement = true;
+            smallerOcean = true;
     }
-    return smallerElement;
+    return smallerOcean;
 }
 
 bool operator<=(const CAmountMap& a, const CAmountMap& b)
@@ -113,22 +113,22 @@ bool operator<=(const CAmountMap& a, const CAmountMap& b)
 
 bool operator>(const CAmountMap& a, const CAmountMap& b)
 {
-    bool largerElement = false;
+    bool largerOcean = false;
     for(std::map<CAsset, CAmount>::const_iterator it = b.begin(); it != b.end(); ++it) {
         CAmount aValue = a.count(it->first) ? a.find(it->first)->second : 0;
         if (aValue < it->second)
             return false;
         if (aValue > it->second)
-            largerElement = true;
+            largerOcean = true;
     }
     for(std::map<CAsset, CAmount>::const_iterator it = a.begin(); it != a.end(); ++it) {
         CAmount bValue = b.count(it->first) ? b.find(it->first)->second : 0;
         if (it->second < bValue)
             return false;
         if (it->second > bValue)
-            largerElement = true;
+            largerOcean = true;
     }
-    return largerElement;
+    return largerOcean;
 }
 
 bool operator>=(const CAmountMap& a, const CAmountMap& b)

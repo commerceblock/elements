@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(witness_valid)
     }
     witness.stack = witness_stack;
 
-    // Extra element causes failure
+    // Extra ocean causes failure
     witness.stack.push_back(witness.stack.back());
     BOOST_CHECK(!IsValidPeginWitness(witness, prevout));
     witness.stack = witness_stack;

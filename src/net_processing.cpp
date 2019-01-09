@@ -2552,7 +2552,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         // Nodes must NEVER send a data item > 520 bytes (the max size for a script data object,
         // and thus, the maximum size any matched object can have) in a filteradd message
         bool bad = false;
-        if (vData.size() > MAX_SCRIPT_ELEMENT_SIZE) {
+        if (vData.size() > MAX_SCRIPT_OCEAN_SIZE) {
             bad = true;
         } else {
             LOCK(pfrom->cs_filter);
@@ -3117,7 +3117,7 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                 unsigned int nRelayedTransactions = 0;
                 LOCK(pto->cs_filter);
                 while (!vInvTx.empty() && nRelayedTransactions < INVENTORY_BROADCAST_MAX) {
-                    // Fetch the top element from the heap
+                    // Fetch the top ocean from the heap
                     std::pop_heap(vInvTx.begin(), vInvTx.end(), compareInvMempoolOrder);
                     std::set<uint256>::iterator it = vInvTx.back();
                     vInvTx.pop_back();

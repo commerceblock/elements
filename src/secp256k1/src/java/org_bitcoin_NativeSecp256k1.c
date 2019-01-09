@@ -101,11 +101,11 @@ SECP256K1_API jobjectArray JNICALL Java_org_bitcoin_NativeSecp256k1_secp256k1_1e
 
   sigArray = (*env)->NewByteArray(env, outputLen);
   (*env)->SetByteArrayRegion(env, sigArray, 0, outputLen, (jbyte*)outputSer);
-  (*env)->SetObjectArrayElement(env, retArray, 0, sigArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 0, sigArray);
 
   intsByteArray = (*env)->NewByteArray(env, 2);
   (*env)->SetByteArrayRegion(env, intsByteArray, 0, 2, (jbyte*)intsarray);
-  (*env)->SetObjectArrayElement(env, retArray, 1, intsByteArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 1, intsByteArray);
 
   (void)classObject;
 
@@ -153,11 +153,11 @@ SECP256K1_API jobjectArray JNICALL Java_org_bitcoin_NativeSecp256k1_secp256k1_1e
 
   pubkeyArray = (*env)->NewByteArray(env, outputLen);
   (*env)->SetByteArrayRegion(env, pubkeyArray, 0, outputLen, (jbyte*)outputSer);
-  (*env)->SetObjectArrayElement(env, retArray, 0, pubkeyArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 0, pubkeyArray);
 
   intsByteArray = (*env)->NewByteArray(env, 2);
   (*env)->SetByteArrayRegion(env, intsByteArray, 0, 2, (jbyte*)intsarray);
-  (*env)->SetObjectArrayElement(env, retArray, 1, intsByteArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 1, intsByteArray);
 
   (void)classObject;
 
@@ -189,11 +189,11 @@ SECP256K1_API jobjectArray JNICALL Java_org_bitcoin_NativeSecp256k1_secp256k1_1p
 
   privArray = (*env)->NewByteArray(env, privkeylen);
   (*env)->SetByteArrayRegion(env, privArray, 0, privkeylen, (jbyte*)privkey);
-  (*env)->SetObjectArrayElement(env, retArray, 0, privArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 0, privArray);
 
   intsByteArray = (*env)->NewByteArray(env, 2);
   (*env)->SetByteArrayRegion(env, intsByteArray, 0, 2, (jbyte*)intsarray);
-  (*env)->SetObjectArrayElement(env, retArray, 1, intsByteArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 1, intsByteArray);
 
   (void)classObject;
 
@@ -224,11 +224,11 @@ SECP256K1_API jobjectArray JNICALL Java_org_bitcoin_NativeSecp256k1_secp256k1_1p
 
   privArray = (*env)->NewByteArray(env, privkeylen);
   (*env)->SetByteArrayRegion(env, privArray, 0, privkeylen, (jbyte*)privkey);
-  (*env)->SetObjectArrayElement(env, retArray, 0, privArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 0, privArray);
 
   intsByteArray = (*env)->NewByteArray(env, 2);
   (*env)->SetByteArrayRegion(env, intsByteArray, 0, 2, (jbyte*)intsarray);
-  (*env)->SetObjectArrayElement(env, retArray, 1, intsByteArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 1, intsByteArray);
 
   (void)classObject;
 
@@ -269,11 +269,11 @@ SECP256K1_API jobjectArray JNICALL Java_org_bitcoin_NativeSecp256k1_secp256k1_1p
 
   pubArray = (*env)->NewByteArray(env, outputLen);
   (*env)->SetByteArrayRegion(env, pubArray, 0, outputLen, (jbyte*)outputSer);
-  (*env)->SetObjectArrayElement(env, retArray, 0, pubArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 0, pubArray);
 
   intsByteArray = (*env)->NewByteArray(env, 2);
   (*env)->SetByteArrayRegion(env, intsByteArray, 0, 2, (jbyte*)intsarray);
-  (*env)->SetObjectArrayElement(env, retArray, 1, intsByteArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 1, intsByteArray);
 
   (void)classObject;
 
@@ -313,11 +313,11 @@ SECP256K1_API jobjectArray JNICALL Java_org_bitcoin_NativeSecp256k1_secp256k1_1p
 
   pubArray = (*env)->NewByteArray(env, outputLen);
   (*env)->SetByteArrayRegion(env, pubArray, 0, outputLen, (jbyte*)outputSer);
-  (*env)->SetObjectArrayElement(env, retArray, 0, pubArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 0, pubArray);
 
   intsByteArray = (*env)->NewByteArray(env, 2);
   (*env)->SetByteArrayRegion(env, intsByteArray, 0, 2, (jbyte*)intsarray);
-  (*env)->SetObjectArrayElement(env, retArray, 1, intsByteArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 1, intsByteArray);
 
   (void)classObject;
 
@@ -365,11 +365,11 @@ SECP256K1_API jobjectArray JNICALL Java_org_bitcoin_NativeSecp256k1_secp256k1_1e
 
   outArray = (*env)->NewByteArray(env, outputLen);
   (*env)->SetByteArrayRegion(env, outArray, 0, 32, (jbyte*)nonce_res);
-  (*env)->SetObjectArrayElement(env, retArray, 0, outArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 0, outArray);
 
   intsByteArray = (*env)->NewByteArray(env, 1);
   (*env)->SetByteArrayRegion(env, intsByteArray, 0, 1, (jbyte*)intsarray);
-  (*env)->SetObjectArrayElement(env, retArray, 1, intsByteArray);
+  (*env)->SetObjectArrayOcean(env, retArray, 1, intsByteArray);
 
   (void)classObject;
 

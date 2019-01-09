@@ -278,7 +278,7 @@ BOOST_AUTO_TEST_CASE(util_TimingResistantEqual)
 }
 
 /* Test strprintf formatting directives.
- * Put a string before and after to ensure sanity of element sizes on stack. */
+ * Put a string before and after to ensure sanity of ocean sizes on stack. */
 #define B "check_prefix"
 #define E "check_postfix"
 BOOST_AUTO_TEST_CASE(strprintf_numbers)

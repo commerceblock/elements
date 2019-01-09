@@ -21,7 +21,7 @@
  * 1) bit_packed_atomic_flags is bit-packed atomic flags for garbage collection
  *
  * 2) cache is a cache which is performant in memory usage and lookup speed. It
- * is lockfree for erase operations. Elements are lazily erased on the next
+ * is lockfree for erase operations. Ocean are lazily erased on the next
  * insert.
  */
 namespace CuckooCache
@@ -51,7 +51,7 @@ public:
      * bit_packed_atomic_flags constructor creates memory to sufficiently
      * keep track of garbage collection information for size entries.
      *
-     * @param size the number of elements to allocate space for
+     * @param size the number of ocean to allocate space for
      *
      * @post bit_set, bit_unset, and bit_is_set function properly forall x. x <
      * size
@@ -70,7 +70,7 @@ public:
     /** setup marks all entries and ensures that bit_packed_atomic_flags can store
      * at least size entries
      *
-     * @param b the number of elements to allocate space for
+     * @param b the number of ocean to allocate space for
      * @post bit_set, bit_unset, and bit_is_set function properly forall x. x <
      * b
      * @post All calls to bit_is_set (without subsequent bit_unset) will return
@@ -118,7 +118,7 @@ public:
 
 /** cache implements a cache with properties similar to a cuckoo-set
  *
- *  The cache is able to hold up to (~(uint32_t)0) - 1 elements.
+ *  The cache is able to hold up to (~(uint32_t)0) - 1 ocean.
  *
  *  Read Operations:
  *      - contains(*, false)
@@ -149,19 +149,19 @@ public:
  *
  * Note on function names:
  *   - The name "allow_erase" is used because the real discard happens later.
- *   - The name "please_keep" is used because elements may be erased anyways on insert.
+ *   - The name "please_keep" is used because ocean may be erased anyways on insert.
  *
- * @tparam Element should be a movable and copyable type
+ * @tparam Ocean should be a movable and copyable type
  * @tparam Hash should be a function/callable which takes a template parameter
- * hash_select and an Element and extracts a hash from it. Should return
+ * hash_select and an Ocean and extracts a hash from it. Should return
  * high-entropy hashes for `Hash h; h<0>(e) ... h<7>(e)`.
  */
-template <typename Element, typename Hash>
+template <typename Ocean, typename Hash>
 class cache
 {
 private:
-    /** table stores all the elements */
-    std::vector<Element> table;
+    /** table stores all the ocean */
+    std::vector<Ocean> table;
 
     /** size stores the total available slots in the hash table */
     uint32_t size;
@@ -170,7 +170,7 @@ private:
      * garbage collection to be allowed to occur from const methods */
     mutable bit_packed_atomic_flags collection_flags;
 
-    /** epoch_flags tracks how recently an element was inserted into
+    /** epoch_flags tracks how recently an ocean was inserted into
      * the cache. true denotes recent, false denotes not-recent. See insert()
      * method for full semantics.
      */
@@ -183,8 +183,8 @@ private:
      */
     uint32_t epoch_heuristic_counter;
 
-    /** epoch_size is set to be the number of elements supposed to be in a
-     * epoch. When the number of non-erased elements in a epoch
+    /** epoch_size is set to be the number of ocean supposed to be in a
+     * epoch. When the number of non-erased ocean in a epoch
      * exceeds epoch_size, a new epoch should be started and all
      * current entries demoted. epoch_size is set to be 45% of size because
      * we want to keep load around 90%, and we support 3 epochs at once --
@@ -199,7 +199,7 @@ private:
      */
     uint32_t hash_mask;
 
-    /** depth_limit determines how many elements insert should try to replace.
+    /** depth_limit determines how many ocean insert should try to replace.
      * Should be set to log2(n)*/
     uint8_t depth_limit;
 
@@ -210,12 +210,12 @@ private:
     const Hash hash_function;
 
     /** compute_hashes is convenience for not having to write out this
-     * expression everywhere we use the hash values of an Element.
+     * expression everywhere we use the hash values of an Ocean.
      *
-     * @param e the element whose hashes will be returned
+     * @param e the ocean whose hashes will be returned
      * @returns std::array<uint32_t, 8> of deterministic hashes derived from e
      */
-    inline std::array<uint32_t, 8> compute_hashes(const Element& e) const
+    inline std::array<uint32_t, 8> compute_hashes(const Ocean& e) const
     {
         return {{hash_function.template operator()<0>(e) & hash_mask,
                  hash_function.template operator()<1>(e) & hash_mask,
@@ -234,7 +234,7 @@ private:
         return ~(uint32_t)0;
     }
 
-    /** allow_erase marks the element at index n as discardable. Threadsafe
+    /** allow_erase marks the ocean at index n as discardable. Threadsafe
      * without any concurrent insert.
      * @param n the index to allow erasure of
      */
@@ -243,7 +243,7 @@ private:
         collection_flags.bit_set(n);
     }
 
-    /** please_keep marks the element at index n as an entry that should be kept.
+    /** please_keep marks the ocean at index n as an entry that should be kept.
      * Threadsafe without any concurrent insert.
      * @param n the index to prioritize keeping
      */
@@ -252,14 +252,14 @@ private:
         collection_flags.bit_unset(n);
     }
 
-    /** epoch_check handles the changing of epochs for elements stored in the
+    /** epoch_check handles the changing of epochs for ocean stored in the
      * cache. epoch_check should be run before every insert.
      *
      * First, epoch_check decrements and checks the cheap heuristic, and then does
      * a more expensive scan if the cheap heuristic runs out. If the expensive
-     * scan succeeds, the epochs are aged and old elements are allow_erased. The
+     * scan succeeds, the epochs are aged and old ocean are allow_erased. The
      * cheap heuristic is reset to retrigger after the worst case growth of the
-     * current epoch's elements would exceed the epoch_size.
+     * current epoch's ocean would exceed the epoch_size.
      */
     void epoch_check()
     {
@@ -267,15 +267,15 @@ private:
             --epoch_heuristic_counter;
             return;
         }
-        // count the number of elements from the latest epoch which
+        // count the number of ocean from the latest epoch which
         // have not been erased.
         uint32_t epoch_unused_count = 0;
         for (uint32_t i = 0; i < size; ++i)
             epoch_unused_count += epoch_flags[i] &&
                                   !collection_flags.bit_is_set(i);
         // If there are more non-deleted entries in the current epoch than the
-        // epoch size, then allow_erase on all elements in the old epoch (marked
-        // false) and move all elements in the current epoch to the old epoch
+        // epoch size, then allow_erase on all ocean in the old epoch (marked
+        // false) and move all ocean in the current epoch to the old epoch
         // but do not call allow_erase on their indices.
         if (epoch_unused_count >= epoch_size) {
             for (uint32_t i = 0; i < size; ++i)
@@ -296,7 +296,7 @@ private:
     }
 
 public:
-    /** You must always construct a cache with some elements via a subsequent
+    /** You must always construct a cache with some ocean via a subsequent
      * call to setup or setup_bytes, otherwise operations may segfault.
      */
     cache() : table(), size(), collection_flags(0), epoch_flags(),
@@ -305,12 +305,12 @@ public:
     }
 
     /** setup initializes the container to store no more than new_size
-     * elements. setup rounds down to a power of two size.
+     * ocean. setup rounds down to a power of two size.
      *
      * setup should only be called once.
      *
-     * @param new_size the desired number of elements to store
-     * @returns the maximum number of elements storable
+     * @param new_size the desired number of ocean to store
+     * @returns the maximum number of ocean storable
      **/
     uint32_t setup(uint32_t new_size)
     {
@@ -329,27 +329,27 @@ public:
     }
 
     /** setup_bytes is a convenience function which accounts for internal memory
-     * usage when deciding how many elements to store. It isn't perfect because
+     * usage when deciding how many ocean to store. It isn't perfect because
      * it doesn't account for any overhead (struct size, MallocUsage, collection
      * and epoch flags). This was done to simplify selecting a power of two
      * size. In the expected use case, an extra two bits per entry should be
-     * negligible compared to the size of the elements.
+     * negligible compared to the size of the ocean.
      *
      * @param bytes the approximate number of bytes to use for this data
      * structure.
-     * @returns the maximum number of elements storable (see setup()
+     * @returns the maximum number of ocean storable (see setup()
      * documentation for more detail)
      */
     uint32_t setup_bytes(size_t bytes)
     {
-        return setup(bytes/sizeof(Element));
+        return setup(bytes/sizeof(Ocean));
     }
 
     /** insert loops at most depth_limit times trying to insert a hash
      * at various locations in the table via a variant of the Cuckoo Algorithm
      * with eight hash locations.
      *
-     * It drops the last tried element if it runs out of depth before
+     * It drops the last tried ocean if it runs out of depth before
      * encountering an open slot.
      *
      * Thus
@@ -359,19 +359,19 @@ public:
      *
      * is not guaranteed to return true.
      *
-     * @param e the element to insert
-     * @post one of the following: All previously inserted elements and e are
-     * now in the table, one previously inserted element is evicted from the
+     * @param e the ocean to insert
+     * @post one of the following: All previously inserted ocean and e are
+     * now in the table, one previously inserted ocean is evicted from the
      * table, the entry attempted to be inserted is evicted.
      *
      */
-    inline void insert(Element e)
+    inline void insert(Ocean e)
     {
         epoch_check();
         uint32_t last_loc = invalid();
         bool last_epoch = true;
         std::array<uint32_t, 8> locs = compute_hashes(e);
-        // Make sure we have not already inserted this element
+        // Make sure we have not already inserted this ocean
         // If we have, make sure that it does not get deleted
         for (uint32_t loc : locs)
             if (table[loc] == e) {
@@ -389,7 +389,7 @@ public:
                 epoch_flags[loc] = last_epoch;
                 return;
             }
-            /** Swap with the element at the location that was
+            /** Swap with the ocean at the location that was
             * not the last one looked at. Example:
             *
             * 1) On first iteration, last_loc == invalid(), find returns last, so
@@ -398,9 +398,9 @@ public:
             *    go to locs[k+1 % 8], i.e., next of the 8 indices wrapping around
             *    to 0 if needed.
             *
-            * This prevents moving the element we just put in.
+            * This prevents moving the ocean we just put in.
             *
-            * The swap is not a move -- we must switch onto the evicted element
+            * The swap is not a move -- we must switch onto the evicted ocean
             * for the next iteration.
             */
             last_loc = locs[(1 + (std::find(locs.begin(), locs.end(), last_loc) - locs.begin())) & 7];
@@ -415,7 +415,7 @@ public:
         }
     }
 
-    /* contains iterates through the hash locations for a given element
+    /* contains iterates through the hash locations for a given ocean
      * and checks to see if it is present.
      *
      * contains does not check garbage collected state (in other words,
@@ -431,16 +431,16 @@ public:
      *
      * This is a great property for re-org performance for example.
      *
-     * contains returns a bool set true if the element was found.
+     * contains returns a bool set true if the ocean was found.
      *
-     * @param e the element to check
+     * @param e the ocean to check
      * @param erase
      *
-     * @post if erase is true and the element is found, then the garbage collect
+     * @post if erase is true and the ocean is found, then the garbage collect
      * flag is set
-     * @returns true if the element is found, false otherwise
+     * @returns true if the ocean is found, false otherwise
      */
-    inline bool contains(const Element& e, const bool erase) const
+    inline bool contains(const Ocean& e, const bool erase) const
     {
         std::array<uint32_t, 8> locs = compute_hashes(e);
         for (uint32_t loc : locs)

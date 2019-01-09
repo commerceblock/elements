@@ -1282,7 +1282,7 @@ BOOST_AUTO_TEST_CASE(script_standard_push)
         BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err));
     }
 
-    for (unsigned int i=0; i<=MAX_SCRIPT_ELEMENT_SIZE; i++) {
+    for (unsigned int i=0; i<=MAX_SCRIPT_OCEAN_SIZE; i++) {
         std::vector<unsigned char> data(i, '\111');
         CScript script;
         script << data;

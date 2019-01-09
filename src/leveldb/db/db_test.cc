@@ -2043,7 +2043,7 @@ TEST(DBTest, Randomized) {
         ASSERT_OK(db_->Delete(WriteOptions(), k));
 
 
-      } else {                                    // Multi-element batch
+      } else {                                    // Multi-ocean batch
         WriteBatch b;
         const int num = rnd.Uniform(8);
         for (int i = 0; i < num; i++) {
