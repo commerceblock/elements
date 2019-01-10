@@ -55,7 +55,7 @@ MOCKTIME = 0
 
 def enable_mocktime():
     #For backwared compatibility of the python scripts
-    #with previous versions of the cache, set MOCKTIME 
+    #with previous versions of the cache, set MOCKTIME
     #to Jan 2, 2018 + (201 * 10 * 60)
     global MOCKTIME
     MOCKTIME = 1514851200 + (201 * 10 * 60)
@@ -373,7 +373,7 @@ def start_nodes(num_nodes, dirname, extra_args=None, rpchost=None, timewait=None
     return rpcs
 
 def log_filename(dirname, n_node, logname):
-    return os.path.join(dirname, "node"+str(n_node), "oceanregtest", logname)
+    return os.path.join(dirname, "node"+str(n_node), "elementsregtest", logname)
 
 def stop_node(node, i):
     try:

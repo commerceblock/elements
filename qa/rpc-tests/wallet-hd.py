@@ -41,7 +41,7 @@ class WalletHDTest(BitcoinTestFramework):
         self.nodes[1].importprivkey(self.nodes[0].dumpprivkey(non_hd_add))
         #self.nodes[1].importblindingkey(non_hd_add, self.nodes[0].dumpblindingkey(non_hd_add))
 
-        # This should be enough to keep the master key and the non-HD key 
+        # This should be enough to keep the master key and the non-HD key
         self.nodes[1].backupwallet(tmpdir + "/hd.bak")
         #self.nodes[1].dumpwallet(tmpdir + "/hd.dump")
 
@@ -67,8 +67,8 @@ class WalletHDTest(BitcoinTestFramework):
 
         print("Restore backup ...")
         self.stop_node(1)
-        os.remove(self.options.tmpdir + "/node1/oceanregtest/wallet.dat")
-        shutil.copyfile(tmpdir + "/hd.bak", tmpdir + "/node1/oceanregtest/wallet.dat")
+        os.remove(self.options.tmpdir + "/node1/elementsregtest/wallet.dat")
+        shutil.copyfile(tmpdir + "/hd.bak", tmpdir + "/node1/elementsregtest/wallet.dat")
         self.nodes[1] = start_node(1, self.options.tmpdir, self.node_args[1])
         connect_nodes_bi(self.nodes, 0, 1)
 
