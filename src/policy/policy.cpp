@@ -6,14 +6,7 @@
 // NOTE: This file is intended to be customised by the end user, and includes only local node policy logic
 
 #include "policy/policy.h"
-
-#include "pubkey.h"
 #include "validation.h"
-#include "tinyformat.h"
-#include "util.h"
-#include "utilstrencodings.h"
-
-#include <boost/foreach.hpp>
 
 CAsset policyAsset;
 
@@ -75,7 +68,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
         return false;
     }
 
-    BOOST_FOREACH(const CTxIn& txin, tx.vin)
+    for (CTxIn const &txin : tx.vin)
     {
         if (!txin.scriptSig.IsPushOnly()) {
             reason = "scriptsig-not-pushonly";
@@ -84,7 +77,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
     }
 
     txnouttype whichType;
-    BOOST_FOREACH(const CTxOut& txout, tx.vout) {
+    for (CTxOut const &txout : tx.vout) {
         if (!::IsStandard(txout.scriptPubKey, whichType) && !txout.IsFee()) {
             reason = "scriptpubkey";
             return false;
@@ -107,7 +100,7 @@ bool IsBurn(const CTransaction& tx)
   //function that determines if all outputs of a transaction are OP_RETURN
   txnouttype whichType;
 
-  BOOST_FOREACH(const CTxOut& txout, tx.vout) {
+  for (CTxOut const &txout : tx.vout) {
 
     std::vector<std::vector<unsigned char> > vSolutions;
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
@@ -125,7 +118,7 @@ bool IsWhitelisted(const CTransaction& tx)
 
   txnouttype whichType;
 
-  BOOST_FOREACH(const CTxOut& txout, tx.vout) {
+  for (CTxOut const &txout : tx.vout) {
 
     std::vector<std::vector<unsigned char> > vSolutions;
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
@@ -136,14 +129,14 @@ bool IsWhitelisted(const CTransaction& tx)
     //skip whitelist check if output is TX_FEE
     if(whichType == TX_FEE) continue;
     //skip whitelist check if output is OP_RETURN
-    if(whichType == TX_NULL_DATA) continue;    
+    if(whichType == TX_NULL_DATA) continue;
     //return false if not P2PKH
     if(!(whichType == TX_PUBKEYHASH)) return false;
 
     CKeyID keyId;
     keyId = CKeyID(uint160(vSolutions[0]));
 
-    //Search in whitelist for the presence of each output address. 
+    //Search in whitelist for the presence of each output address.
     //If one is not found, return false.
     if(!addressWhitelist.find(&keyId)) return false;
   }
@@ -210,8 +203,8 @@ bool IsBurnlisted(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 
   if(nin > 0) {
     //are ALL outputs OP_RETURN burn outputs
-    BOOST_FOREACH(const CTxOut& txout, tx.vout) {
-      
+    for (CTxOut const &txout : tx.vout) {
+
       std::vector<std::vector<unsigned char> > vSolutions;
       txnouttype whichType;
       if (!Solver(txout.scriptPubKey, whichType, vSolutions)) return false;
@@ -337,9 +330,3 @@ int64_t GetVirtualTransactionSize(const CTransaction& tx, int64_t nSigOpCost)
 {
     return GetVirtualTransactionSize(GetTransactionWeight(tx), nSigOpCost);
 }
-
-
-
-
-
-
