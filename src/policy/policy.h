@@ -84,35 +84,33 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
      * @return True if all outputs (scriptPubKeys) use only standard transaction forms
      */
 bool IsStandardTx(const CTransaction& tx, std::string& reason);
-
     /**
      * Check if all a transactions outputs are OP_RETURN
      */
 bool IsBurn(const CTransaction& tx);
-
     /**
      * Check all type and whitelist status of outputs of tx
      * Return true if all outputs of tx are type TX_PUBKEYHASH and all PUBKEYHASHes are present in the whitelist database
      */
 bool IsWhitelisted(const CTransaction& tx);
-
     /**
      *
      */
 bool IsRedemption(CTransaction const &tx);
-
     /**
-    * Check all inputs and determine if public keys are on the burnlist and all non-fee outputs are OP_RETURN
-    * Return true if all inputs of tx are type TX_PUBKEYHASH and all PUBKEYs are on the burn list
-    */
+     *
+     */
+bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs);
+    /**
+     * Check all inputs and determine if public keys are on the burnlist and all non-fee outputs are OP_RETURN
+     * Return true if all inputs of tx are type TX_PUBKEYHASH and all PUBKEYs are on the burn list
+     */
 bool IsBurnlisted(const CTransaction& tx, const CCoinsViewCache& mapInputs);
-
     /**
     * Check all inputs and determine if public keys are on the freezelist
     * Return true if all inputs of tx are type TX_PUBKEYHASH and all PUBKEYs are present in the freezelist
     */
 bool IsFreezelisted(const CTransaction& tx, const CCoinsViewCache& mapInputs);
-
     /**
      * Check for standard transaction types
      * @param[in] mapInputs    Map of previous transactions that have outputs we're spending

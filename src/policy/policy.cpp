@@ -164,6 +164,29 @@ bool IsRedemption(CTransaction const &tx) {
   return false;
 }
 
+bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
+  txnouttype whichType;
+  for (uint32_t itrA = 0; itrA < tx.vout.size(); ++itrA) {
+    vector<vector<uint8_t>> vSolutions;
+    if (Solver(tx.vout[itrA].scriptPubKey, whichType, vSolutions)) {
+      if (whichType == TX_NULL_DATA)
+        for (uint32_t itrB = 0; itrB < tx.vin.size(); ++itrB) {
+          CTxOut const &prev = mapInputs.GetOutputFor(tx.vin[itrB]);
+          CScript const &prevScript = prev.scriptPubKey;
+          if (Solver(prevScript, whichType, vSolutions) &&
+              whichType == TX_PUBKEYHASH)
+            for (uint32_t itrC = 0; itrC < vSolutions.size(); ++itrC) {
+              CKeyID keyId = CKeyID(uint160(vSolutions[itrC]));
+              if (!addressBurnlist.find(&keyId))
+                return false;
+            }
+        }
+    }
+    return true;
+  }
+  return false;
+}
+
 bool IsFreezelisted(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {
   if (tx.IsCoinBase())
