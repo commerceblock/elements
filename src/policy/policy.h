@@ -92,9 +92,14 @@ bool IsBurn(const CTransaction& tx);
 
     /**
      * Check all type and whitelist status of outputs of tx
-     * Return true if all outputs of tx are type TX_PUBKEYHASH and all PUBKEYHASHes are present in the whitelist database 
+     * Return true if all outputs of tx are type TX_PUBKEYHASH and all PUBKEYHASHes are present in the whitelist database
      */
 bool IsWhitelisted(const CTransaction& tx);
+
+    /**
+     *
+     */
+bool IsRedemption(CTransaction const &tx);
 
     /**
     * Check all inputs and determine if public keys are on the burnlist and all non-fee outputs are OP_RETURN
@@ -102,7 +107,7 @@ bool IsWhitelisted(const CTransaction& tx);
     */
 bool IsBurnlisted(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
-    /**                                                                
+    /**
     * Check all inputs and determine if public keys are on the freezelist
     * Return true if all inputs of tx are type TX_PUBKEYHASH and all PUBKEYs are present in the freezelist
     */

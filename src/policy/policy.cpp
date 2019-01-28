@@ -8,6 +8,8 @@
 #include "policy/policy.h"
 #include "validation.h"
 
+using namespace std;
+
 CAsset policyAsset;
 
     /**
@@ -141,6 +143,25 @@ bool IsWhitelisted(const CTransaction& tx)
     if(!addressWhitelist.find(&keyId)) return false;
   }
   return true;
+}
+
+bool IsRedemption(CTransaction const &tx) {
+  txnouttype whichType;
+  for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
+    vector<vector<uint8_t>> vSolutions;
+    if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions))
+      if (whichType == TX_PUBKEYHASH && uint160(vSolutions[0]).IsNull()) {
+        if (vSolutions.size() < 2)
+          return false;
+        for (uint32_t itr = 1; itr < vSolutions.size(); ++itr) {
+          CKeyID keyId = CKeyID(uint160(vSolutions[0]));
+          if (!addressFreezelist.find(&keyId))
+            return false;
+        }
+        return true;
+      }
+  }
+  return false;
 }
 
 bool IsFreezelisted(const CTransaction& tx, const CCoinsViewCache& mapInputs)
