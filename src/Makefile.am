@@ -121,8 +121,8 @@ BITCOIN_CORE_H = \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
-  policy/policyList.h \
-  policy/whiteList.h \
+  policy/policylist.h \
+  policy/whitelist.h \
   pow.h \
   protocol.h \
   random.h \
@@ -198,8 +198,8 @@ libbitcoin_server_a_SOURCES = \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
-  policy/policyList.cpp \
-  policy/whiteList.cpp \
+  policy/policylist.cpp \
+  policy/whitelist.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
