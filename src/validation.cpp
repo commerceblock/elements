@@ -2776,8 +2776,12 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             }
         }
 
-        if(tx.vout[0].nAsset.GetAsset() == freezelistAsset && fRequireFreezelistCheck) UpdateFreezeList(tx,view);
-        if(tx.vout[0].nAsset.GetAsset() == burnlistAsset && fEnableBurnlistCheck) UpdateBurnList(tx,view);
+        if(fRequireFreezelistCheck) {
+            if(tx.vout[0].nAsset.GetAsset() == freezelistAsset) UpdateFreezeList(tx,view);
+        }
+        if(fEnableBurnlistCheck) {
+            if(tx.vout[0].nAsset.GetAsset() == burnlistAsset && fEnableBurnlistCheck) UpdateBurnList(tx,view);
+        }
 
         // GetTransactionSigOpCost counts 3 types of sigops:
         // * legacy (always)
