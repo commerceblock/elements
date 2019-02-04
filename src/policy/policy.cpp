@@ -113,48 +113,44 @@ bool IsBurn(const CTransaction& tx)
   return true;
 }
 
-bool IsWhitelisted(const CTransaction& tx)
+bool IsWhitelisted(CTransaction const &tx)
 {
   //function that determines that all outputs of a transaction are P2PKH
   //and all output addresses are present withing the whitelist database
-
   txnouttype whichType;
-
   for (CTxOut const &txout : tx.vout) {
-
-    std::vector<std::vector<unsigned char> > vSolutions;
+    vector<vector<uint8_t>> vSolutions;
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
       return false;
-
-    //skip whitelist check if issuance transaction
-    if(!tx.vin[0].assetIssuance.IsNull()) continue;
-    //skip whitelist check if output is TX_FEE
-    if(whichType == TX_FEE) continue;
-    //skip whitelist check if output is OP_RETURN
-    if(whichType == TX_NULL_DATA) continue;
-    //return false if not P2PKH
-    if(!(whichType == TX_PUBKEYHASH)) return false;
-
-    CKeyID keyId;
-    keyId = CKeyID(uint160(vSolutions[0]));
-
+    // Skip whitelist check if issuance transaction
+    if (!tx.vin[0].assetIssuance.IsNull())
+      continue;
+    // Skip whitelist check if output is TX_FEE
+    if(whichType == TX_FEE)
+      continue;
+    // Skip whitelist check if output is OP_RETURN
+    if(whichType == TX_NULL_DATA)
+      continue;
+    // Return false if not P2PKH
+    if(!(whichType == TX_PUBKEYHASH))
+      return false;
+    CKeyID keyId = CKeyID(uint160(vSolutions[0]));
     //Search in whitelist for the presence of each output address.
     //If one is not found, return false.
-    if(!addressWhitelist.find(&keyId)) return false;
+    if (!addressWhitelist.find(&keyId))
+      return false;
   }
   return true;
 }
 
 bool IsRedemption(CTransaction const &tx) {
   txnouttype whichType;
-  for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
+  for (uint32_t itrA = 0; itrA < tx.vout.size(); ++itrA) {
     vector<vector<uint8_t>> vSolutions;
-    if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions))
-      if (whichType == TX_PUBKEYHASH && uint160(vSolutions[0]).IsNull()) {
-        if (vSolutions.size() < 2)
-          return false;
-        for (uint32_t itr = 1; itr < vSolutions.size(); ++itr) {
-          CKeyID keyId = CKeyID(uint160(vSolutions[0]));
+    if (Solver(tx.vout[itrA].scriptPubKey, whichType, vSolutions))
+      if (whichType == TX_PUBKEYHASH && !uint160(vSolutions[0]).IsNull()) {
+        for (uint32_t itrB = 1; itrB < vSolutions.size(); ++itrB) {
+          CKeyID keyId = CKeyID(uint160(vSolutions[itrB]));
           if (!addressFreezelist.find(&keyId))
             return false;
         }
