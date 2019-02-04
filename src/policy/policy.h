@@ -12,6 +12,7 @@
 
 #include <string>
 #include <vector>
+#include <boost/thread/thread.hpp> // boost::thread::interrupt
 
 class CCoinsViewCache;
 class CCoinsView;
