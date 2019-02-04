@@ -170,13 +170,12 @@ bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
           CTxOut const &prev = mapInputs.GetOutputFor(tx.vin[itrB]);
           CScript const &prevScript = prev.scriptPubKey;
           if (Solver(prevScript, whichType, vSolutions) &&
-              whichType == TX_PUBKEYHASH) {
+              whichType == TX_PUBKEYHASH)
             for (uint32_t itrC = 0; itrC < vSolutions.size(); ++itrC) {
               CKeyID keyId = CKeyID(uint160(vSolutions[itrC]));
               if (!addressBurnlist.find(&keyId))
                 return false;
             }
-          }
         }
     }
     return true;
