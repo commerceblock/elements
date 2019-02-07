@@ -144,20 +144,33 @@ bool IsWhitelisted(CTransaction const &tx)
 }
 
 bool IsRedemption(CTransaction const &tx) {
+  CKeyID keyId;
+  uint32_t size;
   txnouttype whichType;
-  for (uint32_t itrA = 0; itrA < tx.vout.size(); ++itrA) {
-    vector<vector<uint8_t>> vSolutions;
-    if (Solver(tx.vout[itrA].scriptPubKey, whichType, vSolutions))
-      if (whichType == TX_PUBKEYHASH && !uint160(vSolutions[0]).IsNull()) {
-        for (uint32_t itrB = 1; itrB < vSolutions.size(); ++itrB) {
-          CKeyID keyId = CKeyID(uint160(vSolutions[itrB]));
-          if (!addressFreezelist.find(&keyId))
+  vector<vector<uint8_t>> vSolutions;
+  if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
+    if (whichType == TX_PUBKEYHASH) {
+      if (uint160(vSolutions[0]).IsNull()) {
+        if ((size = tx.vout.size()) < 3)
+          return false;
+        for (uint32_t itr = 1; itr < size - 1; ++itr)
+          if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
+            if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull())
+              return false;
+            keyId = CKeyID(uint160(vSolutions[0]));
+            if (!addressFreezelist.find(&keyId))
+              return false;
+          } else
             return false;
-        }
-        return true;
-      }
-  }
-  return false;
+      } else
+        for (uint32_t itr = 1; itr < tx.vout.size() - 1; ++itr)
+          if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions))
+            if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull())
+              return false;
+    }
+  } else
+    return false;
+  return true;
 }
 
 bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
@@ -170,12 +183,14 @@ bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
           CTxOut const &prev = mapInputs.GetOutputFor(tx.vin[itrB]);
           CScript const &prevScript = prev.scriptPubKey;
           if (Solver(prevScript, whichType, vSolutions) &&
-              whichType == TX_PUBKEYHASH)
+              whichType == TX_PUBKEYHASH) {
             for (uint32_t itrC = 0; itrC < vSolutions.size(); ++itrC) {
               CKeyID keyId = CKeyID(uint160(vSolutions[itrC]));
-              if (!addressBurnlist.find(&keyId))
+              if (!addressBurnlist.find(&keyId)) {
                 return false;
+              }
             }
+          }
         }
     }
     return true;
