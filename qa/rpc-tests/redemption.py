@@ -293,7 +293,10 @@ def test_redemption_7(node):
     }]
     # Make Outputs
     outputs = {
-        addr0 : unspent[0]["amount"] - fee,
+        addr0 : 1,
+        addr1 : 1,
+        addr2 : 1,
+        addr3 : unspent[0]["amount"] - 3 - fee,
         "fee": fee
     }
     #===========================================================================
