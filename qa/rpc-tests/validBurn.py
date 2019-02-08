@@ -8,22 +8,27 @@ def test_validBurn_1(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
+  addr0 = node.getnewaddress()
   addr1 = node.getnewaddress()
   addr2 = node.getnewaddress()
   addr3 = node.getnewaddress()
   #=============================================================================
   # Add address to FreezeList
   #=============================================================================
-  node.addtofreezelist(addr1)
-  node.addtofreezelist(addr2)
-  node.addtofreezelist(addr3)
+  # node.addtoburnlist(addr0)
+  # node.addtoburnlist(addr1)
+  # node.addtoburnlist(addr2)
+  # node.addtoburnlist(addr3)
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
   unspent = node.listunspent()
   fee = Decimal('0.0001')
   # Make Inputs
+  print(unspent[0]["txid"])
+  print(unspent[0]["vout"])
+  print(unspent[0]["amount"])
+
   inputs = [{
     "txid": unspent[0]["txid"],
     "vout": unspent[0]["vout"],
@@ -31,6 +36,41 @@ def test_validBurn_1(node):
   }]
   # Make Outputs
   outputs = {
+    addr0 : 1,
+    addr1 : 1,
+    addr2 : 1,
+    addr3 : unspent[0]["amount"] - 3 - fee,
+    "fee": fee
+  }
+  #=============================================================================
+  # Create Transaction & Signed Transaction
+  #=============================================================================
+  tx = node.createrawtransaction(inputs, outputs);
+  signedtx = node.signrawtransaction(tx)
+  #=============================================================================
+  # Send Transaction and try if is valid or not valid
+  #=============================================================================
+  txid = node.sendrawtransaction(signedtx["hex"])
+
+
+
+  print("-------------------------=======================")
+
+
+
+
+  # Make Inputs
+  inputs = [{
+    "txid": txid,
+    "vout": unspent[0]["vout"],
+    "nValue": unspent[0]["amount"]
+  }]
+  # Make Outputs
+  outputs = {
+    "data" : "0000000000000000000000000000000000000000",
+    addr0 : 1,
+    addr1 : 1,
+    addr2 : 1,
     addr3 : unspent[0]["amount"] - 3 - fee,
     "fee": fee
   }
@@ -53,7 +93,8 @@ class validBurnTest (BitcoinTestFramework):
     super().__init__()
     self.setup_clean_chain = True
     self.num_nodes = 4
-    self.extra_args = [['-usehd={:d}'.format(i % 2 == 0), '-keypool=100'] for i in range(self.num_nodes)]
+    self.extra_args = [['-usehd={:d}'.format(i % 2 == 0), '-keypool=100']
+                       for i in range(self.num_nodes)]
     # self.extra_args[0].append("-freezelist=1")
     self.extra_args[0].append("-burnlist=1")
 

@@ -156,34 +156,39 @@ bool IsWhitelisted(CTransaction const & tx) {
   return true;
 }
 
-bool IsRedemption(CTransaction const &tx) {
+static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
+                              bool checkFreezeList) {
   CKeyID keyId;
-  uint32_t size;
+  txnouttype whichType;
+  vector<vector<uint8_t>> vSolutions;
+  for (uint32_t itr = 1; itr < size; ++itr)
+    if (Solver(vout[itr].scriptPubKey, whichType, vSolutions)) {
+      if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull())
+        return false;
+      if (checkFreezeList) {
+        keyId = CKeyID(uint160(vSolutions[0]));
+        if (!addressFreezelist.find(&keyId))
+          return false;
+      }
+    } else
+      return false;
+  return true;
+}
+
+bool IsRedemption(CTransaction const &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
   if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
     if (whichType == TX_PUBKEYHASH) {
       if (uint160(vSolutions[0]).IsNull()) {
-        if ((size = tx.vout.size()) < 3)
+        if (tx.vout.size() < 3)
           return false;
-        for (uint32_t itr = 1; itr < size - 1; ++itr)
-          if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
-            if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull())
-              return false;
-            keyId = CKeyID(uint160(vSolutions[0]));
-            if (!addressFreezelist.find(&keyId))
-              return false;
-          } else
-            return false;
+        return IsRedemption_loop(tx.vout.size() - 1, tx.vout, true);
       } else
-        for (uint32_t itr = 1; itr < tx.vout.size() - 1; ++itr)
-          if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions))
-            if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull())
-              return false;
+        return IsRedemption_loop(tx.vout.size() - 1, tx.vout, false);
     }
-  } else
-    return false;
-  return true;
+  }
+  return false;
 }
 
 #define P cout << __func__ << " : " << __LINE__ << endl
@@ -193,42 +198,28 @@ bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
 
-  P;
+  cout << "NBR vout : " << tx.vout.size() << endl;
 
   for (uint32_t itrA = 0; itrA < tx.vout.size(); ++itrA) {
-
-    P;
-
     if (Solver(tx.vout[itrA].scriptPubKey, whichType, vSolutions)) {
-
-      P;
-
       if (whichType == TX_NULL_DATA) {
 
-        P;
+        cout << "NBR vin : " << tx.vin.size() << endl;
 
         for (uint32_t itrB = 0; itrB < tx.vin.size(); ++itrB) {
+
+          cout << "> lol" << endl;
+
           CTxOut const &prev = mapInputs.GetOutputFor(tx.vin[itrB]);
           CScript const &prevScript = prev.scriptPubKey;
-
-          P;
-
-          if (Solver(prevScript, whichType, vSolutions) &&
-              whichType == TX_PUBKEYHASH) {
-
-            P;
-
-            for (uint32_t itrC = 0; itrC < vSolutions.size(); ++itrC) {
-              keyId = CKeyID(uint160(vSolutions[itrC]));
-
-              P;
-
+          if (Solver(prevScript, whichType, vSolutions))
+            if (whichType == TX_PUBKEYHASH) {
+              keyId = CKeyID(uint160(vSolutions[0]));
               if (!addressBurnlist.find(&keyId)) {
                 cout << "> False : " << __LINE__ << endl;
                 return false;
               }
             }
-          }
         }
       }
     }
