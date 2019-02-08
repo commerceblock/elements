@@ -119,7 +119,7 @@ bool IsBurn(const CTransaction& tx)
 bool IsPolicy(CTransaction const &tx) {
   //function that determines if any outputs of a transaction are policy assets
   for (CTxOut const &txout : tx.vout) {
-    if (txout.nAsset.GetAsset() == freezelistAsset || 
+    if (txout.nAsset.GetAsset() == freezelistAsset ||
         txout.nAsset.GetAsset() == burnlistAsset ||
         txout.nAsset.GetAsset() == whitelistAsset)
       return true;
@@ -186,28 +186,56 @@ bool IsRedemption(CTransaction const &tx) {
   return true;
 }
 
+#define P cout << __func__ << " : " << __LINE__ << endl
+
 bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
+  CKeyID keyId;
   txnouttype whichType;
+  vector<vector<uint8_t>> vSolutions;
+
+  P;
+
   for (uint32_t itrA = 0; itrA < tx.vout.size(); ++itrA) {
-    vector<vector<uint8_t>> vSolutions;
+
+    P;
+
     if (Solver(tx.vout[itrA].scriptPubKey, whichType, vSolutions)) {
-      if (whichType == TX_NULL_DATA)
+
+      P;
+
+      if (whichType == TX_NULL_DATA) {
+
+        P;
+
         for (uint32_t itrB = 0; itrB < tx.vin.size(); ++itrB) {
           CTxOut const &prev = mapInputs.GetOutputFor(tx.vin[itrB]);
           CScript const &prevScript = prev.scriptPubKey;
+
+          P;
+
           if (Solver(prevScript, whichType, vSolutions) &&
               whichType == TX_PUBKEYHASH) {
+
+            P;
+
             for (uint32_t itrC = 0; itrC < vSolutions.size(); ++itrC) {
-              CKeyID keyId = CKeyID(uint160(vSolutions[itrC]));
+              keyId = CKeyID(uint160(vSolutions[itrC]));
+
+              P;
+
               if (!addressBurnlist.find(&keyId)) {
+                cout << "> False : " << __LINE__ << endl;
                 return false;
               }
             }
           }
         }
+      }
     }
+    cout << "> True : " << __LINE__ << endl;
     return true;
   }
+  cout << "> False : " << __LINE__ << endl;
   return false;
 }
 
@@ -477,11 +505,11 @@ bool LoadBurnList(CCoinsView *view)
         CCoins coins;
         if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
             ss << key;
-      
+
             //loop over all vouts within a single transaction
             for (unsigned int i=0; i<coins.vout.size(); i++) {
                 const CTxOut &out = coins.vout[i];
-    
+
                 //null vouts are spent
                 if (!out.IsNull()) {
                     ss << VARINT(i+1);
