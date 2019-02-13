@@ -9,6 +9,42 @@ def test_validBurn_1(node):
   # Create Address
   #=============================================================================
   addr0 = node.getnewaddress()
+  #=============================================================================
+  # Create Inputs & Outputs
+  #=============================================================================
+  unspent = node.listunspent()
+  #
+  freezetx = node.getrawtransaction(unspent[0]["txid"], True)
+  #
+  txid = unspent[0]["txid"]
+  vout = str(freezetx["vout"][0]["n"])
+  asset = freezetx["vout"][0]["asset"]
+  amount = freezetx["vout"][0]["value"]
+  #=============================================================================
+  # Create Transaction Burned & Signed Transaction
+  #=============================================================================
+  burntx = node.createrawburn(txid, vout, asset, amount)
+  signtx = node.signrawtransaction(burntx["hex"])
+  #=============================================================================
+  # Send Transaction and try if is valid or not valid
+  #=============================================================================
+  try:
+    sendtx = node.sendrawtransaction(signtx["hex"])
+    return True
+  except:
+    return False
+
+#===============================================================================
+# Test 2 :
+#===============================================================================
+
+
+
+
+ #=============================================================================
+  # Create Address
+  #=============================================================================
+  addr0 = node.getnewaddress()
   addr1 = node.getnewaddress()
   addr2 = node.getnewaddress()
   addr3 = node.getnewaddress()
@@ -95,7 +131,7 @@ class validBurnTest (BitcoinTestFramework):
     self.num_nodes = 4
     self.extra_args = [['-usehd={:d}'.format(i % 2 == 0), '-keypool=100']
                        for i in range(self.num_nodes)]
-    # self.extra_args[0].append("-freezelist=1")
+    self.extra_args[0].append("-txindex")
     self.extra_args[0].append("-burnlist=1")
 
   def setup_network(self, split=False):
@@ -120,6 +156,14 @@ class validBurnTest (BitcoinTestFramework):
     else:
       failed = True
       print("Test 1 :\033[1;31;40m KO\033[0m")
+    #===========================================================================
+    # Test : 2
+    #===========================================================================
+    if test_validBurn_2(self.nodes[0]) == True:
+      print("Test 2 :\033[1;32;40m OK\033[0m")
+    else:
+      failed = True
+      print("Test 2 :\033[1;31;40m KO\033[0m")
     #===========================================================================
     # End
     #===========================================================================

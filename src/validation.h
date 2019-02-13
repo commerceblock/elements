@@ -138,6 +138,7 @@ static const bool DEFAULT_WHITELIST_CHECK = false;
 static const bool DEFAULT_BLOCK_ISSUANCE = false;
 static const bool DEFAULT_BURNLIST_CHECK = false;
 static const bool DEFAULT_FREEZELIST_CHECK = false;
+static const bool DEFAULT_REQUESTLIST_CHECK = false;
 
 /** Default for -permitbaremultisig */
 static const bool DEFAULT_PERMIT_BAREMULTISIG = true;
@@ -185,6 +186,7 @@ extern bool fTxIndex;
 extern bool fIsBareMultisigStd;
 extern bool fRequireWhitelistCheck;
 extern bool fRequireFreezelistCheck;
+extern bool fRequireRequestListCheck;
 extern bool fEnableBurnlistCheck;
 extern bool fblockissuancetx;
 extern bool fRequireStandard;
