@@ -467,16 +467,15 @@ UniValue createrawrequesttx(JSONRPCRequest const &request) {
 
 
 
-  script = CScript()
-    << ToByteVector(blockheight)
-    << OP_CHECKLOCKTIMEVERIFY
-    << OP_DROP
-    << OP_DUP
-    << OP_HASH160
-    << ToByteVector(keyID)
-    << OP_EQUALVERIFY
-
-    << OP_CHECKSIG;
+  // CScript script = CScript()
+    // << ToByteVector(blockheight)
+    // << OP_CHECKLOCKTIMEVERIFY
+    // << OP_DROP
+    // << OP_DUP
+    // << OP_HASH160
+    // << ToByteVector(keyID)
+    // << OP_EQUALVERIFY
+    // << OP_CHECKSIG;
 
 
 
@@ -1667,6 +1666,6 @@ static const CRPCCommand commands[] =
 };
 
 void RegisterRawTransactionRPCCommands(CRPCTable &t) {
-  for (int32_t vcidx = 0; vcidx < ARRAYLEN(commands); ++vcidx)
+  for (uint32_t vcidx = 0; vcidx < ARRAYLEN(commands); ++vcidx)
     t.appendCommand(commands[vcidx].name, &commands[vcidx]);
 }
