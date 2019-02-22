@@ -453,43 +453,25 @@ UniValue verifytxoutproof(const JSONRPCRequest& request)
 static string createrawrequesttx_runtime_error(void) {
   return R"(createrawrequesttx
 Arguments:
-1. "inputs"                   (array, required) A json array of json objects.
-      [
-        {
-          "txid": "id",       (string, required) The transaction id.
-          "vout": n,          (numeric, required) The output number.
-          "asset": "string",  (string, optional, default=bitcoin)
-                                The asset of the input,
-                                as a tag string or a hex value."
-          "sequence": n       (numeric, optional) The sequence number."
-        },
-        ....
-      ]
-2. "outputs"                  (object, required) a json object with outputs.
-      {
-        "address": x.xxx,     (numeric or string, optional)
-                                The key is the bitcoin address,
-                                the numeric value (can be string)
-                                is the )" + CURRENCY_UNIT + R"( amount.
-        "data": "hex",        (string, optional) The key is "data",
-                                the value is hex encoded data.
-        "vdata": "hex",       (string, optional) The key is "vdata",
-                                the value is an array of hex encoded data.
-        "fee": x.xxx,         (numeric or string, optional) The key is "fee",
-                                the value the fee output you want to add.
-        ....
-      }
-3. locktime                   (numeric, optional, default=0) Raw locktime,
-                                Non-0 value also locktime-activates inputs.
 
-4. "output_assets"            (strings, optional, default=bitcoin)
-                                A json object of assets to addresses.
-      {
-        "address": "hex",
-        "fee": "hex",
-        ....
-      }
-)";
+1. "inputs"           (array, required) A json array of json objects.
+{
+  "txid": "id",       (string, required) The transaction id.
+  "vout": n,          (numeric, required) The output number.
+  "asset": "string",  (string, optional, default=bitcoin)
+                       The asset of the input, as a tag string or a hex value."
+}
+
+2. "outputs"          (object, required) a json object with outputs.
+{
+  "address": xxxx,
+  "decayConst": n,
+  "endBlockHeight": n,
+  "fee": n,
+  "genesisBlockHash": xxxx,
+  "startBlockHeight": n,
+  "tickets": n
+})";
 }
 static inline void createrawrequesttx_input(CMutableTransaction &rawTx,
                                             UniValue const &input) {
