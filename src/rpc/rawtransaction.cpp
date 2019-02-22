@@ -417,6 +417,38 @@ UniValue verifytxoutproof(const JSONRPCRequest& request)
         res.push_back(hash.GetHex());
     return res;
 }
+////////////////////////////////////////////////////////////////////////////////
+// @brief Define for String Error.
+#define ERROR_BLOCK_HEIGHT "Invalid parameter, missing blockheight key"
+#define ERROR_DECAY_CONST "Invalid parameter, missing decayConst key"
+#define ERROR_DUPLICATED_ADDRESS "Invalid parameter, duplicated address: "
+#define ERROR_END_BLOCK_HEIGHT "Invalid parameter, missing endBlockHeight key"
+#define ERROR_END_BLOCK_HEIGHT_VALUE "Invalid parameter, endBlockHeight must be positive"
+#define ERROR_FEE "Invalid parameter, missing fee key"
+#define ERROR_FEE_VALUE "Invalid parameter, endBlockHeight must be positive"
+#define ERROR_GENESIS "Invalid parameter, genesis must be string"
+#define ERROR_INVALID_ADDRESS "Invalid Bitcoin address: "
+#define ERROR_N_OUTPUT "Invalid parameter, vout must be positive"
+#define ERROR_SEQUENCE "Invalid parameter, sequence number is out of range"
+#define ERROR_START_BLOCK_HEIGHT "Invalid parameter, missing startBlockHeight key"
+#define ERROR_START_BLOCK_HEIGHT_VALUE "Invalid parameter, startBlockHeight must be positive"
+#define ERROR_TICKETS "Invalid parameter, missing tickets key"
+#define ERROR_TICKETS_VALUE "Invalid parameter, tickets must be positive"
+#define ERROR_VOUT "Invalid parameter, missing vout key"
+#define ERROR_VOUT_VALUE "Invalid parameter, vout must be positive"
+// @brief Key for Dictionary.
+#define KEY_ADDRESS "address"
+#define KEY_ASSET "asset"
+#define KEY_DECAY_CONST "decayConst"
+#define KEY_END_BLOCK_HEIGHT "endBlockHeight"
+#define KEY_FEE "fee"
+#define KEY_GENESIS "genesisBlockHash"
+#define KEY_START_BLOCK_HEIGHT "startBlockHeight"
+#define KEY_TICKETS "tickets"
+#define KEY_TXID "txid"
+#define KEY_VOUT "vout"
+// @brief Set in MACRO to simplify readability.
+#define VALUE_OBJ UniValue::VOBJ
 
 static string createrawrequesttx_runtime_error(void) {
   return R"(createrawrequesttx
@@ -459,40 +491,88 @@ Arguments:
       }
 )";
 }
-// @fn createrawrequesttx.
-// @brief
-UniValue createrawrequesttx(JSONRPCRequest const &request) {
-  if (request.fHelp || request.params.size() != 10)
-    throw runtime_error(createrawrequesttx_runtime_error());
-
-
-
-  // CScript script = CScript()
-    // << ToByteVector(blockheight)
-    // << OP_CHECKLOCKTIMEVERIFY
-    // << OP_DROP
-    // << OP_DUP
-    // << OP_HASH160
-    // << ToByteVector(keyID)
-    // << OP_EQUALVERIFY
-    // << OP_CHECKSIG;
-
-
-
-
-
-  // Create response JSON RPC
-  UniValue obj(UniValue::VOBJ);
-  obj.push_back(Pair("output", "00000000000000000000000000000000"));
-  obj.push_back(Pair("permission", "00000000000000000000000000000000"));
-  obj.push_back(Pair("genesisBlock", "00000000000000000000000000000000"));
-  obj.push_back(Pair("startTime", 0));
-  obj.push_back(Pair("endTime", 0));
-  obj.push_back(Pair("ticketId", 0));
-  obj.push_back(Pair("fees", 0));
-  return obj;
+static inline void createrawrequesttx_input(CMutableTransaction &rawTx,
+                                            UniValue const &input) {
+  uint32_t nOutput;
+  uint256 txid = ParseHashO(input, KEY_TXID);
+  UniValue const &vout = find_value(input, KEY_VOUT);
+  if (!vout.isNum())
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_VOUT);
+  if ((nOutput = vout.get_int()) < 0)
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_VOUT_VALUE);
+  rawTx.vin.push_back(CTxIn(COutPoint(txid, nOutput), CScript(), UINT_MAX -1));
 }
-
+//
+static inline void createrawrequesttx_first_output(CMutableTransaction &rawTx,
+                                                   CAsset const &asset,
+                                                   UniValue const &output) {
+  CBitcoinAddress address(output[KEY_ADDRESS].get_str());
+  if (!address.IsValid())
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, ERROR_INVALID_ADDRESS);
+  UniValue const &endBlockHeight = find_value(output, KEY_END_BLOCK_HEIGHT);
+  if (!endBlockHeight.isNum())
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_END_BLOCK_HEIGHT);
+  if (endBlockHeight.get_int() < 0)
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_END_BLOCK_HEIGHT_VALUE);
+  rawTx.vout.push_back(
+      CTxOut(asset, 0,
+             CScript() << endBlockHeight.get_int() << OP_CHECKLOCKTIMEVERIFY
+                       << OP_DROP << OP_DUP << OP_HASH160
+                       << ToByteVector(address.ToString()) << OP_EQUALVERIFY
+                       << OP_CHECKSIG));
+};
+//
+static inline void createrawrequesttx_second_output(CMutableTransaction &rawTx,
+                                                    CAsset const &asset,
+                                                    UniValue const &output) {
+  uint256 genesisBlockHash;
+  UniValue const &decayConst = output[KEY_DECAY_CONST];
+  UniValue const &fee = output[KEY_FEE];
+  UniValue const &startBlockHeight = output[KEY_START_BLOCK_HEIGHT];
+  UniValue const &ticket = output[KEY_TICKETS];
+  if (!decayConst.isNum())
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_DECAY_CONST);
+  if (!fee.isNum())
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_FEE);
+  if (fee.get_int() < 0)
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_FEE_VALUE);
+  genesisBlockHash = ParseHashO(output, KEY_GENESIS);
+  if (!startBlockHeight.isNum())
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_START_BLOCK_HEIGHT);
+  if (startBlockHeight.get_int() < 0)
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_START_BLOCK_HEIGHT_VALUE);
+  if (!ticket.isNum())
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_TICKETS);
+  if (ticket.get_int() < 0)
+    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_TICKETS_VALUE);
+  rawTx.vout.push_back(
+      CTxOut(asset, 0,
+             CScript() << OP_RETURN << ToByteVector(genesisBlockHash)
+                       << startBlockHeight.get_int() << ticket.get_int()
+                       << decayConst.get_int() << fee.get_int()));
+}
+//
+UniValue createrawrequesttx(JSONRPCRequest const &request) {
+  CAsset asset;
+  UniValue input;
+  UniValue output;
+  CMutableTransaction rawTx;
+  if (request.fHelp || request.params.size() != 2)
+    throw runtime_error(createrawrequesttx_runtime_error());
+  RPCTypeCheck(request.params, {VALUE_OBJ, VALUE_OBJ}, true);
+  input = request.params[0].get_obj();
+  output = request.params[1].get_obj();
+  asset = CAsset(policyAsset);
+  UniValue const &assetValue = find_value(input, KEY_ASSET);
+  if (assetValue.isStr())
+    asset = CAsset(ParseHashO(input, KEY_ASSET));
+  rawTx.nLockTime = UINT_MAX - 1;
+  createrawrequesttx_input(rawTx, input);
+  createrawrequesttx_first_output(rawTx, asset, output);
+  createrawrequesttx_second_output(rawTx, asset, output);
+  return EncodeHexTx(rawTx);
+}
+//
 UniValue createrawtransaction(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 4)
