@@ -417,7 +417,6 @@ UniValue verifytxoutproof(const JSONRPCRequest& request)
         res.push_back(hash.GetHex());
     return res;
 }
-////////////////////////////////////////////////////////////////////////////////
 // @brief Define for String Error.
 #define ERROR_BLOCK_HEIGHT "Invalid parameter, missing blockheight key"
 #define ERROR_DECAY_CONST "Invalid parameter, missing decayConst key"
@@ -449,30 +448,44 @@ UniValue verifytxoutproof(const JSONRPCRequest& request)
 #define KEY_VOUT "vout"
 // @brief Set in MACRO to simplify readability.
 #define VALUE_OBJ UniValue::VOBJ
-
+// @fn createrawrequesttx_runtime_error
+// @brief
+// @return string
 static string createrawrequesttx_runtime_error(void) {
   return R"(createrawrequesttx
 Arguments:
 
-1. "inputs"           (array, required) A json array of json objects.
+1. "inputs"                 (object, required) A json array of json objects.
 {
-  "txid": "id",       (string, required) The transaction id.
-  "vout": n,          (numeric, required) The output number.
-  "asset": "string",  (string, optional, default=bitcoin)
-                       The asset of the input, as a tag string or a hex value."
+  "txid": xxxx,             (string, required) The transaction id.
+  "vout": n,                (numeric, required) The output number.
+  "asset": xxxx             (string, optional, default=bitcoin)
+                              The asset of the input,
+                              as a tag string or a hex value."
 }
 
-2. "outputs"          (object, required) a json object with outputs.
+2. "outputs"                (object, required) a json object with outputs.
 {
-  "address": xxxx,
-  "decayConst": n,
-  "endBlockHeight": n,
-  "fee": n,
-  "genesisBlockHash": xxxx,
-  "startBlockHeight": n,
-  "tickets": n
-})";
+  "address": xxxx,          (string, required)
+  "decayConst": n,          (numeric, required)
+  "endBlockHeight": n,      (numeric, required)
+  "fee": n,                 (numeric, required)
+  "genesisBlockHash": xxxx, (string, required)
+  "startBlockHeight": n,    (numeric, required)
+  "tickets": n              (numeric, required)
 }
+
+Result:
+transaction                 (string) hex string of the transaction
+
+Examples:
+  ...
+)";
+}
+// @fn createrawrequesttx_input
+// @brief
+// @param[in:out]
+// @param[in]
 static inline void createrawrequesttx_input(CMutableTransaction &rawTx,
                                             UniValue const &input) {
   uint32_t nOutput;
@@ -484,7 +497,11 @@ static inline void createrawrequesttx_input(CMutableTransaction &rawTx,
     throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_VOUT_VALUE);
   rawTx.vin.push_back(CTxIn(COutPoint(txid, nOutput), CScript(), UINT_MAX -1));
 }
-//
+// @fn createrawrequesttx_first_output
+// @brief
+// @param[in:out]
+// @param[in]
+// @param[in]
 static inline void createrawrequesttx_first_output(CMutableTransaction &rawTx,
                                                    CAsset const &asset,
                                                    UniValue const &output) {
@@ -503,7 +520,11 @@ static inline void createrawrequesttx_first_output(CMutableTransaction &rawTx,
                        << ToByteVector(address.ToString()) << OP_EQUALVERIFY
                        << OP_CHECKSIG));
 };
-//
+// @fn createrawrequesttx_second_output
+// @brief
+// @param[in:out]
+// @param[in]
+// @param[in]
 static inline void createrawrequesttx_second_output(CMutableTransaction &rawTx,
                                                     CAsset const &asset,
                                                     UniValue const &output) {
@@ -533,7 +554,10 @@ static inline void createrawrequesttx_second_output(CMutableTransaction &rawTx,
                        << startBlockHeight.get_int() << ticket.get_int()
                        << decayConst.get_int() << fee.get_int()));
 }
-//
+// @fn createrawrequesttx
+// @brief
+// @param[in]
+// @return
 UniValue createrawrequesttx(JSONRPCRequest const &request) {
   CAsset asset;
   UniValue input;
@@ -554,7 +578,7 @@ UniValue createrawrequesttx(JSONRPCRequest const &request) {
   createrawrequesttx_second_output(rawTx, asset, output);
   return EncodeHexTx(rawTx);
 }
-//
+
 UniValue createrawtransaction(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 4)
