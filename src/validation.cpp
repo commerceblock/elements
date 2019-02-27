@@ -82,6 +82,7 @@ bool fRequireStandard = true;
 bool fRequireWhitelistCheck = DEFAULT_WHITELIST_CHECK;
 bool fEnableBurnlistCheck = DEFAULT_BURNLIST_CHECK;
 bool fRequireFreezelistCheck = DEFAULT_BURNLIST_CHECK;
+bool fRequireRequestListCheck = DEFAULT_REQUESTLIST_CHECK;
 bool fblockissuancetx = DEFAULT_BLOCK_ISSUANCE;
 bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
@@ -1603,10 +1604,11 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
     return false;
 }
 
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
 // CBlock and CBlockIndex
 //
+////////////////////////////////////////////////////////////////////////////////
 
 bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {

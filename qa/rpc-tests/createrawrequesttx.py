@@ -4,323 +4,326 @@ from test_framework.util import *
 #===============================================================================
 # Test 1 : Normal Configuration Without Procedural Error
 #===============================================================================
-def test_redemption_1(node):
+def test_validBurn_1(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
-  addr1 = node.getnewaddress()
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
-  #=============================================================================
-  # Add address to FreezeList
-  #=============================================================================
-  node.addtofreezelist(addr1)
-  node.addtofreezelist(addr2)
-  node.addtofreezelist(addr3)
+  address = node.getnewaddress()
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
   unspent = node.listunspent()
-  fee = Decimal('0.0001')
+  fee = Decimal('1')
+  asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+  genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
   # Make Inputs
-  inputs = [{
+  inputs = {
     "txid": unspent[0]["txid"],
     "vout": unspent[0]["vout"],
-    "nValue": unspent[0]["amount"]
-  }]
+    "asset": asset
+  }
   # Make Outputs
   outputs = {
-    addr0 : 1,
-    addr1 : 1,
-    addr2 : 1,
-    addr3 : unspent[0]["amount"] - 3 - fee,
-    "fee": fee
+    "address": address,
+    "decayConst": 10,
+    "endBlockHeight": 20000,
+    "fee": 1,
+    "genesisBlockHash": genesis,
+    "startBlockHeight": 10000,
+    "tickets": 10
   }
   #=============================================================================
-  # Create Transaction & Signed Transaction
-  #=============================================================================
-  tx = node.createrawtransaction(inputs, outputs);
-  signedtx = node.signrawtransaction(tx)
-  #=============================================================================
-  # Send Transaction and try if is valid or not valid
+  # Create Raw Request
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    tx = node.createrawrequesttx(inputs, outputs)
     return True
   except:
     return False
 #===============================================================================
-# Test 2 : Test With an Address not Listed in FreezeList
+# Test 2 :
 #===============================================================================
-def test_redemption_2(node):
+def test_validBurn_2(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
-  addr1 = node.getnewaddress()
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
-  #=============================================================================
-  # Add address to FreezeList
-  #=============================================================================
-  node.addtofreezelist(addr1)
-  node.addtofreezelist(addr2)
+  address = node.getnewaddress()
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
   unspent = node.listunspent()
-  fee = Decimal('0.0001')
+  fee = Decimal('1')
+  asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+  genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
   # Make Inputs
-  inputs = [{
+  inputs = {
     "txid": unspent[0]["txid"],
     "vout": unspent[0]["vout"],
-    "nValue": unspent[0]["amount"]
-  }]
+    "asset": asset
+  }
   # Make Outputs
   outputs = {
-    addr0 : 1,
-    addr1 : 1,
-    addr2 : 1,
-    addr3 : unspent[0]["amount"] - 3 - fee,
-    "fee": fee
+    # "address": address,
+    "decayConst": 10,
+    "endBlockHeight": 20000,
+    "fee": 1,
+    "genesisBlockHash": genesis,
+    "startBlockHeight": 10000,
+    "tickets": 10
   }
   #=============================================================================
-  # Create Transaction & Signed Transaction
-  #=============================================================================
-  tx = node.createrawtransaction(inputs, outputs);
-  signedtx = node.signrawtransaction(tx)
-  #=============================================================================
-  # Send Transaction and try if is valid or not valid
+  # Create Raw Request
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    tx = node.createrawrequesttx(inputs, outputs)
     return False
   except:
     return True
 #===============================================================================
-# Test 3 : Test With no Address Listed in FreezeList
+# Test 3 :
 #===============================================================================
-def test_redemption_3(node):
+def test_validBurn_3(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
-  addr1 = node.getnewaddress()
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
+  address = node.getnewaddress()
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
   unspent = node.listunspent()
-  fee = Decimal('0.0001')
+  fee = Decimal('1')
+  asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+  genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
   # Make Inputs
-  inputs = [{
+  inputs = {
     "txid": unspent[0]["txid"],
     "vout": unspent[0]["vout"],
-    "nValue": unspent[0]["amount"]
-  }]
+    "asset": asset
+  }
   # Make Outputs
   outputs = {
-    addr0 : 1,
-    addr1 : 1,
-    addr2 : 1,
-    addr3 : unspent[0]["amount"] - 3 - fee,
-    "fee": fee
+    "address": address,
+    # "decayConst": 10,
+    "endBlockHeight": 20000,
+    "fee": 1,
+    "genesisBlockHash": genesis,
+    "startBlockHeight": 10000,
+    "tickets": 10
   }
   #=============================================================================
-  # Create Transaction & Signed Transaction
-  #=============================================================================
-  tx = node.createrawtransaction(inputs, outputs);
-  signedtx = node.signrawtransaction(tx)
-  #=============================================================================
-  # Send Transaction and try if is valid or not valid
+  # Create Raw Request
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    tx = node.createrawrequesttx(inputs, outputs)
     return False
   except:
     return True
 #===============================================================================
-# Test 4 : Just Test With not Null Addresses
+# Test 4 :
 #===============================================================================
-def test_redemption_4(node):
+def test_validBurn_4(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = node.getnewaddress()
-  addr1 = node.getnewaddress()
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
+  address = node.getnewaddress()
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
   unspent = node.listunspent()
-  fee = Decimal('0.0001')
+  fee = Decimal('1')
+  asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+  genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
   # Make Inputs
-  inputs = [{
+  inputs = {
     "txid": unspent[0]["txid"],
     "vout": unspent[0]["vout"],
-    "nValue": unspent[0]["amount"]
-  }]
+    "asset": asset
+  }
   # Make Outputs
   outputs = {
-    addr0 : 1,
-    addr1 : 1,
-    addr2 : 1,
-    addr3 : unspent[0]["amount"] - 3 - fee,
-    "fee": fee
+    "address": address,
+    "decayConst": 10,
+    # "endBlockHeight": 20000,
+    "fee": 1,
+    "genesisBlockHash": genesis,
+    "startBlockHeight": 10000,
+    "tickets": 10
   }
   #=============================================================================
-  # Create Transaction & Signed Transaction
-  #=============================================================================
-  tx = node.createrawtransaction(inputs, outputs);
-  signedtx = node.signrawtransaction(tx)
-  #=============================================================================
-  # Send Transaction and try if is valid or not valid
+  # Create Raw Request
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
-    return True
-  except:
-    return False
-#===============================================================================
-# Test 5 : Test With a Null Address that is not at the Top of the List
-#===============================================================================
-def test_redemption_5(node):
-  #=============================================================================
-  # Create Address
-  #=============================================================================
-  addr0 = node.getnewaddress()
-  addr1 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
-  #=============================================================================
-  # Create Inputs & Outputs
-  #=============================================================================
-  unspent = node.listunspent()
-  fee = Decimal('0.0001')
-  # Make Inputs
-  inputs = [{
-    "txid": unspent[0]["txid"],
-    "vout": unspent[0]["vout"],
-    "nValue": unspent[0]["amount"]
-  }]
-  # Make Outputs
-  outputs = {
-    addr0 : 1,
-    addr1 : 1,
-    addr2 : 1,
-    addr3 : unspent[0]["amount"] - 3 - fee,
-    "fee": fee
-  }
-  #=============================================================================
-  # Create Transaction & Signed Transaction
-  #=============================================================================
-  tx = node.createrawtransaction(inputs, outputs);
-  signedtx = node.signrawtransaction(tx)
-  #=============================================================================
-  # Send Transaction and try if is valid or not valid
-  #=============================================================================
-  try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    tx = node.createrawrequesttx(inputs, outputs)
     return False
   except:
     return True
 #===============================================================================
-# Test 6 : Test With a Single Null Address in the List
+# Test 5 :
 #===============================================================================
-def test_redemption_6(node):
+def test_validBurn_5(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
+  address = node.getnewaddress()
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
   unspent = node.listunspent()
-  fee = Decimal('0.0001')
+  fee = Decimal('1')
+  asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+  genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
   # Make Inputs
-  inputs = [{
+  inputs = {
     "txid": unspent[0]["txid"],
     "vout": unspent[0]["vout"],
-    "nValue": unspent[0]["amount"]
-  }]
+    "asset": asset
+  }
   # Make Outputs
   outputs = {
-    addr0 : unspent[0]["amount"] - fee,
-    "fee": fee
+    "address": address,
+    "decayConst": 10,
+    "endBlockHeight": 20000,
+    # "fee": 1,
+    "genesisBlockHash": genesis,
+    "startBlockHeight": 10000,
+    "tickets": 10
   }
   #=============================================================================
-  # Create Transaction & Signed Transaction
-  #=============================================================================
-  tx = node.createrawtransaction(inputs, outputs);
-  signedtx = node.signrawtransaction(tx)
-  #=============================================================================
-  # Send Transaction and try if is valid or not valid
+  # Create Raw Request
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
-    return False
-  except:
-    return True
-#===============================================================================
-# Test 7 : Test With Several Null Addresses in the List
-#===============================================================================
-def test_redemption_7(node):
-  #=============================================================================
-  # Create Address
-  #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
-  addr1 = node.getnewaddress()
-  addr2 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
-  addr3 = node.getnewaddress()
-  #=============================================================================
-  # Add address to FreezeList
-  #=============================================================================
-  node.addtofreezelist(addr1)
-  node.addtofreezelist(addr3)
-  #=============================================================================
-  # Create Inputs & Outputs
-  #=============================================================================
-  unspent = node.listunspent()
-  fee = Decimal('0.0001')
-  # Make Inputs
-  inputs = [{
-    "txid": unspent[0]["txid"],
-    "vout": unspent[0]["vout"],
-    "nValue": unspent[0]["amount"]
-  }]
-  # Make Outputs
-  outputs = {
-    addr0 : 1,
-    addr1 : 1,
-    addr2 : 1,
-    addr3 : unspent[0]["amount"] - 3 - fee,
-    "fee": fee
-  }
-  #=============================================================================
-  # Create Transaction & Signed Transaction
-  #=============================================================================
-  tx = node.createrawtransaction(inputs, outputs);
-  signedtx = node.signrawtransaction(tx)
-  #=============================================================================
-  # Send Transaction and try if is valid or not valid
-  #=============================================================================
-  try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    tx = node.createrawrequesttx(inputs, outputs)
     return False
   except:
     return True
 
-class RedemptionTest (BitcoinTestFramework):
+#===============================================================================
+# Test 6 :
+#===============================================================================
+def test_validBurn_6(node):
+  #=============================================================================
+  # Create Address
+  #=============================================================================
+  address = node.getnewaddress()
+  #=============================================================================
+  # Create Inputs & Outputs
+  #=============================================================================
+  unspent = node.listunspent()
+  fee = Decimal('1')
+  asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+  genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
+  # Make Inputs
+  inputs = {
+    "txid": unspent[0]["txid"],
+    "vout": unspent[0]["vout"],
+    "asset": asset
+  }
+  # Make Outputs
+  outputs = {
+    "address": address,
+    "decayConst": 10,
+    "endBlockHeight": 20000,
+    "fee": 1,
+    # "genesisBlockHash": genesis,
+    "startBlockHeight": 10000,
+    "tickets": 10
+  }
+  #=============================================================================
+  # Create Raw Request
+  #=============================================================================
+  try:
+    tx = node.createrawrequesttx(inputs, outputs)
+    return False
+  except:
+    return True
+
+#===============================================================================
+# Test 7 :
+#===============================================================================
+def test_validBurn_7(node):
+  #=============================================================================
+  # Create Address
+  #=============================================================================
+  address = node.getnewaddress()
+  #=============================================================================
+  # Create Inputs & Outputs
+  #=============================================================================
+  unspent = node.listunspent()
+  fee = Decimal('1')
+  asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+  genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
+  # Make Inputs
+  inputs = {
+    "txid": unspent[0]["txid"],
+    "vout": unspent[0]["vout"],
+    "asset": asset
+  }
+  # Make Outputs
+  outputs = {
+    "address": address,
+    "decayConst": 10,
+    "endBlockHeight": 20000,
+    "fee": 1,
+    "genesisBlockHash": genesis,
+    # "startBlockHeight": 10000,
+    "tickets": 10
+  }
+  #=============================================================================
+  # Create Raw Request
+  #=============================================================================
+  try:
+    tx = node.createrawrequesttx(inputs, outputs)
+    return False
+  except:
+    return True
+
+#===============================================================================
+# Test 8 :
+#===============================================================================
+def test_validBurn_8(node):
+  #=============================================================================
+  # Create Address
+  #=============================================================================
+  address = node.getnewaddress()
+  #=============================================================================
+  # Create Inputs & Outputs
+  #=============================================================================
+  unspent = node.listunspent()
+  fee = Decimal('1')
+  asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+  genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
+  # Make Inputs
+  inputs = {
+    "txid": unspent[0]["txid"],
+    "vout": unspent[0]["vout"],
+    "asset": asset
+  }
+  # Make Outputs
+  outputs = {
+    "address": address,
+    "decayConst": 10,
+    "endBlockHeight": 20000,
+    "fee": 1,
+    "genesisBlockHash": genesis,
+    "startBlockHeight": 10000,
+    # "tickets": 10
+  }
+  #=============================================================================
+  # Create Raw Request
+  #=============================================================================
+  try:
+    tx = node.createrawrequesttx(inputs, outputs)
+    return False
+  except:
+    return True
+
+class CreateRawRequestTx(BitcoinTestFramework):
   def __init__(self):
     super().__init__()
     self.setup_clean_chain = True
     self.num_nodes = 4
     self.extra_args = [['-usehd={:d}'.format(i % 2 == 0), '-keypool=100']
                        for i in range(self.num_nodes)]
-    self.extra_args[0].append("-freezelist=1")
 
   def setup_network(self, split=False):
     self.nodes = start_nodes(self.num_nodes, self.options.tmpdir,
@@ -339,7 +342,7 @@ class RedemptionTest (BitcoinTestFramework):
     #===========================================================================
     # Test : 1
     #===========================================================================
-    if test_redemption_1(self.nodes[0]) == True:
+    if test_validBurn_1(self.nodes[0]) == True:
       print("Test 1 :\033[1;32;40m OK\033[0m")
     else:
       failed = True
@@ -347,7 +350,7 @@ class RedemptionTest (BitcoinTestFramework):
     #===========================================================================
     # Test : 2
     #===========================================================================
-    if test_redemption_2(self.nodes[0]) == True:
+    if test_validBurn_2(self.nodes[0]) == True:
       print("Test 2 :\033[1;32;40m OK\033[0m")
     else:
       failed = True
@@ -355,7 +358,7 @@ class RedemptionTest (BitcoinTestFramework):
     #===========================================================================
     # Test : 3
     #===========================================================================
-    if test_redemption_3(self.nodes[0]) == True:
+    if test_validBurn_3(self.nodes[0]) == True:
       print("Test 3 :\033[1;32;40m OK\033[0m")
     else:
       failed = True
@@ -363,7 +366,7 @@ class RedemptionTest (BitcoinTestFramework):
     #===========================================================================
     # Test : 4
     #===========================================================================
-    if test_redemption_4(self.nodes[0]) == True:
+    if test_validBurn_4(self.nodes[0]) == True:
       print("Test 4 :\033[1;32;40m OK\033[0m")
     else:
       failed = True
@@ -371,7 +374,7 @@ class RedemptionTest (BitcoinTestFramework):
     #===========================================================================
     # Test : 5
     #===========================================================================
-    if test_redemption_5(self.nodes[0]) == True:
+    if test_validBurn_5(self.nodes[0]) == True:
       print("Test 5 :\033[1;32;40m OK\033[0m")
     else:
       failed = True
@@ -379,7 +382,7 @@ class RedemptionTest (BitcoinTestFramework):
     #===========================================================================
     # Test : 6
     #===========================================================================
-    if test_redemption_6(self.nodes[0]) == True:
+    if test_validBurn_6(self.nodes[0]) == True:
       print("Test 6 :\033[1;32;40m OK\033[0m")
     else:
       failed = True
@@ -387,11 +390,19 @@ class RedemptionTest (BitcoinTestFramework):
     #===========================================================================
     # Test : 7
     #===========================================================================
-    if test_redemption_7(self.nodes[0]) == True:
+    if test_validBurn_7(self.nodes[0]) == True:
       print("Test 7 :\033[1;32;40m OK\033[0m")
     else:
       failed = True
       print("Test 7 :\033[1;31;40m KO\033[0m")
+    #===========================================================================
+    # Test : 8
+    #===========================================================================
+    if test_validBurn_1(self.nodes[0]) == True:
+      print("Test 8 :\033[1;32;40m OK\033[0m")
+    else:
+      failed = True
+      print("Test 8 :\033[1;31;40m KO\033[0m")
     #===========================================================================
     # End
     #===========================================================================
@@ -401,4 +412,4 @@ class RedemptionTest (BitcoinTestFramework):
 # Main, Entry Point
 #===============================================================================
 if __name__ == '__main__':
-  RedemptionTest().main()
+  CreateRawRequestTx().main()
