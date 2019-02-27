@@ -293,7 +293,8 @@ bool UpdateFreezeList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         std::vector<std::vector<unsigned char> > vSolutions;
         txnouttype whichType;
         const CScript& prevScript = prev.scriptPubKey;
-        if (!Solver(prevScript, whichType, vSolutions)) continue;
+        if (!Solver(prevScript, whichType, vSolutions))
+          continue;
         // extract address from second multisig public key and remove from freezelist
         // encoding: 33 byte public key: address is encoded in the last 20 bytes (i.e. byte 14 to 33)
         if (whichType == TX_MULTISIG && vSolutions.size() == 4)
@@ -302,7 +303,7 @@ bool UpdateFreezeList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
             std::vector<unsigned char> ex_addr;
             std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
             std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
-            std::vector<unsigned char> extracted_addr(first,last);
+            std::vector<unsigned char> extracted_addr(first, last);
             keyId = CKeyID(uint160(extracted_addr));
             addressFreezelist.remove(&keyId);
             LogPrintf("POLICY: removed address from freeze-list "+CBitcoinAddress(keyId).ToString()+"\n");
@@ -313,7 +314,8 @@ bool UpdateFreezeList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         const CTxOut& txout = tx.vout[i];
         std::vector<std::vector<unsigned char> > vSolutions;
         txnouttype whichType;
-        if (!Solver(txout.scriptPubKey, whichType, vSolutions)) continue;
+        if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+          continue;
         // extract address from second multisig public key and add to the freezelist
         // encoding: 33 byte public key: address is encoded in the last 20 bytes (i.e. byte 14 to 33)
         if (whichType == TX_MULTISIG && vSolutions.size() == 4)
@@ -341,7 +343,8 @@ bool UpdateBurnList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         std::vector<std::vector<unsigned char> > vSolutions;
         txnouttype whichType;
         const CScript& prevScript = prev.scriptPubKey;
-        if (!Solver(prevScript, whichType, vSolutions)) continue;
+        if (!Solver(prevScript, whichType, vSolutions))
+          continue;
         // extract address from second multisig public key and remove from freezelist
         // encoding: 33 byte public key: address is encoded in the last 20 bytes (i.e. byte 14 to 33)
         if (whichType == TX_MULTISIG && vSolutions.size() == 4)
@@ -361,7 +364,8 @@ bool UpdateBurnList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         const CTxOut& txout = tx.vout[i];
         std::vector<std::vector<unsigned char> > vSolutions;
         txnouttype whichType;
-        if (!Solver(txout.scriptPubKey, whichType, vSolutions)) continue;
+        if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+          continue;
         // extract address from second multisig public key and add to the freezelist
         // encoding: 33 byte public key: address is encoded in the last 20 bytes (i.e. byte 14 to 33)
         if (whichType == TX_MULTISIG && vSolutions.size() == 4)
@@ -402,10 +406,12 @@ bool LoadFreezeList(CCoinsView *view)
                 if (!out.IsNull()) {
                     ss << VARINT(i+1);
                     ss << out;
-                if(out.nAsset.GetAsset() == freezelistAsset) {
+                if (out.nAsset.GetAsset() == freezelistAsset) {
                     std::vector<std::vector<unsigned char> > vSolutions;
                     txnouttype whichType;
-                    if (!Solver(out.scriptPubKey, whichType, vSolutions)) continue;
+                    if (!Solver(out.scriptPubKey, whichType, vSolutions))
+                      continue;
+
                     // extract address from second multisig public key and add to the freezelist
                     // encoding: 33 byte public key: address is encoded in the last 20 bytes (i.e. byte 14 to 33)
                     if (whichType == TX_MULTISIG && vSolutions.size() == 4)
@@ -454,7 +460,7 @@ bool LoadBurnList(CCoinsView *view)
                 if (!out.IsNull()) {
                     ss << VARINT(i+1);
                     ss << out;
-                    if(out.nAsset.GetAsset() == burnlistAsset) {
+                    if (out.nAsset.GetAsset() == burnlistAsset) {
                         std::vector<std::vector<unsigned char> > vSolutions;
                         txnouttype whichType;
                         if (!Solver(out.scriptPubKey, whichType, vSolutions)) continue;
