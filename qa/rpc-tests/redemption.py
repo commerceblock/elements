@@ -46,7 +46,7 @@ def test_redemption_1(node):
   # Send Transaction and try if is valid or not valid
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    txid = node.testmempoolaccept(signedtx["hex"])
     return True
   except JSONRPCException as e:
     print(e.error['message'])
@@ -95,7 +95,8 @@ def test_redemption_2(node):
   # Send Transaction and try if is valid or not valid
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+
+    txid = node.testmempoolaccept(signedtx["hex"])
     return False
   except JSONRPCException as e:
     print(e.error['message'])
@@ -139,7 +140,7 @@ def test_redemption_3(node):
   # Send Transaction and try if is valid or not valid
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    txid = node.testmempoolaccept(signedtx["hex"])
     return False
   except JSONRPCException as e:
     print(e.error['message'])
@@ -183,7 +184,7 @@ def test_redemption_4(node):
   # Send Transaction and try if is valid or not valid
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    txid = node.testmempoolaccept(signedtx["hex"])
     return True
   except JSONRPCException as e:
     print(e.error['message'])
@@ -227,7 +228,7 @@ def test_redemption_5(node):
   # Send Transaction and try if is valid or not valid
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    txid = node.testmempoolaccept(signedtx["hex"])
     return False
   except JSONRPCException as e:
     print(e.error['message'])
@@ -265,7 +266,7 @@ def test_redemption_6(node):
   # Send Transaction and try if is valid or not valid
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    txid = node.testmempoolaccept(signedtx["hex"])
     return False
   except JSONRPCException as e:
     print(e.error['message'])
@@ -314,7 +315,7 @@ def test_redemption_7(node):
   # Send Transaction and try if is valid or not valid
   #=============================================================================
   try:
-    txid = node.sendrawtransaction(signedtx["hex"])
+    txid = node.testmempoolaccept(signedtx["hex"])
     return False
   except JSONRPCException as e:
     print(e.error['message'])
