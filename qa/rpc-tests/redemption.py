@@ -45,12 +45,11 @@ def test_redemption_1(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  try:
-    txid = node.testmempoolaccept(signedtx["hex"])
-    return True
-  except JSONRPCException as e:
-    print(e.error['message'])
+  txid = node.testmempoolaccept(signedtx["hex"])
+  if txid["allowed"] == 0:
+    print(txid)
     return False
+  return True
 #===============================================================================
 # Test 2 : Test With an Address not Listed in FreezeList
 #===============================================================================
@@ -94,13 +93,10 @@ def test_redemption_2(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  try:
-
-    txid = node.testmempoolaccept(signedtx["hex"])
-    return False
-  except JSONRPCException as e:
-    print(e.error['message'])
+  txid = node.testmempoolaccept(signedtx["hex"])
+  if txid["allowed"] == 0:
     return True
+  return False
 #===============================================================================
 # Test 3 : Test With no Address Listed in FreezeList
 #===============================================================================
@@ -139,12 +135,10 @@ def test_redemption_3(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  try:
-    txid = node.testmempoolaccept(signedtx["hex"])
-    return False
-  except JSONRPCException as e:
-    print(e.error['message'])
+  txid = node.testmempoolaccept(signedtx["hex"])
+  if txid["allowed"] == 0:
     return True
+  return False
 #===============================================================================
 # Test 4 : Just Test With not Null Addresses
 #===============================================================================
@@ -183,12 +177,11 @@ def test_redemption_4(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  try:
-    txid = node.testmempoolaccept(signedtx["hex"])
-    return True
-  except JSONRPCException as e:
-    print(e.error['message'])
+  txid = node.testmempoolaccept(signedtx["hex"])
+  if txid["allowed"] == 0:
+    print(txid)
     return False
+  return True
 #===============================================================================
 # Test 5 : Test With a Null Address that is not at the Top of the List
 #===============================================================================
@@ -227,12 +220,10 @@ def test_redemption_5(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  try:
-    txid = node.testmempoolaccept(signedtx["hex"])
-    return False
-  except JSONRPCException as e:
-    print(e.error['message'])
+  txid = node.testmempoolaccept(signedtx["hex"])
+  if txid["allowed"] == 0:
     return True
+  return False
 #===============================================================================
 # Test 6 : Test With a Single Null Address in the List
 #===============================================================================
@@ -265,12 +256,11 @@ def test_redemption_6(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  try:
-    txid = node.testmempoolaccept(signedtx["hex"])
-    return False
-  except JSONRPCException as e:
-    print(e.error['message'])
+  txid = node.testmempoolaccept(signedtx["hex"])
+  if txid["allowed"] == 0:
     return True
+  print(txid)
+  return False
 #===============================================================================
 # Test 7 : Test With Several Null Addresses in the List
 #===============================================================================
@@ -314,12 +304,11 @@ def test_redemption_7(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  try:
-    txid = node.testmempoolaccept(signedtx["hex"])
+  txid = node.testmempoolaccept(signedtx["hex"])
+  if txid["allowed"] == 0:
+    print(txid)
     return False
-  except JSONRPCException as e:
-    print(e.error['message'])
-    return True
+  return True
 
 class RedemptionTest (BitcoinTestFramework):
   def __init__(self):
