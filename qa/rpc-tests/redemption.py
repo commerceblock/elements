@@ -48,7 +48,8 @@ def test_redemption_1(node):
   try:
     txid = node.sendrawtransaction(signedtx["hex"])
     return True
-  except:
+  except JSONRPCException as e:
+    print(e.error['message'])
     return False
 #===============================================================================
 # Test 2 : Test With an Address not Listed in FreezeList
@@ -96,7 +97,8 @@ def test_redemption_2(node):
   try:
     txid = node.sendrawtransaction(signedtx["hex"])
     return False
-  except:
+  except JSONRPCException as e:
+    print(e.error['message'])
     return True
 #===============================================================================
 # Test 3 : Test With no Address Listed in FreezeList
@@ -139,7 +141,8 @@ def test_redemption_3(node):
   try:
     txid = node.sendrawtransaction(signedtx["hex"])
     return False
-  except:
+  except JSONRPCException as e:
+    print(e.error['message'])
     return True
 #===============================================================================
 # Test 4 : Just Test With not Null Addresses
@@ -182,7 +185,8 @@ def test_redemption_4(node):
   try:
     txid = node.sendrawtransaction(signedtx["hex"])
     return True
-  except:
+  except JSONRPCException as e:
+    print(e.error['message'])
     return False
 #===============================================================================
 # Test 5 : Test With a Null Address that is not at the Top of the List
@@ -225,7 +229,8 @@ def test_redemption_5(node):
   try:
     txid = node.sendrawtransaction(signedtx["hex"])
     return False
-  except:
+  except JSONRPCException as e:
+    print(e.error['message'])
     return True
 #===============================================================================
 # Test 6 : Test With a Single Null Address in the List
@@ -262,7 +267,8 @@ def test_redemption_6(node):
   try:
     txid = node.sendrawtransaction(signedtx["hex"])
     return False
-  except:
+  except JSONRPCException as e:
+    print(e.error['message'])
     return True
 #===============================================================================
 # Test 7 : Test With Several Null Addresses in the List
@@ -310,7 +316,8 @@ def test_redemption_7(node):
   try:
     txid = node.sendrawtransaction(signedtx["hex"])
     return False
-  except:
+  except JSONRPCException as e:
+    print(e.error['message'])
     return True
 
 class RedemptionTest (BitcoinTestFramework):
