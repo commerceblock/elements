@@ -151,6 +151,9 @@ bool IsWhitelisted(CTransaction const &tx) {
   }
   return true;
 }
+
+#define D cout << "__func__" << " : " << __LINE__ << end
+
 // @fn IsRedemption_loop.
 // @brief it is a function created to factorize the function Redemption,
 //        it reduces the complexity of the code.
@@ -166,17 +169,33 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
   CKeyID keyId;
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
-  for (uint32_t itr = 1; itr < size; ++itr)
+  D;
+  for (uint32_t itr = 1; itr < size; ++itr) {
+    D;
     if (Solver(vout[itr].scriptPubKey, whichType, vSolutions)) {
-      if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull())
+      D;
+      if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull()) {
+        D;
         return false;
-      if (checkFreezeList) {
-        keyId = CKeyID(uint160(vSolutions[0]));
-        if (!addressFreezelist.find(&keyId))
-          return false;
       }
-    } else
+      if (checkFreezeList) {
+        D;
+        keyId = CKeyID(uint160(vSolutions[0]));
+        D;
+        if (!addressFreezelist.find(&keyId)) {
+          D;
+          return false;
+        }
+        D;
+      }
+      D;
+    } else {
+      D;
       return false;
+    }
+    D;
+  }
+  D;
   return true;
 }
 // @fn IsRedemption.
@@ -187,16 +206,27 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
 bool IsRedemption(CTransaction const &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
+  D;
   if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
+    D;
     if (whichType == TX_PUBKEYHASH) {
+      D;
       if (uint160(vSolutions[0]).IsNull()) {
-        if (tx.vout.size() < 3)
+        if (tx.vout.size() < 3) {
+          D;
           return false;
+        }
+        D;
         return IsRedemption_loop(tx.vout.size() - 1, tx.vout, true);
-      } else
+      } else {
+        D;
         return IsRedemption_loop(tx.vout.size() - 1, tx.vout, false);
+      }
+      D;
     }
+    D;
   }
+  D;
   return false;
 }
 // @fn IsValidBurn.
