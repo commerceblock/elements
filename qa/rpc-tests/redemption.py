@@ -8,10 +8,15 @@ def test_redemption_1(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
+  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
   addr1 = node.getnewaddress()
   addr2 = node.getnewaddress()
   addr3 = node.getnewaddress()
+
+  print(addr0)
+  print(addr1)
+  print(addr2)
+  print(addr3)
   #=============================================================================
   # Add address to FreezeList
   #=============================================================================
@@ -40,10 +45,6 @@ def test_redemption_1(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
-
-  for vvv in unspent:
-    print(vvv)
-
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -61,10 +62,16 @@ def test_redemption_2(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
+  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
   addr1 = node.getnewaddress()
   addr2 = node.getnewaddress()
   addr3 = node.getnewaddress()
+
+  print(addr0)
+  print(addr1)
+  print(addr2)
+  print(addr3)
+
   #=============================================================================
   # Add address to FreezeList
   #=============================================================================
@@ -92,10 +99,6 @@ def test_redemption_2(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
-
-  for vvv in unspent:
-    print(vvv)
-
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -112,10 +115,16 @@ def test_redemption_3(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
+  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
   addr1 = node.getnewaddress()
   addr2 = node.getnewaddress()
   addr3 = node.getnewaddress()
+
+  print(addr0)
+  print(addr1)
+  print(addr2)
+  print(addr3)
+
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
@@ -138,10 +147,6 @@ def test_redemption_3(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
-
-  for vvv in unspent:
-    print(vvv)
-
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -162,6 +167,12 @@ def test_redemption_4(node):
   addr1 = node.getnewaddress()
   addr2 = node.getnewaddress()
   addr3 = node.getnewaddress()
+
+  print(addr0)
+  print(addr1)
+  print(addr2)
+  print(addr3)
+
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
@@ -184,10 +195,6 @@ def test_redemption_4(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
-
-  for vvv in unspent:
-    print(vvv)
-
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -206,9 +213,15 @@ def test_redemption_5(node):
   # Create Address
   #=============================================================================
   addr0 = node.getnewaddress()
-  addr1 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
+  addr1 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
   addr2 = node.getnewaddress()
   addr3 = node.getnewaddress()
+
+  print(addr0)
+  print(addr1)
+  print(addr2)
+  print(addr3)
+
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
@@ -231,10 +244,6 @@ def test_redemption_5(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
-
-  for vvv in unspent:
-    print(vvv)
-
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -251,7 +260,7 @@ def test_redemption_6(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
+  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
   #=============================================================================
   # Create Inputs & Outputs
   #=============================================================================
@@ -271,10 +280,6 @@ def test_redemption_6(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
-
-  for vvv in unspent:
-    print(vvv)
-
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -292,10 +297,16 @@ def test_redemption_7(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
+  addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
   addr1 = node.getnewaddress()
-  addr2 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ"
+  addr2 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
   addr3 = node.getnewaddress()
+
+  print(addr0)
+  print(addr1)
+  print(addr2)
+  print(addr3)
+
   #=============================================================================
   # Add address to FreezeList
   #=============================================================================
@@ -323,10 +334,6 @@ def test_redemption_7(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
-
-  for vvv in unspent:
-    print(vvv)
-
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
