@@ -152,8 +152,7 @@ bool IsWhitelisted(CTransaction const &tx) {
   return true;
 }
 
-#define D cout << "__func__" << " : " << __LINE__ << end
-
+#define P cout << __func__ << " : " << __LINE__ << endl;
 // @fn IsRedemption_loop.
 // @brief it is a function created to factorize the function Redemption,
 //        it reduces the complexity of the code.
@@ -169,33 +168,33 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
   CKeyID keyId;
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
-  D;
+  P;
   for (uint32_t itr = 1; itr < size; ++itr) {
-    D;
+    P;
     if (Solver(vout[itr].scriptPubKey, whichType, vSolutions)) {
-      D;
+      P;
       if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull()) {
-        D;
+        P;
         return false;
       }
       if (checkFreezeList) {
-        D;
+        P;
         keyId = CKeyID(uint160(vSolutions[0]));
-        D;
+        P;
         if (!addressFreezelist.find(&keyId)) {
-          D;
+          P;
           return false;
         }
-        D;
+        P;
       }
-      D;
+      P;
     } else {
-      D;
+      P;
       return false;
     }
-    D;
+    P;
   }
-  D;
+  P;
   return true;
 }
 // @fn IsRedemption.
@@ -206,27 +205,27 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
 bool IsRedemption(CTransaction const &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
-  D;
+  P;
   if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
-    D;
+    P;
     if (whichType == TX_PUBKEYHASH) {
-      D;
+      P;
       if (uint160(vSolutions[0]).IsNull()) {
         if (tx.vout.size() < 3) {
-          D;
+          P;
           return false;
         }
-        D;
+        P;
         return IsRedemption_loop(tx.vout.size() - 1, tx.vout, true);
       } else {
-        D;
+        P;
         return IsRedemption_loop(tx.vout.size() - 1, tx.vout, false);
       }
-      D;
+      P;
     }
-    D;
+    P;
   }
-  D;
+  P;
   return false;
 }
 // @fn IsValidBurn.
