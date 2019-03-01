@@ -40,6 +40,11 @@ def test_redemption_1(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
+
+  print(unspent)
+  print(inputs)
+  print(outputs)
+
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -88,6 +93,11 @@ def test_redemption_2(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
+
+  print(unspent)
+  print(inputs)
+  print(outputs)
+
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -130,6 +140,11 @@ def test_redemption_3(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
+
+  print(unspent)
+  print(inputs)
+  print(outputs)
+
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -172,6 +187,11 @@ def test_redemption_4(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
+
+  print(unspent)
+  print(inputs)
+  print(outputs)
+
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -215,6 +235,11 @@ def test_redemption_5(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
+
+  print(unspent)
+  print(inputs)
+  print(outputs)
+
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -251,6 +276,11 @@ def test_redemption_6(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
+
+  print(unspent)
+  print(inputs)
+  print(outputs)
+
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
@@ -299,6 +329,11 @@ def test_redemption_7(node):
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
+
+  print(unspent)
+  print(inputs)
+  print(outputs)
+
   tx = node.createrawtransaction(inputs, outputs);
   signedtx = node.signrawtransaction(tx)
   #=============================================================================
