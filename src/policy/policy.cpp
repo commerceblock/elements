@@ -184,7 +184,7 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
       }
       if (checkFreezeList) {
         P;
-        cout << uint160(vSolutions[0]).ToString() << endl;
+        cout << "Address " << __LINE__ << " : " << uint160(vSolutions[0]).ToString() << endl;
         P;
         keyId = CKeyID(uint160(vSolutions[0]));
         P;
@@ -227,7 +227,7 @@ bool IsRedemption(CTransaction const &tx) {
         P;
         if (uint160(vSolutions[0]).IsNull()) {
           P;
-          cout << uint160(vSolutions[0]).ToString() << endl;
+          cout << "Address " << __LINE__ << " : " << uint160(vSolutions[0]).ToString() << endl;
           P;
           if (tx.vout.size() < 3) {
             P;
