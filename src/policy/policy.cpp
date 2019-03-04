@@ -211,28 +211,36 @@ bool IsRedemption(CTransaction const &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
   P;
-  if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
+  for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
     P;
-    cout << "Type: " << GetTxnOutputType(whichType) << endl;
-    if (whichType == TX_PUBKEYHASH) {
+    if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
       P;
-      if (uint160(vSolutions[0]).IsNull()) {
+      if (whichType == TX_FEE) {
         P;
-        if (tx.vout.size() < 3) {
+        continue;
+      }
+      P;
+      cout << "Type: " << GetTxnOutputType(whichType) << endl;
+      if (whichType == TX_PUBKEYHASH) {
+        P;
+        if (uint160(vSolutions[0]).IsNull()) {
           P;
-          return false;
+          if (tx.vout.size() < 3) {
+            P;
+            return false;
+          }
+          P;
+          return IsRedemption_loop(tx.vout.size(), tx.vout, true);
+        } else {
+          P;
+          return IsRedemption_loop(tx.vout.size(), tx.vout, false);
         }
         P;
-        return IsRedemption_loop(tx.vout.size(), tx.vout, true);
-      } else {
-        P;
-        return IsRedemption_loop(tx.vout.size(), tx.vout, false);
       }
       P;
     }
     P;
   }
-  P;
   return false;
 }
 // @fn IsValidBurn.
