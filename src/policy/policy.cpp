@@ -210,9 +210,21 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
 // @retrun true == successful process.
 // @retrun false == failed process.
 bool IsRedemption(CTransaction const &tx) {
-  cout << "=====-=====-=====-=====-=====" << endl;
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
+  cout << "=====-=====-=====-=====-=====" << endl;
+  for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
+    if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
+      if (whichType == TX_PUBKEYHASH)
+        cout << "Address " << __LINE__ << " : " << uint160(vSolutions[0]).ToString() << endl;
+      else if (whichType == TX_FEE)
+        cout << "Fee" << endl;
+      else
+        cout << "Other : " << GetTxnOutputType(whichType) << endl;
+
+    }
+  }
+  cout << "-----------------------------" << endl;
   P;
   for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
     P;
