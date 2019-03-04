@@ -210,6 +210,7 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
 // @retrun true == successful process.
 // @retrun false == failed process.
 bool IsRedemption(CTransaction const &tx) {
+  cout << "=====-=====-=====-=====-=====" << endl;
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
   P;
