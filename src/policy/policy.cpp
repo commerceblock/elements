@@ -184,6 +184,8 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
       }
       if (checkFreezeList) {
         P;
+        cout << uint160(vSolutions[0]).ToString() << endl;
+        P;
         keyId = CKeyID(uint160(vSolutions[0]));
         P;
         if (!addressFreezelist.find(&keyId)) {
@@ -224,6 +226,8 @@ bool IsRedemption(CTransaction const &tx) {
       if (whichType == TX_PUBKEYHASH) {
         P;
         if (uint160(vSolutions[0]).IsNull()) {
+          P;
+          cout << uint160(vSolutions[0]).ToString() << endl;
           P;
           if (tx.vout.size() < 3) {
             P;

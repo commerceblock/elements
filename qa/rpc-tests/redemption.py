@@ -9,9 +9,9 @@ def test_redemption_1(node):
   # Create Address
   #=============================================================================
   addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
-  addr1 = node.getnewaddress()
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
+  addr1 = "2dwjJKzmgQqZFcHuA4xpmHXpSMUUUUx3Uvp"
+  addr2 = "2dtN5tRLLxRcAJqKawoY5ZpVLEaEdDtsvEY"
+  addr3 = "2dwqZcvKQWetnzMnnKmqr1wv6SJF8Vb6UQH"
 
   print(addr0)
   print(addr1)
@@ -63,9 +63,9 @@ def test_redemption_2(node):
   # Create Address
   #=============================================================================
   addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
-  addr1 = node.getnewaddress()
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
+  addr1 = "2du9ZTgWwKNrNEbXKTaxY2CqHsKu54F4nDf"
+  addr2 = "2dmEnSShq8JcLAcCdgc1zgEg44rghCZQbXK"
+  addr3 = "2dfajcWR4zb7prgHRP4Scfa7ikxNGa79Vh6"
 
   print(addr0)
   print(addr1)
@@ -116,9 +116,9 @@ def test_redemption_3(node):
   # Create Address
   #=============================================================================
   addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
-  addr1 = node.getnewaddress()
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
+  addr1 = "2dk3USoFAUz8yiuxufPhBnUugtNhDSC988Z"
+  addr2 = "2dbHX1sthNLQqACH18vxP9uUonwXsPeSHyY"
+  addr3 = "2dbqyNEgAmQrXKHNX6fm1rJrZt9NnrZcayE"
 
   print(addr0)
   print(addr1)
@@ -163,10 +163,10 @@ def test_redemption_4(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = node.getnewaddress()
-  addr1 = node.getnewaddress()
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
+  addr0 = "2dh4kopixia2H58uQgj3noMynGnanCcyCFU"
+  addr1 = "2duGaMQy25zARWizum5XCJ3dgStyQv4xQZm"
+  addr2 = "2dnu443uW56gFp6vPsWsMxXmxBDgYs6u5fR"
+  addr3 = "2dr5w5UZyDoeW5Xgd2cioartw7WZjUuJA38"
 
   print(addr0)
   print(addr1)
@@ -212,10 +212,10 @@ def test_redemption_5(node):
   #=============================================================================
   # Create Address
   #=============================================================================
-  addr0 = node.getnewaddress()
+  addr0 = "2djXzQZjFzMU878ZoaRYd6gk1MjifVuh44p"
   addr1 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
-  addr2 = node.getnewaddress()
-  addr3 = node.getnewaddress()
+  addr2 = "2dfsxgRhHzuW6kuUrNP7bTaHTfAMgzYHKPU"
+  addr3 = "2deXJt7QcKAwtFyToCnog252RP8FdVCaXMC"
 
   print(addr0)
   print(addr1)
@@ -298,9 +298,9 @@ def test_redemption_7(node):
   # Create Address
   #=============================================================================
   addr0 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
-  addr1 = node.getnewaddress()
+  addr1 = "2dcDRR6iK553L5svftC8GccfrhtoRQ5rx1W"
   addr2 = "2dZRkPX3hrPtuBrmMkbGtxTxsuYYgAaFrXZ" # Addr Null
-  addr3 = node.getnewaddress()
+  addr3 = "2dxhnrM8Fa9RB1eCfgK2FW5rDH3DJsZ2Mvn"
 
   print(addr0)
   print(addr1)
