@@ -173,6 +173,10 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
     P;
     if (Solver(vout[itr].scriptPubKey, whichType, vSolutions)) {
       P;
+      if (whichType == TX_FEE) {
+        P;
+        continue;
+      }
       cout << "Type: " << GetTxnOutputType(whichType) << endl;
       if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull()) {
         P;
@@ -213,15 +217,16 @@ bool IsRedemption(CTransaction const &tx) {
     if (whichType == TX_PUBKEYHASH) {
       P;
       if (uint160(vSolutions[0]).IsNull()) {
+        P;
         if (tx.vout.size() < 3) {
           P;
           return false;
         }
         P;
-        return IsRedemption_loop(tx.vout.size() - 1, tx.vout, true);
+        return IsRedemption_loop(tx.vout.size(), tx.vout, true);
       } else {
         P;
-        return IsRedemption_loop(tx.vout.size() - 1, tx.vout, false);
+        return IsRedemption_loop(tx.vout.size(), tx.vout, false);
       }
       P;
     }
