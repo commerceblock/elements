@@ -166,34 +166,18 @@ bool IsWhitelisted(CTransaction const &tx) {
 static bool IsRedemption_under(CTransaction const &tx, txnouttype &whichType,
                                vector<vector<uint8_t>> &vSolutions) {
   CKeyID keyId;
-  P;
   for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
-    P;
     if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
-      P;
-      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH) {
-        P;
+      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH)
         return false;
-      }
-      P;
-      if (whichType == TX_FEE || uint160(vSolutions[0]).IsNull()) {
-        P;
+      if (whichType == TX_FEE || uint160(vSolutions[0]).IsNull())
         continue;
-      }
-      P;
       keyId = CKeyID(uint160(vSolutions[0]));
-      P;
-      if (!addressFreezelist.find(&keyId)) {
-        P;
+      if (!addressFreezelist.find(&keyId))
         return false;
-      }
-    }
-    else {
-      P;
+    } else
       return false;
-    }
   }
-  P;
   return true;
 }
 // @fn IsRedemption.
@@ -204,34 +188,20 @@ static bool IsRedemption_under(CTransaction const &tx, txnouttype &whichType,
 bool IsRedemption(CTransaction const &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
-  P;
   for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
-    P;
     if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
-      P;
-      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH) {
-        P;
+      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH)
         return false;
-      }
-      if (whichType == TX_FEE) {
-        P;
+      if (whichType == TX_FEE)
         continue;
-      }
       if (whichType == TX_PUBKEYHASH && uint160(vSolutions[0]).IsNull()) {
-        P;
-        if (tx.vout.size() < 3) {
-          P;
+        if (tx.vout.size() < 3)
           return false;
-        }
-        P;
         return IsRedemption_under(tx, whichType, vSolutions);
       }
-    } else {
-      P;
+    } else
       return false;
-    }
   }
-  P;
   return true;
 }
 // @fn IsValidBurn.

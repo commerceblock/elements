@@ -2,21 +2,42 @@
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+#include "base58.h"
+#include "blind.h"
+#include "chain.h"
+#include "coins.h"
 #include "consensus/validation.h"
 #include "core_io.h"
+#include "init.h"
 #include "issuance.h"
+#include "keystore.h"
 #include "validation.h"
 #include "merkleblock.h"
 #include "net.h"
 #include "policy/policy.h"
+#include "primitives/transaction.h"
 #include "rpc/server.h"
+#include "script/script.h"
+#include "script/script_error.h"
+#include "script/sign.h"
+#include "script/standard.h"
 #include "txmempool.h"
+#include "uint256.h"
+#include "utilstrencodings.h"
+#include "util.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
+
+#include <stdint.h>
+
 #include <boost/assign/list_of.hpp>
+#include <secp256k1_rangeproof.h>
+
+#include <univalue.h>
 
 using namespace std;
+
 
 static secp256k1_context* secp256k1_blind_context = NULL;
 
