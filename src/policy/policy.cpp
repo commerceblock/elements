@@ -213,15 +213,16 @@ bool IsRedemption(CTransaction const &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
   cout << "=====-=====-=====-=====-=====" << endl;
+  cout << "Size : " << tx.vout.size() << endl;
   for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
-    if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
-      if (whichType == TX_PUBKEYHASH)
+    if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
+      if (whichType == TX_PUBKEYHASH) {
         cout << "Address " << __LINE__ << " : " << uint160(vSolutions[0]).ToString() << endl;
-      else if (whichType == TX_FEE)
-        cout << "Fee" << endl;
-      else
-        cout << "Other : " << GetTxnOutputType(whichType) << endl;
-
+      } else if (whichType == TX_FEE) {
+        cout << "Fee     " << __LINE__ << " : " <<endl;
+      } else {
+        cout << "Other   " << __LINE__ << " : " << GetTxnOutputType(whichType) << endl;
+      }
     }
   }
   cout << "-----------------------------" << endl;
