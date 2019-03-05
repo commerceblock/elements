@@ -1195,10 +1195,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
               return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-address");
           }
           if (!IsRedemption(tx))
-            return state.DoS(0, false, REJECT_NONSTANDARD, "blocked-asset-issuance-txn");
+            return state.DoS(0, false, REJECT_NONSTANDARD, "redemption");
         }
         if (fEnableBurnlistCheck && !IsValidBurn(tx, view))
-          return state.DoS(0, false, REJECT_NONSTANDARD, "blocked-asset-issuance-txn");
+          return state.DoS(0, false, REJECT_NONSTANDARD, "EnableBurnlistCheck-IsValidBurn");
         // Accept only transactions that are asset issuances if they have a policyAsset input.
         if (fblockissuancetx) {
           CAssetIssuance const &issuance = tx.vin[0].assetIssuance;
@@ -1208,7 +1208,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             CAsset asset;
             asset = prev.nAsset.GetAsset();
             if (asset != pAsset)
-              return state.DoS(0, false, REJECT_NONSTANDARD, "blocked-asset-issuance-txn");
+              return state.DoS(0, false, REJECT_NONSTANDARD, "fblockissuancetx");
           }
         }
 

@@ -2,21 +2,42 @@
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+#include "base58.h"
+#include "blind.h"
+#include "chain.h"
+#include "coins.h"
 #include "consensus/validation.h"
 #include "core_io.h"
+#include "init.h"
 #include "issuance.h"
+#include "keystore.h"
 #include "validation.h"
 #include "merkleblock.h"
 #include "net.h"
 #include "policy/policy.h"
+#include "primitives/transaction.h"
 #include "rpc/server.h"
+#include "script/script.h"
+#include "script/script_error.h"
+#include "script/sign.h"
+#include "script/standard.h"
 #include "txmempool.h"
+#include "uint256.h"
+#include "utilstrencodings.h"
+#include "util.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
+
+#include <stdint.h>
+
 #include <boost/assign/list_of.hpp>
+#include <secp256k1_rangeproof.h>
+
+#include <univalue.h>
 
 using namespace std;
+
 
 static secp256k1_context* secp256k1_blind_context = NULL;
 
@@ -712,138 +733,6 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             }
             rawTx.vout.push_back(out);
         }
-    }
-    return EncodeHexTx(rawTx);
-}
-
-UniValue createrawpolicytx(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 4)
-        throw runtime_error(
-            "createrawpolicytx [{\"txid\":\"id\",\"vout\":n},...] [{\"pubkey\":amount,\"data\":\"address\"},...] locktime asset\n"
-            "\nCreate a transaction spending the given inputs and creating 1-of-2 policy list update outputs.\n"
-            "Returns hex-encoded raw transaction.\n"
-            "Note that the transaction's inputs are not signed, and\n"
-            "it is not stored in the wallet or transmitted to the network.\n"
-            "\nArguments:\n"
-            "1. \"inputs\"                (array, required) A json array of json objects\n"
-            "     [\n"
-            "       {\n"
-            "         \"txid\":\"id\",    (string, required) The transaction id\n"
-            "         \"vout\":n,         (numeric, required) The output number\n"
-            "         \"asset\": \"string\"   (string, optional, default=bitcoin) The asset of the input, as a tag string or a hex value\n"
-            "         \"sequence\":n      (numeric, optional) The sequence number\n"
-            "       } \n"
-            "       ,...\n"
-            "     ]\n"
-            "2. \"outputs\"               (array, required) a json array of json objects\n"
-            "     [\n"
-            "    {\n"
-            "      \"pubkey\": \"pubKey\",    (string, required) The key is \"pubkey\" and the value is the admin public key\n"
-            "      \"value\": \"value\"      (numeric or string, required) The key is \"value\", the value is the permission token amount\n"
-            "      \"address\": \"address\"      (string, optional) The key is \"address\", the value is hex encoded 20 byte address to be added to the policy list\n"
-            "      \"userkey\": \"userkey\"      (string, optional) The key is \"userkey\", the value is hex encoded 32 byte key to be added to the policy list\n"
-            "    }\n"
-            "       ,...\n"
-            "     ]\n"
-            "3. locktime                  (numeric, required, default=0) Raw locktime. Non-0 value also locktime-activates inputs\n"
-            "4. \"output_asset\"           (string, required) The policy list asset type (hex)\n"
-            "\nResult:\n"
-            "\"transaction\"              (string) hex string of the transaction\n"
-            "\nExamples:\n"
-            + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"pubkey\\\":2.41}\"")
-            + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0\\\"asset\\\":\\\"myasset\\\"}]\" \"{\\\"pubkey\\\":2.41}\" 0 \"{\\\"address\\\":\\\"myasset\\\"}\"")
-            + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"data\\\":\\\"47ef9c62a982cb8d91ba7291bae\\\"}\"")
-            + HelpExampleRpc("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":2.41}\"")
-            + HelpExampleRpc("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0\\\"asset\\\":\\\"myasset\\\"}]\", \"{\\\"pubkey\\\":2.41}\", 0, \"{\\\"address\\\":\\\"myasset\\\"}\"")
-            + HelpExampleRpc("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"data\\\":\\\"47ef9c62a982cb8d91ba7291bae\\\"}\"")
-        );
-    RPCTypeCheck(request.params, boost::assign::list_of(UniValue::VARR)(UniValue::VARR)(UniValue::VNUM)(UniValue::VSTR), true);
-    if (request.params[0].isNull() || request.params[1].isNull())
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, arguments 1 and 2 must be non-null");
-    UniValue inputs = request.params[0].get_array();
-    UniValue outputs = request.params[1].get_array();
-    CMutableTransaction rawTx;
-    int64_t nLockTime = request.params[2].get_int64();
-    if (nLockTime < 0 || nLockTime > std::numeric_limits<uint32_t>::max())
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, locktime out of range");
-    rawTx.nLockTime = nLockTime;
-    std::string assetstr = request.params[3].get_str();
-    CAsset asset;
-    asset.SetHex(assetstr);
-    for (unsigned int idx = 0; idx < inputs.size(); idx++) {
-        UniValue const &input = inputs[idx];
-        UniValue const &o = input.get_obj();
-        uint256 txid = ParseHashO(o, "txid");
-        const UniValue& vout_v = find_value(o, "vout");
-        if (!vout_v.isNum())
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
-        int nOutput = vout_v.get_int();
-        if (nOutput < 0)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
-        uint32_t nSequence = (rawTx.nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
-        // set the sequence number if passed in the parameters object
-        const UniValue& sequenceObj = find_value(o, "sequence");
-        if (sequenceObj.isNum()) {
-            int64_t seqNr64 = sequenceObj.get_int64();
-            if (seqNr64 < 0 || seqNr64 > std::numeric_limits<uint32_t>::max())
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, sequence number is out of range");
-            else
-                nSequence = (uint32_t)seqNr64;
-        }
-        CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
-        rawTx.vin.push_back(in);
-    }
-    //loop over all outputs
-    for (unsigned int idx = 0; idx < outputs.size(); idx++) {
-        const UniValue& output = outputs[idx];
-        const UniValue& o = output.get_obj();
-        //get the admin pubkey from the RPC
-        const UniValue& pkey = find_value(o, "pubkey");
-        if (!IsHex(pkey.getValStr()))
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey must be a hex string");
-        std::vector<unsigned char> datapubkey(ParseHex(pkey.getValStr()));
-        CPubKey adminPubKey(datapubkey.begin(), datapubkey.end());
-        //we check that this pubkey is a real curve point
-        if (!adminPubKey.IsFullyValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey is not a valid public key");
-        std::string data;
-        //get the address from the RPC
-        const UniValue& address = find_value(o, "address");
-        CBitcoinAddress bcaddress;
-        if (!bcaddress.SetString(address.getValStr()))
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
-        CKeyID keyId;
-        if (!bcaddress.GetKeyID(keyId))
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
-        std::string hexaddress = HexStr(keyId.begin(), keyId.end());
-        //concatenate with padding bytes
-        data = "02000000000000000000000000" + hexaddress;
-        //we do not check that this pubkey is a real curve point
-        const UniValue& userkey = find_value(o, "userkey");
-        if (userkey.isStr()) {
-            if(data.length() > 0)
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot have both address and userkey");
-            if (!IsHex(userkey.getValStr()))
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Userkey must be a hex string");
-            if(userkey.getValStr().length() != 66)
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Userkey must be 33 bytes in length");
-            data = userkey.getValStr();
-            //we do not check that this pubkey is a real curve point
-        }
-        std::vector<unsigned char> datavec(ParseHex(data));
-        CPubKey listData(datavec.begin(), datavec.end());
-        //get the address from the RPC
-        std::vector<CPubKey> pubkeys;
-        pubkeys.resize(2);
-        int nRequired = 1;
-        pubkeys[0] = adminPubKey;
-        pubkeys[1] = listData;
-        CScript result = GetScriptForMultisig(nRequired, pubkeys);
-        const UniValue& outval = find_value(o, "value");
-        CAmount nAmount = AmountFromValue(outval);
-        CTxOut out(asset, nAmount, result);
-        rawTx.vout.push_back(out);
     }
     return EncodeHexTx(rawTx);
 }

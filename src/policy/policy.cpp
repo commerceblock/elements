@@ -151,6 +151,8 @@ bool IsWhitelisted(CTransaction const &tx) {
   }
   return true;
 }
+
+#define P cout << __func__ << " : " << __LINE__ << endl;
 // @fn IsRedemption_loop.
 // @brief it is a function created to factorize the function Redemption,
 //        it reduces the complexity of the code.
@@ -161,22 +163,21 @@ bool IsWhitelisted(CTransaction const &tx) {
 // @brief ignore check if address is present in address Freelist.
 // @retrun true == successful process.
 // @retrun false == failed process.
-static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
-                              bool checkFreezeList) {
+static bool IsRedemption_under(CTransaction const &tx, txnouttype &whichType,
+                               vector<vector<uint8_t>> &vSolutions) {
   CKeyID keyId;
-  txnouttype whichType;
-  vector<vector<uint8_t>> vSolutions;
-  for (uint32_t itr = 1; itr < size; ++itr)
-    if (Solver(vout[itr].scriptPubKey, whichType, vSolutions)) {
-      if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull())
+  for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
+    if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
+      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH)
         return false;
-      if (checkFreezeList) {
-        keyId = CKeyID(uint160(vSolutions[0]));
-        if (!addressFreezelist.find(&keyId))
-          return false;
-      }
+      if (whichType == TX_FEE || uint160(vSolutions[0]).IsNull())
+        continue;
+      keyId = CKeyID(uint160(vSolutions[0]));
+      if (!addressFreezelist.find(&keyId))
+        return false;
     } else
       return false;
+  }
   return true;
 }
 // @fn IsRedemption.
@@ -187,17 +188,21 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
 bool IsRedemption(CTransaction const &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
-  if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
-    if (whichType == TX_PUBKEYHASH) {
-      if (uint160(vSolutions[0]).IsNull()) {
+  for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
+    if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
+      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH)
+        return false;
+      if (whichType == TX_FEE)
+        continue;
+      if (whichType == TX_PUBKEYHASH && uint160(vSolutions[0]).IsNull()) {
         if (tx.vout.size() < 3)
           return false;
-        return IsRedemption_loop(tx.vout.size() - 1, tx.vout, true);
-      } else
-        return IsRedemption_loop(tx.vout.size() - 1, tx.vout, false);
-    }
+        return IsRedemption_under(tx, whichType, vSolutions);
+      }
+    } else
+      return false;
   }
-  return false;
+  return true;
 }
 // @fn IsValidBurn.
 // @brief check if the transaction is eligible for a burn process.
