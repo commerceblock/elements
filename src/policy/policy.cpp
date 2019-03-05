@@ -163,43 +163,35 @@ bool IsWhitelisted(CTransaction const &tx) {
 // @brief ignore check if address is present in address Freelist.
 // @retrun true == successful process.
 // @retrun false == failed process.
-static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
-                              bool checkFreezeList) {
+static bool IsRedemption_under(CTransaction const &tx, txnouttype &whichType,
+                               vector<vector<uint8_t>> &vSolutions) {
   CKeyID keyId;
-  txnouttype whichType;
-  vector<vector<uint8_t>> vSolutions;
   P;
-  for (uint32_t itr = 1; itr < size; ++itr) {
+  for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
     P;
-    if (Solver(vout[itr].scriptPubKey, whichType, vSolutions)) {
+    if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
       P;
-      if (whichType == TX_FEE) {
-        P;
-        continue;
-      }
-      cout << "Type: " << GetTxnOutputType(whichType) << endl;
-      if (whichType != TX_PUBKEYHASH || uint160(vSolutions[0]).IsNull()) {
+      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH) {
         P;
         return false;
       }
-      if (checkFreezeList) {
+      P;
+      if (whichType == TX_FEE || uint160(vSolutions[0]).IsNull()) {
         P;
-        cout << "Address " << __LINE__ << " : " << uint160(vSolutions[0]).ToString() << endl;
-        P;
-        keyId = CKeyID(uint160(vSolutions[0]));
-        P;
-        if (!addressFreezelist.find(&keyId)) {
-          P;
-          return false;
-        }
-        P;
+        continue;
       }
       P;
-    } else {
+      keyId = CKeyID(uint160(vSolutions[0]));
+      P;
+      if (!addressFreezelist.find(&keyId)) {
+        P;
+        return false;
+      }
+    }
+    else {
       P;
       return false;
     }
-    P;
   }
   P;
   return true;
@@ -212,54 +204,35 @@ static bool IsRedemption_loop(uint32_t size, vector<CTxOut> const &vout,
 bool IsRedemption(CTransaction const &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
-  cout << "=====-=====-=====-=====-=====" << endl;
-  cout << "Size : " << tx.vout.size() << endl;
-  for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
-    if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
-      if (whichType == TX_PUBKEYHASH) {
-        cout << "Address " << __LINE__ << " : " << uint160(vSolutions[0]).ToString() << endl;
-      } else if (whichType == TX_FEE) {
-        cout << "Fee     " << __LINE__ << " : " <<endl;
-      } else {
-        cout << "Other   " << __LINE__ << " : " << GetTxnOutputType(whichType) << endl;
-      }
-    }
-  }
-  cout << "-----------------------------" << endl;
   P;
   for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
     P;
-    if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions)) {
+    if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
       P;
+      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH) {
+        P;
+        return false;
+      }
       if (whichType == TX_FEE) {
         P;
         continue;
       }
-      P;
-      cout << "Type: " << GetTxnOutputType(whichType) << endl;
-      if (whichType == TX_PUBKEYHASH) {
+      if (whichType == TX_PUBKEYHASH && uint160(vSolutions[0]).IsNull()) {
         P;
-        if (uint160(vSolutions[0]).IsNull()) {
+        if (tx.vout.size() < 3) {
           P;
-          cout << "Address " << __LINE__ << " : " << uint160(vSolutions[0]).ToString() << endl;
-          P;
-          if (tx.vout.size() < 3) {
-            P;
-            return false;
-          }
-          P;
-          return IsRedemption_loop(tx.vout.size(), tx.vout, true);
-        } else {
-          P;
-          return IsRedemption_loop(tx.vout.size(), tx.vout, false);
+          return false;
         }
         P;
+        return IsRedemption_under(tx, whichType, vSolutions);
       }
+    } else {
       P;
+      return false;
     }
-    P;
   }
-  return false;
+  P;
+  return true;
 }
 // @fn IsValidBurn.
 // @brief check if the transaction is eligible for a burn process.
