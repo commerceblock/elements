@@ -151,8 +151,6 @@ bool IsWhitelisted(CTransaction const &tx) {
   }
   return true;
 }
-
-#define P cout << __func__ << " : " << __LINE__ << endl;
 // @fn IsRedemption_loop.
 // @brief it is a function created to factorize the function Redemption,
 //        it reduces the complexity of the code.
@@ -215,7 +213,7 @@ bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
   for (uint32_t itrA = 0; itrA < tx.vout.size(); ++itrA) {
-    if (Solver(tx.vout[itrA].scriptPubKey, whichType, vSolutions)) {
+    if (Solver(tx.vout[itrA].scriptPubKey, whichType, vSolutions))
       if (whichType == TX_NULL_DATA)
         for (uint32_t itrB = 0; itrB < tx.vin.size(); ++itrB) {
           CTxOut const &prev = mapInputs.GetOutputFor(tx.vin[itrB]);
@@ -227,7 +225,6 @@ bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
                 return false;
             }
         }
-    }
     return true;
   }
   return false;
