@@ -33,6 +33,102 @@ def test_validBurn_1(node):
     return True
   except:
     return False
+#===============================================================================
+# Test 2 :
+#===============================================================================
+def test_validBurn_2(node):
+  #=============================================================================
+  # Create Address
+  #=============================================================================
+  addr0 = node.getnewaddress()
+  #=============================================================================
+  # Create Inputs & Outputs
+  #=============================================================================
+  unspent = node.listunspent()
+  #
+  freezetx = node.getrawtransaction(unspent[0]["txid"], True)
+  #
+  txid = ""
+  vout = str(freezetx["vout"][0]["n"])
+  asset = freezetx["vout"][0]["asset"]
+  amount = freezetx["vout"][0]["value"]
+  #=============================================================================
+  # Create Transaction Burned & Signed Transaction
+  #=============================================================================
+  burntx = node.createrawburn(txid, vout, asset, amount)
+  signtx = node.signrawtransaction(burntx["hex"])
+  #=============================================================================
+  # Send Transaction and try if is valid or not valid
+  #=============================================================================
+  try:
+    sendtx = node.sendrawtransaction(signtx["hex"])
+    return False
+  except:
+    return True
+#===============================================================================
+# Test 3 :
+#===============================================================================
+def test_validBurn_3(node):
+  #=============================================================================
+  # Create Address
+  #=============================================================================
+  addr0 = node.getnewaddress()
+  #=============================================================================
+  # Create Inputs & Outputs
+  #=============================================================================
+  unspent = node.listunspent()
+  #
+  freezetx = node.getrawtransaction(unspent[0]["txid"], True)
+  #
+  txid = unspent[0]["txid"]
+  vout = ""
+  asset = freezetx["vout"][0]["asset"]
+  amount = freezetx["vout"][0]["value"]
+  #=============================================================================
+  # Create Transaction Burned & Signed Transaction
+  #=============================================================================
+  burntx = node.createrawburn(txid, vout, asset, amount)
+  signtx = node.signrawtransaction(burntx["hex"])
+  #=============================================================================
+  # Send Transaction and try if is valid or not valid
+  #=============================================================================
+  try:
+    sendtx = node.sendrawtransaction(signtx["hex"])
+    return True
+  except:
+    return False
+#===============================================================================
+# Test 4 :
+#===============================================================================
+def test_validBurn_4(node):
+  #=============================================================================
+  # Create Address
+  #=============================================================================
+  addr0 = node.getnewaddress()
+  #=============================================================================
+  # Create Inputs & Outputs
+  #=============================================================================
+  unspent = node.listunspent()
+  #
+  freezetx = node.getrawtransaction(unspent[0]["txid"], True)
+  #
+  txid = unspent[0]["txid"]
+  vout = str(freezetx["vout"][0]["n"])
+  asset = ""
+  amount = freezetx["vout"][0]["value"]
+  #=============================================================================
+  # Create Transaction Burned & Signed Transaction
+  #=============================================================================
+  burntx = node.createrawburn(txid, vout, asset, amount)
+  signtx = node.signrawtransaction(burntx["hex"])
+  #=============================================================================
+  # Send Transaction and try if is valid or not valid
+  #=============================================================================
+  try:
+    sendtx = node.sendrawtransaction(signtx["hex"])
+    return False
+  except:
+    return True
 
 class validBurnTest (BitcoinTestFramework):
   def __init__(self):
@@ -66,6 +162,33 @@ class validBurnTest (BitcoinTestFramework):
     else:
       failed = True
       print("Test 1 :\033[1;31;40m KO\033[0m")
+    #===========================================================================
+    # Test : 2
+    #===========================================================================
+    if test_validBurn_2(self.nodes[0]) == True:
+      print("Test 2 :\033[1;32;40m OK\033[0m")
+    else:
+      failed = True
+      print("Test 2 :\033[1;31;40m KO\033[0m")
+    #===========================================================================
+    # Test : 3
+    #===========================================================================
+    if test_validBurn_3(self.nodes[0]) == True:
+      print("Test 3 :\033[1;32;40m OK\033[0m")
+    else:
+      failed = True
+      print("Test 3 :\033[1;31;40m KO\033[0m")
+    #===========================================================================
+    # Test : 4
+    #===========================================================================
+    if test_validBurn_4(self.nodes[0]) == True:
+      print("Test 4 :\033[1;32;40m OK\033[0m")
+    else:
+      failed = True
+      print("Test 4 :\033[1;31;40m KO\033[0m")
+    #===========================================================================
+    # End
+    #===========================================================================
     assert failed == False
     print("End.")
 #===============================================================================
