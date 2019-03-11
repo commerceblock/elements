@@ -50,6 +50,9 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType)
     } else if (whichType == TX_NULL_DATA &&
                (!fAcceptDatacarrier || scriptPubKey.size() > nMaxDatacarrierBytes))
           return false;
+    else if (whichType == TX_REGISTERADDRESS &&
+               (!fAcceptRegisteraddress || scriptPubKey.size() > nMaxRegisteraddressBytes))
+          return false;
     else if (whichType == TX_TRUE)
         return false;
     return whichType != TX_NONSTANDARD;
@@ -107,20 +110,26 @@ bool IsBurn(const CTransaction &tx) {
       return false;
   return true;
 }
+
+bool IsPolicy(CAsset const &asset){
+  if (asset == freezelistAsset || 
+      asset == burnlistAsset || 
+      asset == whitelistAsset) 
+    return true;
+  return false;
+}
 // @fn IsPolicy.
 // @brief determines if any outputs of a transaction are policy assets.
 // @param[in] class that contains the transaction.
 // @retrun true == successful process.
 // @retrun false == failed process.
 bool IsPolicy(CTransaction const &tx) {
-  for (CTxOut const &txout : tx.vout) {
-    if (txout.nAsset.GetAsset() == freezelistAsset ||
-        txout.nAsset.GetAsset() == burnlistAsset ||
-        txout.nAsset.GetAsset() == whitelistAsset)
+  for (CTxOut const &txout : tx.vout)
+    if (IsPolicy(txout.nAsset.GetAsset()))
       return true;
-  }
   return false;
 }
+
 // @fn IsWhitelisted
 // @brief determines that all outputs of a transaction are P2PKH,
 //        all output addresses must be in the whitelist database.
@@ -140,13 +149,20 @@ bool IsWhitelisted(CTransaction const &tx) {
     vector<vector<uint8_t>> vSolutions;
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
       return false;
+    // skip whitelist check if issuance transaction
+    // skip whitelist check if output is TX_FEE
+    // skip whitelist check if output is OP_RETURN
+    // skip whitelist check if output is OP_REGISTERADDRESS
     if (!tx.vin[0].assetIssuance.IsNull() || whichType == TX_FEE ||
-        whichType == TX_NULL_DATA)
+        whichType == TX_NULL_DATA || whichType == TX_REGISTERADDRESS)
       continue;
-    if(!(whichType == TX_PUBKEYHASH))
+    // return false if not P2PKH
+    if (!(whichType == TX_PUBKEYHASH))
       return false;
     keyId = CKeyID(uint160(vSolutions[0]));
-    if (!addressWhitelist.find(&keyId))
+    // Search in whitelist for the presence of each output address.
+    // If one is not found, return false.
+    if (!addressWhitelist.is_whitelisted(keyId))
       return false;
   }
   return true;
@@ -284,6 +300,7 @@ bool IsBurnlisted(const CTransaction& tx, const CCoinsViewCache& mapInputs)
   }
   return true;
 }
+
 
 bool UpdateFreezeList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {

@@ -386,6 +386,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6 or onion)"));
     strUsage += HelpMessageOpt("-permitbaremultisig", strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
     strUsage += HelpMessageOpt("-pkhwhitelist", strprintf(_("Enable node mempool address whitelisting (default: %u)"), DEFAULT_WHITELIST_CHECK));
+    strUsage += HelpMessageOpt("-pkhwhitelist-scan", strprintf(_("Keep local whitelist updated with own wallet's whitelisted addresses (default: %u)"), DEFAULT_SCAN_WHITELIST));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>", strprintf(_("Listen for connections on <port> (default: %u)"), defaultChainParams->GetDefaultPort()));
     strUsage += HelpMessageOpt("-proxy=<ip:port>", _("Connect through SOCKS5 proxy"));
@@ -484,6 +485,8 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-dustrelayfee=<amt>", strprintf("Fee rate (in %s/kB) used to defined dust, the value of an output such that it will cost about 1/3 of its value in fees at this fee rate to spend it. (default: %s)", CURRENCY_UNIT, FormatMoney(DUST_RELAY_TX_FEE)));
     }
     strUsage += HelpMessageOpt("-bytespersigop", strprintf(_("Equivalent bytes per sigop in transactions for relay and mining (default: %u)"), DEFAULT_BYTES_PER_SIGOP));
+    strUsage += HelpMessageOpt("-registeraddress", strprintf(_("Relay and mine registeraddress (whitelisting) transactions (default: %u)"), DEFAULT_ACCEPT_REGISTERADDRESS));
+    strUsage += HelpMessageOpt("-registeraddresssize", strprintf(_("Maximum size of data in reigsteraddress transactions we relay and mine (default: %u)"), MAX_OP_REGISTERADDRESS_RELAY));
     strUsage += HelpMessageOpt("-datacarrier", strprintf(_("Relay and mine data carrier transactions (default: %u)"), DEFAULT_ACCEPT_DATACARRIER));
     strUsage += HelpMessageOpt("-datacarriersize", strprintf(_("Maximum size of data in data carrier transactions we relay and mine (default: %u)"), MAX_OP_RETURN_RELAY));
 
@@ -527,7 +530,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-freezelistcoinsdestination", strprintf(_("The destination of the tokens for controlling the freezelist (default: %d)"), 0));
         strUsage += HelpMessageOpt("-burnlistcoinsdestination", strprintf(_("The destination of the tokens for controlling the burnlist. (default: %d)"), 0));
         strUsage += HelpMessageOpt("-whitelistcoinsdestination", strprintf(_("The destination of the tokens for controlling the whitelist. (default: %d)"), 0));
-    }
+            }
     strUsage += HelpMessageOpt("-validatepegin", strprintf(_("Validate pegin claims. All functionaries must run this. (default: %u)"), DEFAULT_VALIDATE_PEGIN));
     strUsage += HelpMessageOpt("-mainchainrpchost=<addr>", strprintf("The address which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
     strUsage += HelpMessageOpt("-mainchainrpcport=<port>", strprintf("The port which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
@@ -1039,6 +1042,9 @@ bool AppInitParameterInteraction()
     if(GetArg("-burnlistcoinsdestination", "").size() > 0) {
         burnlistAsset = CAsset(uint256S(chainparams.GetConsensus().burnlist_asset.GetHex()));
     }
+     if(GetArg("-whitelistcoinsdestination", "").size() > 0) {
+        whitelistAsset = CAsset(uint256S(chainparams.GetConsensus().whitelist_asset.GetHex()));
+    }
 
     // Fee-per-kilobyte amount considered the same as "free"
     // If you are mining, be careful setting this:
@@ -1087,35 +1093,34 @@ bool AppInitParameterInteraction()
     if (!CWallet::ParameterInteraction())
         return false;
 #endif
-    fAcceptDatacarrier = GetBoolArg("-datacarrier", DEFAULT_ACCEPT_DATACARRIER);
+    //address whitelisting
+    fRequireWhitelistCheck = GetBoolArg("-pkhwhitelist", DEFAULT_WHITELIST_CHECK);
+    fScanWhitelist = GetBoolArg("-pkhwhitelist-scan", DEFAULT_SCAN_WHITELIST);
+    fRequireFreezelistCheck = GetBoolArg("-freezelist", DEFAULT_FREEZELIST_CHECK);
+    fEnableBurnlistCheck = GetBoolArg("-burnlist", DEFAULT_BURNLIST_CHECK);  
     fblockissuancetx = GetBoolArg("-issuanceblock", DEFAULT_BLOCK_ISSUANCE);
     fEnableBurnlistCheck = GetBoolArg("-burnlist", DEFAULT_BURNLIST_CHECK);
     fIsBareMultisigStd = GetBoolArg("-permitbaremultisig", DEFAULT_PERMIT_BAREMULTISIG);
-    fRequireWhitelistCheck = GetBoolArg("-pkhwhitelist", DEFAULT_WHITELIST_CHECK);
-    fRequireFreezelistCheck = GetBoolArg("-freezelist", DEFAULT_FREEZELIST_CHECK);
-    fRequireRequestListCheck = GetBoolArg("-requestlist", DEFAULT_REQUESTLIST_CHECK);
+    //Acceptance of data in OP_RETURN
+    fAcceptDatacarrier = GetBoolArg("-datacarrier", DEFAULT_ACCEPT_DATACARRIER);
     nMaxDatacarrierBytes = GetArg("-datacarriersize", nMaxDatacarrierBytes);
-
+    //Acceptance of OP_REGISTERADDRESS 
+    fAcceptRegisteraddress = GetBoolArg("-registeraddress", DEFAULT_ACCEPT_REGISTERADDRESS);
+    nMaxRegisteraddressBytes = GetArg("-registeraddresssize", nMaxRegisteraddressBytes);
     // Option to startup with mocktime set (used for regression testing):
     SetMockTime(GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op
-
     if (GetBoolArg("-peerbloomfilters", DEFAULT_PEERBLOOMFILTERS))
         nLocalServices = ServiceFlags(nLocalServices | NODE_BLOOM);
-
     if (GetArg("-rpcserialversion", DEFAULT_RPC_SERIALIZE_VERSION) < 0)
         return InitError("rpcserialversion must be non-negative.");
-
     if (GetArg("-rpcserialversion", DEFAULT_RPC_SERIALIZE_VERSION) > 1)
         return InitError("unknown rpcserialversion requested.");
-
     nMaxTipAge = GetArg("-maxtipage", DEFAULT_MAX_TIP_AGE);
-
     try {
         InitGlobalAssetDir(mapMultiArgs.count("-assetdir") > 0 ? mapMultiArgs.at("-assetdir") : std::vector<std::string>());
     } catch (const std::exception& e) {
         return InitError(strprintf("Error in -assetdir: %s\n", e.what()));
     }
-
     if (mapMultiArgs.count("-bip9params")) {
         // Allow overriding BIP9 parameters for testing
         if (!chainparams.MineBlocksOnDemand()) {
@@ -1673,6 +1678,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if(chainActive.Height() > 1) {
         if(fRequireFreezelistCheck) LoadFreezeList(pcoinsTip);
         if(fEnableBurnlistCheck) LoadBurnList(pcoinsTip);
+        if(fRequireWhitelistCheck || fScanWhitelist) addressWhitelist.Load(pcoinsTip);
     }
 
     // ********************************************************* Step 11: start node
