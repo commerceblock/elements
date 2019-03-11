@@ -112,9 +112,9 @@ bool IsBurn(const CTransaction &tx) {
 }
 
 bool IsPolicy(CAsset const &asset){
-  if (asset == freezelistAsset || 
-      asset == burnlistAsset || 
-      asset == whitelistAsset) 
+  if (asset == freezelistAsset ||
+      asset == burnlistAsset ||
+      asset == whitelistAsset)
     return true;
   return false;
 }
@@ -204,7 +204,8 @@ bool IsRedemption(CTransaction const &tx) {
   vector<vector<uint8_t>> vSolutions;
   for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
     if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
-      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH)
+      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH &&
+          whichType != TX_REGISTERADDRESS)
         return false;
       if (whichType == TX_FEE)
         continue;

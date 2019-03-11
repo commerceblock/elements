@@ -864,7 +864,7 @@ UniValue createrawpolicytx(const JSONRPCRequest& request)
             data = "02000000000000000000000000" + hexaddress;
             //we do not check that this pubkey is a real curve point
         }
-        
+
         const UniValue& userkey = find_value(o, "userkey");
 
         if (userkey.isStr()) {
@@ -881,9 +881,9 @@ UniValue createrawpolicytx(const JSONRPCRequest& request)
 
        std::vector<unsigned char> datavec(ParseHex(data));
        datavec.resize(33, 0);
-            
+
         if (userkey.isStr()) {
-            //for userkey: reverse the last 30 bytes so that this key cannot be used to spend the tx        
+            //for userkey: reverse the last 30 bytes so that this key cannot be used to spend the tx
             std::reverse(datavec.begin()+3, datavec.end());
         }
 
@@ -1714,81 +1714,76 @@ UniValue testmempoolaccept(const JSONRPCRequest& request)
     return result_0;
 }
 
-UniValue sendrawtransaction(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
-        throw runtime_error(
-            "sendrawtransaction \"hexstring\" ( allowhighfees ) ( allowunblindfails )\n"
-            "\nSubmits raw transaction (serialized, hex-encoded) to local node and network.\n"
-            "\nAlso see createrawtransaction and signrawtransaction calls.\n"
-            "\nArguments:\n"
-            "1. \"hexstring\"    (string, required) The hex string of the raw transaction)\n"
-            "2. allowhighfees    (boolean, optional, default=false) Allow high fees\n"
-            "3. allowblindfails  (boolean, optional, default=false) Allow outputs which have a pubkey attached (ie are blindable), which are unblinded\n"
-            "\nResult:\n"
-            "\"hex\"             (string) The transaction hash in hex\n"
-            "\nExamples:\n"
-            "\nCreate a transaction\n"
-            + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\" : \\\"mytxid\\\",\\\"vout\\\":0}]\" \"{\\\"myaddress\\\":0.01}\"") +
-            "Sign the transaction, and get back the hex\n"
-            + HelpExampleCli("signrawtransaction", "\"myhex\"") +
-            "\nSend the transaction (signed hex)\n"
-            + HelpExampleCli("sendrawtransaction", "\"signedhex\"") +
-            "\nAs a json rpc call\n"
-            + HelpExampleRpc("sendrawtransaction", "\"signedhex\"")
-        );
-    LOCK(cs_main);
-    RPCTypeCheck(request.params, boost::assign::list_of(UniValue::VSTR)(UniValue::VBOOL)(UniValue::VBOOL));
-    // parse hex string from parameter
-    CMutableTransaction mtx;
-    if (!DecodeHexTx(mtx, request.params[0].get_str()))
-        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-    CTransactionRef tx(MakeTransactionRef(std::move(mtx)));
-    const uint256& hashTx = tx->GetHash();
-    bool fLimitFree = false;
-    CAmount nMaxRawTxFee = maxTxFee;
-    if (request.params.size() > 1 && request.params[1].get_bool())
-        nMaxRawTxFee = 0;
-    bool fOverrideBlindable = false;
-    if (request.params.size() > 2)
-        fOverrideBlindable = request.params[2].get_bool();
-    if (!fOverrideBlindable) {
-        for (unsigned i = 0; i < tx->vout.size(); i++) {
-            const CTxOut& txout = tx->vout[i];
-            if (txout.nValue.IsExplicit() && txout.nNonce.vchCommitment.size() != 0)
-                throw JSONRPCError(RPC_TRANSACTION_ERROR, strprintf("Output %u is unblinded, but has blinding pubkey attached, please use [raw]blindrawtransaction", i));
-        }
+UniValue sendrawtransaction(const JSONRPCRequest& request) {
+  if (request.fHelp || request.params.size() < 1 || request.params.size() > 3) {
+    throw runtime_error(
+    "sendrawtransaction \"hexstring\" ( allowhighfees ) ( allowunblindfails )\n"
+    "\nSubmits raw transaction (serialized, hex-encoded) to local node and network.\n"
+    "\nAlso see createrawtransaction and signrawtransaction calls.\n"
+    "\nArguments:\n"
+    "1. \"hexstring\"    (string, required) The hex string of the raw transaction)\n"
+    "2. allowhighfees    (boolean, optional, default=false) Allow high fees\n"
+    "3. allowblindfails  (boolean, optional, default=false) Allow outputs which have a pubkey attached (ie are blindable), which are unblinded\n"
+    "\nResult:\n"
+    "\"hex\"             (string) The transaction hash in hex\n"
+    "\nExamples:\n"
+    "\nCreate a transaction\n"
+    + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\" : \\\"mytxid\\\",\\\"vout\\\":0}]\" \"{\\\"myaddress\\\":0.01}\"") +
+    "Sign the transaction, and get back the hex\n"
+    + HelpExampleCli("signrawtransaction", "\"myhex\"") +
+    "\nSend the transaction (signed hex)\n"
+    + HelpExampleCli("sendrawtransaction", "\"signedhex\"") +
+    "\nAs a json rpc call\n"
+    + HelpExampleRpc("sendrawtransaction", "\"signedhex\"")
+    );
+  }
+  LOCK(cs_main);
+  RPCTypeCheck(request.params, boost::assign::list_of(UniValue::VSTR)(UniValue::VBOOL)(UniValue::VBOOL));
+  // parse hex string from parameter
+  CMutableTransaction mtx;
+  if (!DecodeHexTx(mtx, request.params[0].get_str()))
+    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+  CTransactionRef tx(MakeTransactionRef(std::move(mtx)));
+  uint256 const &hashTx = tx->GetHash();
+  bool fLimitFree = false;
+  CAmount nMaxRawTxFee = maxTxFee;
+  if (request.params.size() > 1 && request.params[1].get_bool())
+    nMaxRawTxFee = 0;
+  bool fOverrideBlindable = false;
+  if (request.params.size() > 2)
+    fOverrideBlindable = request.params[2].get_bool();
+  if (!fOverrideBlindable) {
+    for (uint32_t i = 0; i < tx->vout.size(); ++i) {
+      CTxOut const &txout = tx->vout[i];
+      if (txout.nValue.IsExplicit() && txout.nNonce.vchCommitment.size() != 0)
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, strprintf("Output %u is unblinded, but has blinding pubkey attached, please use [raw]blindrawtransaction", i));
     }
-    CCoinsViewCache &view = *pcoinsTip;
-    const CCoins* existingCoins = view.AccessCoins(hashTx);
-    bool fHaveMempool = mempool.exists(hashTx);
-    bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
-    if (!fHaveMempool && !fHaveChain) {
-        // push to local node and sync with wallets
-        CValidationState state;
-        bool fMissingInputs;
-        if (!AcceptToMemoryPool(mempool, state, std::move(tx), fLimitFree, &fMissingInputs, NULL, false, nMaxRawTxFee)) {
-            if (state.IsInvalid()) {
-                throw JSONRPCError(RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
-            } else {
-                if (fMissingInputs) {
-                    throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
-                }
-                throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
-            }
-        }
-    } else if (fHaveChain) {
-        throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
+  }
+  CCoinsViewCache &view = *pcoinsTip;
+  CCoins const *existingCoins = view.AccessCoins(hashTx);
+  bool fHaveMempool = mempool.exists(hashTx);
+  bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
+  if (!fHaveMempool && !fHaveChain) {
+    // push to local node and sync with wallets
+    CValidationState state;
+    bool fMissingInputs;
+    if (!AcceptToMemoryPool(mempool, state, std::move(tx), fLimitFree, &fMissingInputs, NULL, false, nMaxRawTxFee)) {
+      if (state.IsInvalid()) {
+        throw JSONRPCError(RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
+      } else {
+        if (fMissingInputs)
+          throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
+      }
     }
-    if(!g_connman)
-        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
-    AuditLogPrintf("%s : sendrawtransaction %s\n", getUser(), hashTx.GetHex());
-    CInv inv(MSG_TX, hashTx);
-    g_connman->ForEachNode([&inv](CNode* pnode)
-    {
-        pnode->PushInventory(inv);
-    });
-    return hashTx.GetHex();
+  } else if (fHaveChain)
+    throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
+  if (!g_connman)
+    throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+  AuditLogPrintf("%s : sendrawtransaction %s\n", getUser(), hashTx.GetHex());
+  CInv inv(MSG_TX, hashTx);
+  g_connman->ForEachNode([&inv](CNode* pnode) { pnode->PushInventory(inv); });
+  return hashTx.GetHex();
 }
 
 static const CRPCCommand commands[] =
