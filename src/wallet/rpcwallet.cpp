@@ -1266,10 +1266,10 @@ UniValue getbalance(const JSONRPCRequest& request)
             wtx.GetAmounts(listReceived, listSent, allFee, strSentAccount, filter);
             if (wtx.GetDepthInMainChain() >= nMinDepth)
             {
-                BOOST_FOREACH(const COutputEntry& r, listReceived)
+                for (COutputEntry const &r : listReceived)
                     mapBalance[r.asset] += r.amount;
             }
-            BOOST_FOREACH(const COutputEntry& s, listSent)
+            for (COutputEntry const &s : listSent)
                 mapBalance[s.asset] -= s.amount;
             mapBalance[wtx.tx->GetFee().begin()->first] -= allFee;
             // Tally issuances since there are no corresponding "receives"
@@ -4510,10 +4510,10 @@ UniValue createrawburn(const JSONRPCRequest& request)
     CTxOut txoutAsset(asset,nAmount,destroyScript);
     rawTx.vout.push_back(txoutAsset);
 
-    //standard sequence number 
+    //standard sequence number
     uint32_t nSequence = (rawTx.nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
 
-    //generate input from the provided outpoint  
+    //generate input from the provided outpoint
     CTxIn in(tokenOutpoint, CScript(), nSequence);
 
     //push single input to raw transaction

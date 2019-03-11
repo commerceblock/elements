@@ -83,6 +83,7 @@ bool fRequireWhitelistCheck = DEFAULT_WHITELIST_CHECK;
 bool fScanWhitelist = DEFAULT_SCAN_WHITELIST;
 bool fEnableBurnlistCheck = DEFAULT_BURNLIST_CHECK;
 bool fRequireFreezelistCheck = DEFAULT_BURNLIST_CHECK;
+bool fRequireRequestListCheck = DEFAULT_REQUESTLIST_CHECK;
 bool fblockissuancetx = DEFAULT_BLOCK_ISSUANCE;
 bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
@@ -209,7 +210,7 @@ public:
 CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& locator)
 {
     // Find the first block the caller has in the main chain
-    BOOST_FOREACH(const uint256& hash, locator.vHave) {
+    for (uint256 const &hash : locator.vHave) {
         BlockMap::iterator mi = mapBlockIndex.find(hash);
         if (mi != mapBlockIndex.end())
         {
@@ -452,7 +453,7 @@ bool CheckSequenceLocks(const CTransaction &tx, int flags, LockPoints* lp, bool 
             // lock on a mempool input, so we can use the return value of
             // CheckSequenceLocks to indicate the LockPoints validity
             int maxInputHeight = 0;
-            BOOST_FOREACH(int height, prevheights) {
+            for (int height : prevheights) {
                 // Can ignore mempool inputs since we'll fail if they had non-zero locks
                 if (height != tip->nHeight+1) {
                     maxInputHeight = std::max(maxInputHeight, height);
@@ -1038,7 +1039,7 @@ void LimitMempoolSize(CTxMemPool& pool, size_t limit, unsigned long age) {
 
     std::vector<uint256> vNoSpendsRemaining;
     pool.TrimToSize(limit, &vNoSpendsRemaining);
-    BOOST_FOREACH(const uint256& removed, vNoSpendsRemaining)
+    for (uint256 const &removed : vNoSpendsRemaining)
         pcoinsTip->Uncache(removed);
 }
 
@@ -1067,51 +1068,41 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                               bool* pfMissingInputs, int64_t nAcceptTime, std::list<CTransactionRef>* plTxnReplaced,
                               bool fOverrideMempoolLimit, const CAmount& nAbsurdFee, std::vector<uint256>& vHashTxnToUncache, bool test_accept)
 {
-    const CTransaction& tx = *ptx;
-    const uint256 hash = tx.GetHash();
+    CTransaction const &tx = *ptx;
+    uint256 const hash = tx.GetHash();
     AssertLockHeld(cs_main);
     if (pfMissingInputs)
-        *pfMissingInputs = false;
-
+      *pfMissingInputs = false;
     if (!CheckTransaction(tx, state))
-        return false; // state filled in by CheckTransaction
-
+      return false; // state filled in by CheckTransaction
     // Coinbase is only valid in a block, not as a loose transaction
     if (tx.IsCoinBase())
-        return state.DoS(100, false, REJECT_INVALID, "coinbase");
-
+      return state.DoS(100, false, REJECT_INVALID, "coinbase");
     // Reject transactions with witness before segregated witness activates (override with -prematurewitness)
     bool witnessEnabled = IsWitnessEnabled(chainActive.Tip(), Params().GetConsensus());
-    if (!GetBoolArg("-prematurewitness",false) && tx.HasWitness() && !witnessEnabled) {
-        return state.DoS(0, false, REJECT_NONSTANDARD, "no-witness-yet", true);
-    }
-
+    if (!GetBoolArg("-prematurewitness",false) && tx.HasWitness() && !witnessEnabled)
+      return state.DoS(0, false, REJECT_NONSTANDARD, "no-witness-yet", true);
     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
     std::string reason;
     if (fRequireStandard && !IsStandardTx(tx, reason))
-        return state.DoS(0, false, REJECT_NONSTANDARD, reason);
-
+      return state.DoS(0, false, REJECT_NONSTANDARD, reason);
     // Accept only transactions that have P2PKH outputs with addresses in the whitelist
-    if (fRequireWhitelistCheck){
-      if(!IsBurn(tx) && !IsPolicy(tx) && !IsWhitelisted(tx))
-      return state.DoS(0, false, REJECT_NONSTANDARD, "non-whitelisted-address");
-    }
-
+    if (fRequireWhitelistCheck)
+      if (!IsBurn(tx) && !IsPolicy(tx) && !IsWhitelisted(tx))
+        return state.DoS(0, false, REJECT_NONSTANDARD, "non-whitelisted-address");
     // Only accept nLockTime-using transactions that can be mined in the next
     // block; we don't want our mempool filled up with transactions that can't
     // be mined yet.
     if (!CheckFinalTx(tx, STANDARD_LOCKTIME_VERIFY_FLAGS))
-        return state.DoS(0, false, REJECT_NONSTANDARD, "non-final");
-
+      return state.DoS(0, false, REJECT_NONSTANDARD, "non-final");
     // is it already in the memory pool?
     if (pool.exists(hash))
-        return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-in-mempool");
-
+      return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-in-mempool");
     // Check for conflicts with in-memory transactions
     std::set<uint256> setConflicts;
     {
     LOCK(pool.cs); // protect pool.mapNextTx
-    BOOST_FOREACH(const CTxIn &txin, tx.vin)
+    for (CTxIn const &txin : tx.vin)
     {
         auto itConflicting = pool.mapNextTx.find(txin.prevout);
         if (itConflicting != pool.mapNextTx.end()) {
@@ -1142,7 +1133,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         // do all inputs exist?
         // Note that this does not check for the presence of actual outputs (see the next check for that),
         // and only helps with filling in pfMissingInputs (to determine missing vs spent).
-        BOOST_FOREACH(const CTxIn txin, tx.vin) {
+        for (CTxIn const txin : tx.vin) {
             // Don't look for coins that only exist in parent chain
             if (txin.m_is_pegin) {
                 continue;
@@ -1194,32 +1185,32 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         // Check for non-standard pay-to-script-hash in inputs
         if (fRequireStandard && !AreInputsStandard(tx, view))
             return state.Invalid(false, REJECT_NONSTANDARD, "bad-txns-nonstandard-inputs");
-
-	    // Accept only transactions that spend from scriptSig inputs with pubkeys that are NOT on the freezelist
+	      // Accept only transactions that spend from scriptSig inputs with pubkeys that are NOT on the freezelist
         // Pubkeys that are on the freezelist AND the burnlist AND that are sent to OP_RETURN outputs are passed
-	    if (fRequireFreezelistCheck){
-	        if(IsFreezelisted(tx,view)){
-	            if(fEnableBurnlistCheck){
-	                if(!IsBurnlisted(tx,view))
-		               return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-no-burnlist-address");
-	                } else {
-	            return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-address");
-	            }
-	        }
-	    }
-
-        // Accept only transactions that are asset issuances if they have a policyAsset input. 
-        if(fblockissuancetx){
-            const CAssetIssuance& issuance = tx.vin[0].assetIssuance;
-            if (!issuance.IsNull() && !issuance.IsReissuance()) {
-                CAsset pAsset(policyAsset);
-                const CTxOut& prev = view.GetOutputFor(tx.vin[0]);
-                CAsset asset;
-                asset = prev.nAsset.GetAsset();
-                if(asset != pAsset) {
-                    return state.DoS(0, false, REJECT_NONSTANDARD, "blocked-asset-issuance-txn");
-                }
-            }
+        if (fRequireFreezelistCheck) {
+          if (IsFreezelisted(tx, view)) {
+            if (fEnableBurnlistCheck) {
+              if (!IsBurnlisted(tx, view))
+                return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-no-burnlist-address");
+            } else
+              return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-address");
+          }
+          if (!IsRedemption(tx))
+            return state.DoS(0, false, REJECT_NONSTANDARD, "redemption");
+        }
+        if (fEnableBurnlistCheck && !IsValidBurn(tx, view))
+          return state.DoS(0, false, REJECT_NONSTANDARD, "EnableBurnlistCheck-IsValidBurn");
+        // Accept only transactions that are asset issuances if they have a policyAsset input.
+        if (fblockissuancetx) {
+          CAssetIssuance const &issuance = tx.vin[0].assetIssuance;
+          if (!issuance.IsNull() && !issuance.IsReissuance()) {
+            CAsset pAsset(policyAsset);
+            CTxOut const &prev = view.GetOutputFor(tx.vin[0]);
+            CAsset asset;
+            asset = prev.nAsset.GetAsset();
+            if (asset != pAsset)
+              return state.DoS(0, false, REJECT_NONSTANDARD, "fblockissuancetx");
+          }
         }
 
         if (test_accept) {
@@ -1251,7 +1242,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         // during reorgs to ensure COINBASE_MATURITY is still met.
         // Also track withdraw lock spends to allow them through free relay
         bool fSpendsCoinbase = false;
-        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
+        for (CTxIn const &txin : tx.vin) {
             if (txin.m_is_pegin) {
                 continue;
             }
@@ -1306,7 +1297,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         // that we have the set of all ancestors we can detect this
         // pathological case by making sure setConflicts and setAncestors don't
         // intersect.
-        BOOST_FOREACH(CTxMemPool::txiter ancestorIt, setAncestors)
+        for (CTxMemPool::txiter ancestorIt : setAncestors)
         {
             const uint256 &hashAncestor = ancestorIt->GetTx().GetHash();
             if (setConflicts.count(hashAncestor))
@@ -1337,7 +1328,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             std::set<uint256> setConflictsParents;
             const int maxDescendantsToVisit = 100;
             CTxMemPool::setEntries setIterConflicting;
-            BOOST_FOREACH(const uint256 &hashConflicting, setConflicts)
+            for (uint256 const &hashConflicting : setConflicts)
             {
                 CTxMemPool::txiter mi = pool.mapTx.find(hashConflicting);
                 if (mi == pool.mapTx.end())
@@ -1373,7 +1364,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                                   oldFeeRate.ToString()));
                 }
 
-                BOOST_FOREACH(const CTxIn &txin, mi->GetTx().vin)
+                for (CTxIn const &txin : mi->GetTx().vin)
                 {
                     setConflictsParents.insert(txin.prevout.hash);
                 }
@@ -1386,10 +1377,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             if (nConflictingCount <= maxDescendantsToVisit) {
                 // If not too many to replace, then calculate the set of
                 // transactions that would have to be evicted
-                BOOST_FOREACH(CTxMemPool::txiter it, setIterConflicting) {
+                for (CTxMemPool::txiter it : setIterConflicting) {
                     pool.CalculateDescendants(it, allConflicting);
                 }
-                BOOST_FOREACH(CTxMemPool::txiter it, allConflicting) {
+                for (CTxMemPool::txiter it : allConflicting) {
                     nConflictingFees += it->GetModifiedFee();
                     nConflictingSize += it->GetTxSize();
                 }
@@ -1494,7 +1485,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         assert(setPeginsSpent2 == setPeginsSpent);
 
         // Remove conflicting transactions from the mempool
-        BOOST_FOREACH(const CTxMemPool::txiter it, allConflicting)
+        for (CTxMemPool::txiter const it: allConflicting)
         {
             LogPrint("mempool", "replacing tx %s with %s for %s BTC additional fees, %d delta bytes\n",
                     it->GetTx().GetHash().ToString(),
@@ -1535,7 +1526,7 @@ bool AcceptToMemoryPoolWithTime(CTxMemPool& pool, CValidationState &state, const
     std::vector<uint256> vHashTxToUncache;
     bool res = AcceptToMemoryPoolWorker(pool, state, tx, fLimitFree, pfMissingInputs, nAcceptTime, plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee, vHashTxToUncache, test_accept);
     if (!res) {
-        BOOST_FOREACH(const uint256& hashTx, vHashTxToUncache)
+        for (uint256 const &hashTx : vHashTxToUncache)
             pcoinsTip->Uncache(hashTx);
     }
     // After we've (potentially) uncached entries, ensure our coins cache is still within its size limits
@@ -1614,10 +1605,11 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
     return false;
 }
 
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
 // CBlock and CBlockIndex
 //
+////////////////////////////////////////////////////////////////////////////////
 
 bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
@@ -2274,7 +2266,7 @@ bool BitcoindRPCCheck(const bool init)
     std::vector<uint256> vblocksToReconsider;
     pblocktree->ReadInvalidBlockQueue(vblocksToReconsider);
     std::vector<uint256> vblocksToReconsiderAgain;
-    BOOST_FOREACH(uint256& blockhash, vblocksToReconsider) {
+    for (uint256 &blockhash : vblocksToReconsider) {
         CBlockIndex* pblockindex = mapBlockIndex[blockhash];
         if ((pblockindex->nStatus & BLOCK_FAILED_MASK)) {
             vblocksToReconsiderAgain.push_back(blockhash);
@@ -2330,7 +2322,7 @@ bool BitcoindRPCCheck(const bool init)
     */
     if (vblocksToReconsider.size() > 0) {
         CValidationState state;
-        BOOST_FOREACH(const uint256& blockhash, vblocksToReconsider) {
+        for (uint256 const &blockhash : vblocksToReconsider) {
             {
                 LOCK(cs_main);
                 if (mapBlockIndex.count(blockhash) == 0)
@@ -2348,7 +2340,7 @@ bool BitcoindRPCCheck(const bool init)
         }
 
         //Now to clear out now-valid blocks
-        BOOST_FOREACH(const uint256& blockhash, vblocksToReconsider) {
+        for (uint256 const &blockhash : vblocksToReconsider) {
             CBlockIndex* pblockindex = mapBlockIndex[blockhash];
 
             //Marked as invalid still, put back into queue
@@ -2648,7 +2640,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // Check that all non-zero coinbase outputs pay to the required destination
     if (chainparams.GetConsensus().mandatory_coinbase_destination != CScript()) {
-        BOOST_FOREACH(const CTxOut& txout, block.vtx[0]->vout) {
+        for (CTxOut const &txout : block.vtx[0]->vout) {
             if (txout.scriptPubKey != chainparams.GetConsensus().mandatory_coinbase_destination && !(txout.nValue.IsExplicit() && txout.nValue.GetAmount() == 0))
                 return state.DoS(100, error("ConnectBlock(): Coinbase outputs didnt match required scriptPubKey"),
                                  REJECT_INVALID, "bad-coinbase-txos");
@@ -3202,7 +3194,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
                     std::vector<uint256> vinvalidBlocks;
                     pblocktree->ReadInvalidBlockQueue(vinvalidBlocks);
                     bool blockAlreadyInvalid = false;
-                    BOOST_FOREACH(uint256& hash, vinvalidBlocks) {
+                    for (uint256 &hash : vinvalidBlocks) {
                         if (hash == blockConnecting.GetHash()) {
                             blockAlreadyInvalid = true;
                             break;
@@ -4260,7 +4252,7 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
 uint64_t CalculateCurrentUsage()
 {
     uint64_t retval = 0;
-    BOOST_FOREACH(const CBlockFileInfo &file, vinfoBlockFile) {
+    for (CBlockFileInfo const &file : vinfoBlockFile) {
         retval += file.nSize + file.nUndoSize;
     }
     return retval;
@@ -4463,13 +4455,13 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
     // Calculate nChainWork
     std::vector<std::pair<int, CBlockIndex*> > vSortedByHeight;
     vSortedByHeight.reserve(mapBlockIndex.size());
-    BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, mapBlockIndex)
+    for (std::pair<uint256, CBlockIndex*> const &item : mapBlockIndex)
     {
         CBlockIndex* pindex = item.second;
         vSortedByHeight.push_back(std::make_pair(pindex->nHeight, pindex));
     }
     sort(vSortedByHeight.begin(), vSortedByHeight.end());
-    BOOST_FOREACH(const PAIRTYPE(int, CBlockIndex*)& item, vSortedByHeight)
+    for (std::pair<int, CBlockIndex*> const &item : vSortedByHeight)
     {
         CBlockIndex* pindex = item.second;
         pindex->nChainWork = (pindex->pprev ? pindex->pprev->nChainWork : 0) + GetBlockProof(*pindex);
@@ -4518,7 +4510,7 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
     // Check presence of blk files
     LogPrintf("Checking all blk files are present...\n");
     std::set<int> setBlkDataFiles;
-    BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, mapBlockIndex)
+    for (std::pair<uint256, CBlockIndex*> const &item : mapBlockIndex)
     {
         CBlockIndex* pindex = item.second;
         if (pindex->nStatus & BLOCK_HAVE_DATA) {
@@ -4772,7 +4764,7 @@ void UnloadBlockIndex()
         warningcache[b].clear();
     }
 
-    BOOST_FOREACH(BlockMap::value_type& entry, mapBlockIndex) {
+    for (BlockMap::value_type &entry : mapBlockIndex) {
         delete entry.second;
     }
     mapBlockIndex.clear();
