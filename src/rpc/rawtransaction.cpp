@@ -593,16 +593,7 @@ UniValue createrawrequesttx(JSONRPCRequest const &request) {
   UniValue const &assetValue = find_value(input, KEY_ASSET);
   if (assetValue.isStr())
     asset = CAsset(ParseHashO(input, KEY_ASSET));
-  //////////////////////////////////////////////////////////////////////////////
-  /// TODO: Ugly code
-  //////////////////////////////////////////////////////////////////////////////
-  UniValue const &startBlockHeight = output[KEY_START_BLOCK_HEIGHT];
-  if (!startBlockHeight.isNum())
-    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_START_BLOCK_HEIGHT);
-  if (startBlockHeight.get_int() < 0)
-    throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_START_BLOCK_HEIGHT_VALUE);
-  rawTx.nLockTime = startBlockHeight.get_int();
-  //////////////////////////////////////////////////////////////////////////////
+  rawTx.nLockTime = chainActive.Height();
   createrawrequesttx_input(rawTx, input);
   createrawrequesttx_first_output(rawTx, asset, output);
   createrawrequesttx_second_output(rawTx, asset, output);
