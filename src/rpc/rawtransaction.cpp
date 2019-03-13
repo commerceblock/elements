@@ -593,7 +593,6 @@ UniValue createrawrequesttx(JSONRPCRequest const &request) {
   UniValue const &assetValue = find_value(input, KEY_ASSET);
   if (assetValue.isStr())
     asset = CAsset(ParseHashO(input, KEY_ASSET));
-  rawTx.nLockTime = UINT_MAX - 1;
   createrawrequesttx_input(rawTx, input);
   createrawrequesttx_first_output(rawTx, asset, output);
   createrawrequesttx_second_output(rawTx, asset, output);

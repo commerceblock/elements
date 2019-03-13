@@ -46,6 +46,9 @@ def test_redemption_1(node):
   # Send Transaction and try if is valid or not valid
   #=============================================================================
   txid = node.testmempoolaccept(signedtx["hex"])
+
+  print(txid)
+
   if txid["allowed"] == 0:
     print(txid)
     return False

@@ -29,7 +29,7 @@ def test_validBurn_1(node):
     "endBlockHeight": 20000,
     "fee": 1,
     "genesisBlockHash": genesis,
-    "startBlockHeight": 10000,
+    "startBlockHeight": 10,
     "tickets": 10
   }
   #=============================================================================
@@ -37,6 +37,13 @@ def test_validBurn_1(node):
   #=============================================================================
   try:
     tx = node.createrawrequesttx(inputs, outputs)
+    signedtx = node.signrawtransaction(tx)
+    #===========================================================================
+    # Send Transaction and try if is valid or not valid
+    #===========================================================================
+    txid = node.testmempoolaccept(signedtx["hex"])
+    if txid["allowed"] == 0:
+      return False
     return True
   except:
     return False
