@@ -501,6 +501,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-embedcontract", _("Embed contract in the block header and address derivation"));
     strUsage += HelpMessageOpt("-embedmapping", _("Embed asset mapping object in the block header"));
     strUsage += HelpMessageOpt("-issuecontrolscript", _("Embed the issuance controller script in the genesis block"));
+    strUsage += HelpMessageOpt("-recordinflation", _("Record issuance data and freeze history"));
 
     strUsage += HelpMessageGroup(_("RPC server options:"));
     strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands"));
@@ -1107,6 +1108,8 @@ bool AppInitParameterInteraction()
     //Acceptance of OP_REGISTERADDRESS 
     fAcceptRegisteraddress = GetBoolArg("-registeraddress", DEFAULT_ACCEPT_REGISTERADDRESS);
     nMaxRegisteraddressBytes = GetArg("-registeraddresssize", nMaxRegisteraddressBytes);
+
+    fRecordInflation = GetBoolArg("-recordinflation", DEFAULT_PERMIT_BAREMULTISIG);
 
     // Option to startup with mocktime set (used for regression testing):
     SetMockTime(GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op

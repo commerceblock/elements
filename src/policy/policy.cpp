@@ -7,6 +7,7 @@
 
 #include "policy/policy.h"
 #include "validation.h"
+#include "issuance.h"
 
 using namespace std;
 
@@ -402,6 +403,74 @@ bool UpdateBurnList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         }
     }
     return true;
+}
+
+bool UpdateAssetMap(const CTransaction& tx)
+{
+    if(!tx.vin[0].assetIssuance.IsNull()){
+        if(!tx.vin[0].assetIssuance.IsReissuance()) {
+            IssuanceData newIssuance;
+
+            uint256 entropy;
+            GenerateAssetEntropy(entropy, tx.vin[0].prevout, tx.vin[0].assetIssuance.assetEntropy);
+            newIssuance.entropy = entropy;
+
+            CAsset asset;
+            CalculateAsset(asset, entropy);
+            CAsset token;
+            CalculateReissuanceToken(token, entropy, false);
+            newIssuance.token = token.id;
+            newIssuance.asset = asset;
+
+            assetEntropyMap.push_back(newIssuance);
+        }
+    }
+  return true;
+}
+
+void UpdateFreezeHistory(const CTransaction& tx)
+{
+    //is the transaction a redemption transaction
+    txnouttype whichType;
+    bool isfrz = false;
+    for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
+        vector<vector<uint8_t>> vSolutions;
+        if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
+            if (whichType == TX_PUBKEYHASH && uint160(vSolutions[0]).IsNull()) isfrz = true;
+        }
+    }
+    //if a redemption/freeze transaction then add outputs to the history list
+    uint256 txhash = tx.GetHash();
+    if(isfrz) {
+        FreezeHist histEntry;
+        for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
+            vector<vector<uint8_t>> vSolutions;
+            if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
+                if (whichType == TX_PUBKEYHASH && !uint160(vSolutions[0]).IsNull()) {
+                    histEntry.txid = txhash;
+                    histEntry.vout = itr;
+                    histEntry.asset = tx.vout[itr].nAsset.GetAsset();
+                    histEntry.freezeheight = chainActive.Height();
+                    histEntry.spendheight = 0;
+                    freezeHistList.push_back(histEntry);
+                }
+            }
+        }
+    // else check if any inputs txids are already on the history list
+    } else {
+        //loop over tx inputs
+        for (uint32_t itr = 0; itr < tx.vin.size(); ++itr) {
+            //for each input, check if the outpoint is in the history list
+            for (uint32_t itr2 = 0; itr2 < freezeHistList.size(); ++itr2) {
+                if(tx.vin[itr].prevout.n == freezeHistList[itr2].vout && tx.vin[itr].prevout.hash == freezeHistList[itr].txid) {
+                    //if not burn, add spend-height
+                    if(!IsBurn(tx)) {
+                        freezeHistList[itr2].spendheight = chainActive.Height();
+                    }
+                }
+            }
+        }
+    }
 }
 
 bool LoadFreezeList(CCoinsView *view)
