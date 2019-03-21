@@ -939,8 +939,8 @@ bool VerifyAmounts(const CCoinsViewCache& cache, const CTransaction& tx, std::ve
                 if (tx.vout[i].scriptPubKey.IsUnspendable()) {
                     continue;
                 } else {
-                    // No spendable 0-value outputs
-                    return false;
+                    // allow zero value outputs
+                    continue;
                 }
             }
 
