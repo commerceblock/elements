@@ -1109,7 +1109,7 @@ bool AppInitParameterInteraction()
     fAcceptRegisteraddress = GetBoolArg("-registeraddress", DEFAULT_ACCEPT_REGISTERADDRESS);
     nMaxRegisteraddressBytes = GetArg("-registeraddresssize", nMaxRegisteraddressBytes);
 
-    fRecordInflation = GetBoolArg("-recordinflation", DEFAULT_PERMIT_BAREMULTISIG);
+    fRecordInflation = GetBoolArg("-recordinflation", DEFAULT_RECORD_INFLATION);
 
     // Option to startup with mocktime set (used for regression testing):
     SetMockTime(GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op
