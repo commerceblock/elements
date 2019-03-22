@@ -183,6 +183,11 @@ struct FreezeHist
 	uint32_t vout;
 	uint32_t freezeheight;
 	uint32_t spendheight;
+	CAmount value;
+	bool operator==(const FreezeHist& p) const
+	{
+		return txid == p.txid && vout == p.vout;
+	}
 };
 
 // list of issued asset IDs to tokens and entropy

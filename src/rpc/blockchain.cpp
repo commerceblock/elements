@@ -1052,7 +1052,6 @@ UniValue getutxoassetinfo(const JSONRPCRequest& request)
                 if(!fd) {
                     item.push_back(Pair("entropy","null"));
                     item.push_back(Pair("token","null"));
-                    item.push_back(Pair("size",std::to_string(assetEntropyMap.size())));
                 }
             }
     	    ret.push_back(item);
@@ -1065,7 +1064,7 @@ UniValue getutxoassetinfo(const JSONRPCRequest& request)
 
 UniValue getfreezehistory(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 1)
+    if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
             "getfreezehistory height\n"
             "Returns an array conatining the history of frozen (redemption) transactions\n"
@@ -1083,7 +1082,9 @@ UniValue getfreezehistory(const JSONRPCRequest& request)
             + HelpExampleRpc("getblockchaininfo", "0")
         );
 
-    uint32_t nHeight = request.params[0].get_int();
+//    uint32_t nHeight = request.params[0].get_int();
+
+    uint32_t nHeight = 0;
 
     UniValue ar(UniValue::VARR);
     uint32_t bh = chainActive.Height();
@@ -1093,6 +1094,7 @@ UniValue getfreezehistory(const JSONRPCRequest& request)
             obj.push_back(Pair("txid",freezeHistList[itr].txid.GetHex()));
             obj.push_back(Pair("vout",(int)freezeHistList[itr].vout));
             obj.push_back(Pair("asset",freezeHistList[itr].asset.GetHex()));
+            obj.push_back(Pair("value",ValueFromAmount(freezeHistList[itr].value)));
             obj.push_back(Pair("start",(int)freezeHistList[itr].freezeheight));
             obj.push_back(Pair("end",(int)freezeHistList[itr].spendheight));
             ar.push_back(obj);
@@ -2387,7 +2389,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "gettxout",               &gettxout,               true,  {"txid","n","include_mempool"} },
     { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true,  {} },
     { "blockchain",         "getutxoassetinfo",       &getutxoassetinfo,       true,  {} },
-    { "blockchain",         "getfreezehistory",       &getfreezehistory,       true,  {} },
+    { "blockchain",         "getfreezehistory",       &getfreezehistory,       true,  {"height"} },
     { "blockchain",         "pruneblockchain",        &pruneblockchain,        true,  {"height"} },
     { "blockchain",         "verifychain",            &verifychain,            true,  {"checklevel","nblocks"} },
 

@@ -159,7 +159,7 @@ bool LoadBurnList(CCoinsView *view);
 bool UpdateAssetMap(const CTransaction& tx);
 
     //function to track the history of frozen outputs
-bool UpdateFreezeHistory(const CTransaction& tx);
+void UpdateFreezeHistory(const CTransaction& tx, uint32_t bheight);
 
 bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
     /**

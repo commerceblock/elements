@@ -1633,7 +1633,7 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool f
                     }
                     if(fRecordInflation){
                         UpdateAssetMap(*block.vtx[posInBlock]);
-                        UpdateFreezeHistory(*block.vtx[posInBlock]);
+                        UpdateFreezeHistory(*block.vtx[posInBlock],pindex->nHeight);
                     }
                     AddToWalletIfInvolvingMe(*block.vtx[posInBlock], pindex, posInBlock, fUpdate);
                 }

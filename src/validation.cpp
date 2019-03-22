@@ -2811,7 +2811,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
         if(fRecordInflation) {
             UpdateAssetMap(tx);
-            UpdateFreezeHistory(tx);
+            UpdateFreezeHistory(tx,chainActive.Height()+1);
         }
         
         // GetTransactionSigOpCost counts 3 types of sigops:

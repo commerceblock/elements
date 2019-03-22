@@ -428,7 +428,7 @@ bool UpdateAssetMap(const CTransaction& tx)
   return true;
 }
 
-void UpdateFreezeHistory(const CTransaction& tx)
+void UpdateFreezeHistory(const CTransaction& tx, uint32_t bheight)
 {
     //is the transaction a redemption transaction
     txnouttype whichType;
@@ -450,23 +450,26 @@ void UpdateFreezeHistory(const CTransaction& tx)
                     histEntry.txid = txhash;
                     histEntry.vout = itr;
                     histEntry.asset = tx.vout[itr].nAsset.GetAsset();
-                    histEntry.freezeheight = chainActive.Height();
+                    histEntry.freezeheight = bheight;
                     histEntry.spendheight = 0;
-                    freezeHistList.push_back(histEntry);
+                    histEntry.value = tx.vout[itr].nValue.GetAmount();
+
+                    if(std::find(freezeHistList.begin(), freezeHistList.end(), histEntry)==freezeHistList.end()) {
+                        freezeHistList.push_back(histEntry);
+                    }
                 }
             }
         }
     // else check if any inputs txids are already on the history list
-    } else {
-        //loop over tx inputs
-        for (uint32_t itr = 0; itr < tx.vin.size(); ++itr) {
-            //for each input, check if the outpoint is in the history list
-            for (uint32_t itr2 = 0; itr2 < freezeHistList.size(); ++itr2) {
-                if(tx.vin[itr].prevout.n == freezeHistList[itr2].vout && tx.vin[itr].prevout.hash == freezeHistList[itr].txid) {
-                    //if not burn, add spend-height
-                    if(!IsBurn(tx)) {
-                        freezeHistList[itr2].spendheight = chainActive.Height();
-                    }
+    }
+    //loop over tx inputs
+    for (uint32_t itr = 0; itr < tx.vin.size(); ++itr) {
+    //for each input, check if the outpoint is in the history list
+        for (uint32_t itr2 = 0; itr2 < freezeHistList.size(); ++itr2) {
+            if(tx.vin[itr].prevout.n == freezeHistList[itr2].vout && tx.vin[itr].prevout.hash == freezeHistList[itr2].txid) {
+                //if not burn, add spend-height
+                if(!IsBurn(tx)) {
+                    freezeHistList[itr2].spendheight = bheight;
                 }
             }
         }
