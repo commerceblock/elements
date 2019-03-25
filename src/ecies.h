@@ -2,19 +2,21 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-//A wrapper class for AES256CBCEncryption
+//An implementation of ECIES AES256CBC Encryption
 
 #pragma once
 
 #include "key.h"
 #include "crypto/aes.h"
+#include "crypto/sha1.h"
+#include "crypto/sha512.h"
+#include "crypto/hmac_sha256.h"
 
 typedef std::vector<unsigned char> uCharVec;
 
 class CECIES{
 public:
 	CECIES();
-	CECIES(const CKey& privKey, const CPubKey& pubKey,  const uCharVec iv);
 	CECIES(const CKey& privKey, const CPubKey& pubKey);
 
 	~CECIES();
@@ -23,36 +25,40 @@ public:
     * Encrypt/decrypt a message string.
     */
 
-    bool Encrypt(uCharVec& em, 
-    	const uCharVec& m) const;
+	bool Encrypt(uCharVec& em, 
+   	const uCharVec& m);
+
     bool Decrypt(uCharVec& m, 
-    	const uCharVec& em) const;
+    	const uCharVec& em);
     bool Encrypt(std::string& em, 
-    	const std::string& m) const;
+    	const std::string& m);
     bool Decrypt(std::string& m, 
-    	const std::string& em) const;
+    	const std::string& em);
 
     bool Test1();
-
-	uCharVec get_iv();
-	bool set_iv(uCharVec iv);
 
 	bool OK(){return _bOK;}
 
 private:
-	unsigned char _iv[AES_BLOCKSIZE];
-	unsigned char _k[AES256_KEYSIZE];
+	CPubKey _pubKey;
+	CKey _privKey;
+	CKey _ephemeralKey;
 
-	unsigned char _padChar=0;
+	unsigned char _k_mac_encrypt[CSHA1::OUTPUT_SIZE];
+	unsigned char _k_mac_decrypt[CSHA1::OUTPUT_SIZE];
 
 	AES256CBCEncrypt* _encryptor;
 	AES256CBCDecrypt* _decryptor;
 
 	bool Initialize();
+	bool InitEncryptor();
+	bool InitDecryptor(const uCharVec& encryptedMessage);
+	bool CheckMagic(const uCharVec& encryptedMessage) const;
 
 	bool _bOK = false;
 
 	void check(const CKey& privKey, const CPubKey& pubKey);
-	void check(const CKey& privKey, const CPubKey& pubKey, const uCharVec iv);
 
+	//Use the electrum wallet default "magic" string
+	const uCharVec _magic{'B', 'I', 'E', '1'};
 };

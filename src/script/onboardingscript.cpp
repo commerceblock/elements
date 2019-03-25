@@ -48,10 +48,6 @@ bool COnboardingScript::Finalize(CScript& script){
 	ucvec sendData = vPubKeyKYC;
 	sendData.insert(sendData.end(), vPubKeyUser.begin(), vPubKeyUser.end());
 
-    //Append the initialization vector used in the encryption
-    ucvec initVec = _encryptor->get_iv();
-    sendData.insert(sendData.end(), initVec.begin(), initVec.end());
-
 	//Append the encrypted addresses
     sendData.insert(sendData.end(), _encrypted.begin(), _encrypted.end()); 
 

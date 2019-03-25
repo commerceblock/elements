@@ -812,19 +812,14 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
 
     encryptor.Encrypt(vEnc, vRaw);
 
-    //Append the initialization vector to the file
-    std::vector<unsigned char> vInitVec = encryptor.get_iv();
-    std::string sInitVec(HexStr(vInitVec.begin(), vInitVec.end()));
-
-
-    std::string sEncHex(HexStr(vEnc.begin(), vEnc.end()));
+    std::string sEnc(vEnc.begin(), vEnc.end());
 
     //Append the initialization vector and encrypted keys
     std::string sOnboardUserPubKey = HexStr(onboardUserPubKey.begin(), onboardUserPubKey.end());
-    file << strprintf("%s %s %s %d\n", HexStr(onboardPubKey.begin(), onboardPubKey.end()), 
-        sOnboardUserPubKey, sInitVec, sEncHex.size());
+    file << strprintf("%s %s %d\n", HexStr(onboardPubKey.begin(), onboardPubKey.end()), 
+        sOnboardUserPubKey, sEnc.size());
 
-    file << sEncHex << "\n";
+    file << sEnc << "\n";
     file << "# End of dump\n";
     file.close();
 

@@ -23,8 +23,7 @@ public:
 	virtual bool FinalizeUnencrypted(CScript& script);
 	bool Append(const CPubKey& key);
 	bool Append(const std::vector<CPubKey>& keys);
-	//Get the initialization vector (randomly generated) used in the encryption
-	ucvec GetInitVec();
+
 	virtual void clear(){_payload.clear(); _encrypted.clear(); ((CScript*)this)->clear();}
 
 protected:

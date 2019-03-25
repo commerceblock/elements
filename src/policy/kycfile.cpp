@@ -19,7 +19,6 @@ void CKYCFile::clear(){
     delete _encryptor;
     delete _onboardPubKey;
     delete _onboardUserPubKey;
-    delete _initVec;
 }
 
 bool CKYCFile::close(){
@@ -99,13 +98,7 @@ bool CKYCFile::read(){
                         std::error_code(CKYCFile::Errc::INVALID_ADDRESS_OR_KEY, std::system_category()),
                         std::string(std::string(__func__) +  ": invalid onboard user pub key in kyc file"));
 
-            _initVec = new std::vector<unsigned char>(ParseHex(vstr[2]));
-            if(_initVec->size() != AES_BLOCKSIZE)
-                 throw std::system_error(
-                        std::error_code(CKYCFile::Errc::INVALID_PARAMETER, std::system_category()),
-                        std::string(std::string(__func__) +  ": invalid initialization vector in KYC file"));
-
-            initEncryptor(&onboardPrivKey, _onboardUserPubKey, _initVec);
+            initEncryptor(&onboardPrivKey, _onboardUserPubKey);
             std::stringstream ssNBytes;
             ssNBytes << vstr[3];
             ssNBytes >> nBytesToRead;
@@ -122,7 +115,7 @@ bool CKYCFile::read(){
         }
         if(size == nBytesToRead){
             if(data.size()==0){
-                std::vector<unsigned char> vch(ParseHex(ss.str()));
+                std::vector<unsigned char> vch(ss.str().begin(), ss.str().end());
                 std::vector<unsigned char> vdata;
                 if(!_encryptor->Decrypt(vdata, vch))
                     throw std::system_error(
@@ -175,12 +168,9 @@ bool CKYCFile::read(){
     return true;
 }
 
-bool CKYCFile::initEncryptor(CKey* privKey, CPubKey* pubKey, uc_vec* initVec){
+bool CKYCFile::initEncryptor(CKey* privKey, CPubKey* pubKey){
     _onboardUserPubKey=pubKey;
-    _initVec=initVec;
     delete _encryptor;
-     if(_initVec)
-        _encryptor = new CECIES(*privKey, *_onboardUserPubKey, *_initVec);
     _encryptor = new CECIES(*privKey, *_onboardUserPubKey);
     return _encryptor->OK();
 }

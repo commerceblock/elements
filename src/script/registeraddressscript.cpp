@@ -32,7 +32,7 @@ bool CRegisterAddressScript::Finalize(CScript& script){
     _encryptor->Encrypt(_encrypted, _payload);
 //    _encrypted.insert(_encrypted.begin(),_payload.begin(), _payload.end());
     //Prepend the initialization vector used in the encryption
-    ucvec sendData = _encryptor->get_iv();
+    ucvec sendData;
     sendData.insert(sendData.end(), _encrypted.begin(), _encrypted.end()); 
     //Assemble the script and return
     script.clear();
@@ -76,14 +76,5 @@ bool CRegisterAddressScript::Append(const std::vector<CPubKey>& keys){
       Append(pubKey);
     }
     return true;
-}
-
-//Get the initialization vector (randomly generated) used in the encryption
-ucvec CRegisterAddressScript::GetInitVec(){
-	ucvec result;
-	if(_encryptor){
-		result=_encryptor->get_iv();
-	}
-	return result;
 }
 
