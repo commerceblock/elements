@@ -123,6 +123,7 @@ bool IsPolicy(CTransaction const &tx) {
   for (CTxOut const &txout : tx.vout)
     if (IsPolicy(txout.nAsset.GetAsset()))
       return true;
+}
 
 bool IsPolicy(const CAsset& asset){
   if(asset == freezelistAsset ||
