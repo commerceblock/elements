@@ -501,6 +501,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-embedcontract", _("Embed contract in the block header and address derivation"));
     strUsage += HelpMessageOpt("-embedmapping", _("Embed asset mapping object in the block header"));
     strUsage += HelpMessageOpt("-issuecontrolscript", _("Embed the issuance controller script in the genesis block"));
+    strUsage += HelpMessageOpt("-recordinflation", _("Record issuance data and freeze history"));
 
     strUsage += HelpMessageGroup(_("RPC server options:"));
     strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands"));
@@ -530,7 +531,8 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-freezelistcoinsdestination", strprintf(_("The destination of the tokens for controlling the freezelist (default: %d)"), 0));
         strUsage += HelpMessageOpt("-burnlistcoinsdestination", strprintf(_("The destination of the tokens for controlling the burnlist. (default: %d)"), 0));
         strUsage += HelpMessageOpt("-whitelistcoinsdestination", strprintf(_("The destination of the tokens for controlling the whitelist. (default: %d)"), 0));
-            }
+        strUsage += HelpMessageOpt("-challengecoinsdestination", strprintf(_("The destination of the tokens for issuing guardnode challenges. (default: %d)"), 0));
+    }
     strUsage += HelpMessageOpt("-validatepegin", strprintf(_("Validate pegin claims. All functionaries must run this. (default: %u)"), DEFAULT_VALIDATE_PEGIN));
     strUsage += HelpMessageOpt("-mainchainrpchost=<addr>", strprintf("The address which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
     strUsage += HelpMessageOpt("-mainchainrpcport=<port>", strprintf("The port which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
@@ -1042,8 +1044,11 @@ bool AppInitParameterInteraction()
     if(GetArg("-burnlistcoinsdestination", "").size() > 0) {
         burnlistAsset = CAsset(uint256S(chainparams.GetConsensus().burnlist_asset.GetHex()));
     }
-     if(GetArg("-whitelistcoinsdestination", "").size() > 0) {
+    if(GetArg("-whitelistcoinsdestination", "").size() > 0) {
         whitelistAsset = CAsset(uint256S(chainparams.GetConsensus().whitelist_asset.GetHex()));
+    }
+    if(GetArg("-challengecoinsdestination", "").size() > 0) {
+        challengeAsset = CAsset(uint256S(chainparams.GetConsensus().challenge_asset.GetHex()));
     }
 
     // Fee-per-kilobyte amount considered the same as "free"
@@ -1104,9 +1109,12 @@ bool AppInitParameterInteraction()
     //Acceptance of data in OP_RETURN
     fAcceptDatacarrier = GetBoolArg("-datacarrier", DEFAULT_ACCEPT_DATACARRIER);
     nMaxDatacarrierBytes = GetArg("-datacarriersize", nMaxDatacarrierBytes);
-    //Acceptance of OP_REGISTERADDRESS 
+    //Acceptance of OP_REGISTERADDRESS
     fAcceptRegisteraddress = GetBoolArg("-registeraddress", DEFAULT_ACCEPT_REGISTERADDRESS);
     nMaxRegisteraddressBytes = GetArg("-registeraddresssize", nMaxRegisteraddressBytes);
+
+    fRecordInflation = GetBoolArg("-recordinflation", DEFAULT_RECORD_INFLATION);
+
     // Option to startup with mocktime set (used for regression testing):
     SetMockTime(GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op
     if (GetBoolArg("-peerbloomfilters", DEFAULT_PEERBLOOMFILTERS))
