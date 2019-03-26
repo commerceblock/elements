@@ -284,11 +284,11 @@ bool CWhiteList::RegisterAddress(const CTransaction& tx, const CCoinsViewCache& 
   bool bSuccess=false;
 
   //Decrypt
-  CECIES decryptor(decryptPrivKey, *decryptPubKey);
+  CECIES decryptor;
   if(!decryptor.OK()) return false;
   std::vector<unsigned char> data;
   data.resize(encryptedData.size());
-  decryptor.Decrypt(data, encryptedData);
+  decryptor.Decrypt(data, encryptedData, decryptPrivKey);
     
   //Interpret the data
   //First 20 bytes: keyID 

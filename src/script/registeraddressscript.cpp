@@ -20,16 +20,16 @@ CRegisterAddressScript::~CRegisterAddressScript(){
 }
 
 //Encrypt the payload using the public, private key and build the script.
-bool CRegisterAddressScript::SetKeys(const CKey* privKey, const CPubKey* pubKey){
+bool CRegisterAddressScript::InitEncryptor(){
 	if(_encryptor) delete _encryptor;
-    _encryptor = new CECIES(*privKey, *pubKey);
+    _encryptor = new CECIES();
     return _encryptor->OK();
 }
 
 //Encrypt the payload, buid the script and return it.
-bool CRegisterAddressScript::Finalize(CScript& script){
+bool CRegisterAddressScript::Finalize(CScript& script, const CPubKey& ePubKey, const CKey& ePrivKey){
     _encrypted.clear();
-    _encryptor->Encrypt(_encrypted, _payload);
+    _encryptor->Encrypt(_encrypted, _payload, ePubKey, ePrivKey);
 //    _encrypted.insert(_encrypted.begin(),_payload.begin(), _payload.end());
     //Prepend the initialization vector used in the encryption
     ucvec sendData;

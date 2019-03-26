@@ -29,7 +29,7 @@ class CKYCFile{
 		bool close();
 		bool open(std::string filename);
 
-		bool initEncryptor(CKey* privKey, CPubKey* pubKey);
+		bool initEncryptor();
 
 		std::vector<CPubKey> getAddressKeys() const {return _addressKeys;}
 		const CPubKey* getOnboardPubKey() const {return _onboardPubKey;}

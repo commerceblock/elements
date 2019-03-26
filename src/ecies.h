@@ -4,21 +4,17 @@
 
 //An implementation of ECIES AES256CBC Encryption
 
-#pragma once
+#ifndef OCEAN_ECIES_H
+#define OCEAN_ECIES_H
 
 #include "key.h"
 #include "crypto/aes.h"
-#include "crypto/sha1.h"
-#include "crypto/sha512.h"
-#include "crypto/hmac_sha256.h"
 
 typedef std::vector<unsigned char> uCharVec;
 
 class CECIES{
 public:
 	CECIES();
-	CECIES(const CKey& privKey, const CPubKey& pubKey);
-
 	~CECIES();
 	
 	/**
@@ -26,33 +22,33 @@ public:
     */
 
 	bool Encrypt(uCharVec& em, 
-   	const uCharVec& m);
-
+   	const uCharVec& m, const CPubKey& pubKey);
+   	//Use a defined priv key instead of an ephemeral one.
+   	bool Encrypt(uCharVec& em, 
+   	const uCharVec& m, const CPubKey& pubKey, const CKey& privKey);
     bool Decrypt(uCharVec& m, 
-    	const uCharVec& em);
+    	const uCharVec& em, const CKey& privKey);
     bool Encrypt(std::string& em, 
-    	const std::string& m);
+    	const std::string& m, const CPubKey& pubKey);
     bool Decrypt(std::string& m, 
-    	const std::string& em);
+    	const std::string& em, const CKey& privKey);
 
     bool Test1();
 
 	bool OK(){return _bOK;}
 
 private:
-	CPubKey _pubKey;
-	CKey _privKey;
-	CKey _ephemeralKey;
 
-	unsigned char _k_mac_encrypt[CSHA1::OUTPUT_SIZE];
-	unsigned char _k_mac_decrypt[CSHA1::OUTPUT_SIZE];
+	unsigned char _k_mac_encrypt[AES256_KEYSIZE];
+	unsigned char _k_mac_decrypt[AES256_KEYSIZE];
 
-	AES256CBCEncrypt* _encryptor;
-	AES256CBCDecrypt* _decryptor;
+	AES256CBCEncrypt* _encryptor = nullptr;
+	AES256CBCDecrypt* _decryptor = nullptr;
 
 	bool Initialize();
-	bool InitEncryptor();
-	bool InitDecryptor(const uCharVec& encryptedMessage);
+	bool InitEncryptor(const CPubKey& pubKey);
+	bool InitEncryptor(const CPubKey& pubKey, const CKey& privKey);
+	bool InitDecryptor(const uCharVec& encryptedMessage, const CKey& privKey, uCharVec& ciphertext);
 	bool CheckMagic(const uCharVec& encryptedMessage) const;
 
 	bool _bOK = false;
@@ -60,5 +56,7 @@ private:
 	void check(const CKey& privKey, const CPubKey& pubKey);
 
 	//Use the electrum wallet default "magic" string
-	const uCharVec _magic{'B', 'I', 'E', '1'};
+	const uCharVec _magic{'B','I','E','1'};
 };
+
+#endif //#ifndef OCEAN_ECIES_H

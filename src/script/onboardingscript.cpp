@@ -22,16 +22,18 @@ COnboardingScript::~COnboardingScript(){
 
 }
 
-bool COnboardingScript::SetKeys(const CKey* privKey, const CPubKey* pubKey){
-    CRegisterAddressScript::SetKeys(privKey, pubKey);
-    _kycPubKey=privKey->GetPubKey();
-    _userPubKey=*pubKey;
-    return true;
-}
+//bool COnboardingScript::SetKeys(const CKey* privKey, const CPubKey* pubKey){
+//    CRegisterAddressScript::SetKeys(privKey, pubKey);
+//    _kycPubKey=privKey->GetPubKey();
+//    _userPubKey=*pubKey;
+//    return true;
+//}
 
-bool COnboardingScript::Finalize(CScript& script){
+bool COnboardingScript::Finalize(CScript& script, 
+                    const CPubKey& onboardPubKey, 
+                    const CKey& kycPrivKey){
    	_encrypted.clear();
-    _encryptor->Encrypt(_encrypted, _payload);
+    _encryptor->Encrypt(_encrypted, _payload, onboardPubKey, kycPrivKey);
 
     //Onboarding keys    	
     ucvec vPubKeyKYC = ToByteVector(_kycPubKey);

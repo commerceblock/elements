@@ -798,9 +798,8 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
     
 
     //Encrypt the above string
-    CECIES encryptor(onboardUserKey, onboardPubKey);
-    if(!encryptor.OK())
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot set encryption keys");
+    CECIES encryptor;
+    
     std::string encrypted;
     //Remove new line character from end of string
 
@@ -809,8 +808,9 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
     std::vector<unsigned char> vRaw(sRaw.begin(), sRaw.end());
     std::vector<unsigned char> vEnc;
 
-
-    encryptor.Encrypt(vEnc, vRaw);
+if(!encryptor.Encrypt(vEnc, vRaw, onboardPubKey, onboardUserKey))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Encryption failed.");
+    
 
     std::string sEnc(vEnc.begin(), vEnc.end());
 

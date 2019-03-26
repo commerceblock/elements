@@ -67,6 +67,8 @@ bool CKYCFile::read(){
             }
         }
 
+        CKey onboardPrivKey;   
+
         //Read the metadata and initialize the decryptor
         if(!_onboardUserPubKey){
             _decryptedStream << line << "\n";
@@ -85,7 +87,6 @@ bool CKYCFile::read(){
                         std::error_code(CKYCFile::Errc::INVALID_ADDRESS_OR_KEY, std::system_category()),
                         std::string(std::string(__func__) +  ": invalid kyc pub key in KYC file"));
 
-            CKey onboardPrivKey;
             if(!pwalletMain->GetKey(_onboardPubKey->GetID(), onboardPrivKey))
                 throw std::system_error(
                         std::error_code(CKYCFile::Errc::WALLET_KEY_ACCESS_ERROR, std::system_category()),
@@ -98,7 +99,7 @@ bool CKYCFile::read(){
                         std::error_code(CKYCFile::Errc::INVALID_ADDRESS_OR_KEY, std::system_category()),
                         std::string(std::string(__func__) +  ": invalid onboard user pub key in kyc file"));
 
-            initEncryptor(&onboardPrivKey, _onboardUserPubKey);
+            initEncryptor();
             std::stringstream ssNBytes;
             ssNBytes << vstr[3];
             ssNBytes >> nBytesToRead;
@@ -117,7 +118,7 @@ bool CKYCFile::read(){
             if(data.size()==0){
                 std::vector<unsigned char> vch(ss.str().begin(), ss.str().end());
                 std::vector<unsigned char> vdata;
-                if(!_encryptor->Decrypt(vdata, vch))
+                if(!_encryptor->Decrypt(vdata, vch, onboardPrivKey))
                     throw std::system_error(
                         std::error_code(CKYCFile::Errc::ENCRYPTION_ERROR, std::system_category()),
                         std::string(std::string(__func__) +  ": KYC file decryption failed"));
@@ -168,10 +169,9 @@ bool CKYCFile::read(){
     return true;
 }
 
-bool CKYCFile::initEncryptor(CKey* privKey, CPubKey* pubKey){
-    _onboardUserPubKey=pubKey;
+bool CKYCFile::initEncryptor(){
     delete _encryptor;
-    _encryptor = new CECIES(*privKey, *_onboardUserPubKey);
+    _encryptor = new CECIES();
     return _encryptor->OK();
 }
 
@@ -201,9 +201,8 @@ bool CKYCFile::initEncryptor(CKey* privKey, CPubKey* pubKey){
         std::string(std::string(__func__) +  ": cannot get KYC private key from wallet"));
     }
 
-    if(!obScript.SetKeys(&kycKey, _onboardUserPubKey)) return false;
     if(!obScript.Append(_addressKeys)) return false;
-    if(!obScript.Finalize(script)) return false;
+    if(!obScript.Finalize(script, *_onboardUserPubKey, kycKey)) return false;
     return true;
 }
 
