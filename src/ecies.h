@@ -27,13 +27,13 @@ public:
    	bool Encrypt(uCharVec& em, 
    	const uCharVec& m, const CPubKey& pubKey, const CKey& privKey);
     bool Decrypt(uCharVec& m, 
+    	const uCharVec& em, const CKey& privKey, const CPubKey& pubKey);
+    bool Decrypt(uCharVec& m, 
     	const uCharVec& em, const CKey& privKey);
     bool Encrypt(std::string& em, 
     	const std::string& m, const CPubKey& pubKey);
     bool Decrypt(std::string& m, 
     	const std::string& em, const CKey& privKey);
-
-    bool Test1();
 
 	bool OK(){return _bOK;}
 
@@ -42,13 +42,7 @@ private:
 	unsigned char _k_mac_encrypt[AES256_KEYSIZE];
 	unsigned char _k_mac_decrypt[AES256_KEYSIZE];
 
-	AES256CBCEncrypt* _encryptor = nullptr;
-	AES256CBCDecrypt* _decryptor = nullptr;
 
-	bool Initialize();
-	bool InitEncryptor(const CPubKey& pubKey);
-	bool InitEncryptor(const CPubKey& pubKey, const CKey& privKey);
-	bool InitDecryptor(const uCharVec& encryptedMessage, const CKey& privKey, uCharVec& ciphertext);
 	bool CheckMagic(const uCharVec& encryptedMessage) const;
 
 	bool _bOK = false;

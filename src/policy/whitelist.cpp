@@ -285,10 +285,9 @@ bool CWhiteList::RegisterAddress(const CTransaction& tx, const CCoinsViewCache& 
 
   //Decrypt
   CECIES decryptor;
-  if(!decryptor.OK()) return false;
   std::vector<unsigned char> data;
   data.resize(encryptedData.size());
-  decryptor.Decrypt(data, encryptedData, decryptPrivKey);
+  decryptor.Decrypt(data, encryptedData, decryptPrivKey, *decryptPubKey);
     
   //Interpret the data
   //First 20 bytes: keyID 

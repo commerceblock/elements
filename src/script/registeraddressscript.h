@@ -18,7 +18,6 @@ public:
 	virtual ~CRegisterAddressScript();
 
 	//Encrypt the payload using the public, private key and build the script.
-	virtual bool InitEncryptor();
 	virtual bool Finalize(CScript& script, const CPubKey& ePubKey, const CKey& ePrivKey);
 	virtual bool FinalizeUnencrypted(CScript& script);
 	bool Append(const CPubKey& key);
@@ -27,7 +26,6 @@ public:
 	virtual void clear(){_payload.clear(); _encrypted.clear(); ((CScript*)this)->clear();}
 
 protected:
-	CECIES* _encryptor = nullptr;
 	ucvec _payload;
 	ucvec _encrypted;
 };

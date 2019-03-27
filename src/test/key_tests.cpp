@@ -199,14 +199,28 @@ BOOST_AUTO_TEST_CASE(key_test1)
 
     CECIES* ecies1 = new CECIES();
     CECIES* ecies2 = new CECIES();
-    unsigned char m[AES_BLOCKSIZE];
-    GetStrongRandBytes(m, AES_BLOCKSIZE);
-    std::vector<unsigned char> vm(m, m+AES_BLOCKSIZE);
+    const unsigned int nblocks=20;
+    const unsigned int extrabytes=3;
+    std::vector<unsigned char> vm;
+
+
+    unsigned char buff[AES_BLOCKSIZE];
+    for(unsigned int i=0; i<nblocks; i++){
+      GetStrongRandBytes(buff, AES_BLOCKSIZE);
+      vm.insert(vm.end(), &buff[0], &buff[0]+AES_BLOCKSIZE);
+    }
+    GetStrongRandBytes(buff, extrabytes);
+    vm.insert(vm.end(), &buff[0], &buff[0]+extrabytes);
     std::vector<unsigned char> vem1, vem3, vdm1, vdm3;
 
 
     BOOST_CHECK(ecies1->Encrypt(vem1, vm, pubkey1C, key2C));
     BOOST_CHECK(ecies2->Decrypt(vdm1, vem1, key1C));
+    BOOST_CHECK(vem1 != vm);
+    BOOST_CHECK(vdm1 == vm);
+
+    BOOST_CHECK(ecies1->Encrypt(vem1, vm, pubkey1C, key2C));
+    BOOST_CHECK(ecies2->Decrypt(vdm1, vem1, key2C, pubkey1C));
     BOOST_CHECK(vem1 != vm);
     BOOST_CHECK(vdm1 == vm);
 

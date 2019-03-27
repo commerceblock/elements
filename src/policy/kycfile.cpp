@@ -16,7 +16,6 @@ CKYCFile::~CKYCFile(){
 void CKYCFile::clear(){
     _addressKeys.clear();
     _decryptedStream.clear();
-    delete _encryptor;
     delete _onboardPubKey;
     delete _onboardUserPubKey;
 }
@@ -56,6 +55,10 @@ bool CKYCFile::read(){
 
     clear();
 
+    CKey onboardPrivKey;   
+
+    CECIES encryptor;
+
     while (_file.good()){
         //Skip the header, footer
         std::string line;
@@ -67,14 +70,12 @@ bool CKYCFile::read(){
             }
         }
 
-        CKey onboardPrivKey;   
-
         //Read the metadata and initialize the decryptor
         if(!_onboardUserPubKey){
             _decryptedStream << line << "\n";
             std::vector<std::string> vstr;
             boost::split(vstr, line, boost::is_any_of(" "));
-            if (vstr.size() != 4)
+            if (vstr.size() != 3)
                 throw std::system_error(
                     std::error_code(CKYCFile::Errc::FILE_IO_ERROR, std::system_category()),
                     std::string(std::string(__func__) +  ": invalid KYC file"));
@@ -99,9 +100,8 @@ bool CKYCFile::read(){
                         std::error_code(CKYCFile::Errc::INVALID_ADDRESS_OR_KEY, std::system_category()),
                         std::string(std::string(__func__) +  ": invalid onboard user pub key in kyc file"));
 
-            initEncryptor();
             std::stringstream ssNBytes;
-            ssNBytes << vstr[3];
+            ssNBytes << vstr[2];
             ssNBytes >> nBytesToRead;
             continue;
         }
@@ -116,9 +116,10 @@ bool CKYCFile::read(){
         }
         if(size == nBytesToRead){
             if(data.size()==0){
-                std::vector<unsigned char> vch(ss.str().begin(), ss.str().end());
+                std::string str=ss.str();
+                std::vector<unsigned char> vch(str.begin(), str.end());
                 std::vector<unsigned char> vdata;
-                if(!_encryptor->Decrypt(vdata, vch, onboardPrivKey))
+                if(!encryptor.Decrypt(vdata, vch, onboardPrivKey))
                     throw std::system_error(
                         std::error_code(CKYCFile::Errc::ENCRYPTION_ERROR, std::system_category()),
                         std::string(std::string(__func__) +  ": KYC file decryption failed"));
@@ -167,12 +168,6 @@ bool CKYCFile::read(){
                         std::string(std::string(__func__) +  ": invalid KYC file: encrypted data stream too short"));
     }
     return true;
-}
-
-bool CKYCFile::initEncryptor(){
-    delete _encryptor;
-    _encryptor = new CECIES();
-    return _encryptor->OK();
 }
 
  bool CKYCFile::getOnboardingScript(CScript& script){

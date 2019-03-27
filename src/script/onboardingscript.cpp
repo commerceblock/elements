@@ -32,16 +32,18 @@ COnboardingScript::~COnboardingScript(){
 bool COnboardingScript::Finalize(CScript& script, 
                     const CPubKey& onboardPubKey, 
                     const CKey& kycPrivKey){
+
    	_encrypted.clear();
-    _encryptor->Encrypt(_encrypted, _payload, onboardPubKey, kycPrivKey);
+    CECIES encryptor;
+    encryptor.Encrypt(_encrypted, _payload, onboardPubKey, kycPrivKey);
 
     //Onboarding keys    	
-    ucvec vPubKeyKYC = ToByteVector(_kycPubKey);
+    ucvec vPubKeyKYC = ToByteVector(kycPrivKey.GetPubKey());
     _payload.insert(_payload.end(), 
                     vPubKeyKYC.begin(), 
                     vPubKeyKYC.end());
 
-    ucvec vPubKeyUser = ToByteVector(_userPubKey);
+    ucvec vPubKeyUser = ToByteVector(onboardPubKey);
     _payload.insert(_payload.end(), 
                     vPubKeyUser.begin(), 
                     vPubKeyUser.end());
