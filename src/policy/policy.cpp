@@ -173,35 +173,8 @@ bool IsWhitelisted(CTransaction const &tx) {
   }
   return true;
 }
-// @fn IsRedemption_loop.
-// @brief it is a function created to factorize the function Redemption,
-//        it reduces the complexity of the code.
-// @param[in] checkFreezeList == true.
-// @brief check if an address is present in addressFreezelist,
-//        if this is not the case return false.
-// @param[in] checkFreezeList == false.
-// @brief ignore check if address is present in address Freelist.
-// @retrun true == successful process.
-// @retrun false == failed process.
-static bool IsRedemption_under(CTransaction const &tx, txnouttype &whichType,
-                               vector<vector<uint8_t>> &vSolutions) {
-  CKeyID keyId;
-  for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
-    if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
-      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH)
-        return false;
-      if (whichType == TX_FEE || uint160(vSolutions[0]).IsNull())
-        continue;
-      keyId = CKeyID(uint160(vSolutions[0]));
-      if (!addressFreezelist.find(&keyId))
-        return false;
-    } else
-      return false;
-  }
-  return true;
-}
 // @fn IsRedemption.
-// @brief check if the transaction is eligible for a redemption process.
+// @brief check if the transaction is tagged as a redemption transaction.
 // @param[in] class that contains the transaction.
 // @retrun true == successful process.
 // @retrun false == failed process.
@@ -216,41 +189,33 @@ bool IsRedemption(CTransaction const &tx) {
       if (whichType == TX_FEE)
         continue;
       if (whichType == TX_PUBKEYHASH && uint160(vSolutions[0]).IsNull()) {
-        if (tx.vout.size() < 3)
-          return false;
-        return IsRedemption_under(tx, whichType, vSolutions);
+        return true;
       }
     } else
       return false;
   }
-  return true;
+  return false;
 }
-// @fn IsValidBurn.
-// @brief check if the transaction is eligible for a burn process.
-// @param[in] class CTransaction that contains the transaction.
-// @param[in] class CCoinsViewCache that contains last out transactions.
-// @retrun true == successful process.
-// @retrun false == failed process.
-bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
+
+bool IsRedemptionListed(CTransaction const &tx) {
   CKeyID keyId;
   txnouttype whichType;
-  vector<vector<uint8_t>> vSolutions;
-  for (uint32_t itrA = 0; itrA < tx.vout.size(); ++itrA) {
-    if (Solver(tx.vout[itrA].scriptPubKey, whichType, vSolutions))
-      if (whichType == TX_NULL_DATA)
-        for (uint32_t itrB = 0; itrB < tx.vin.size(); ++itrB) {
-          CTxOut const &prev = mapInputs.GetOutputFor(tx.vin[itrB]);
-          CScript const &prevScript = prev.scriptPubKey;
-          if (Solver(prevScript, whichType, vSolutions))
-            if (whichType == TX_PUBKEYHASH) {
-              keyId = CKeyID(uint160(vSolutions[0]));
-              if (!addressBurnlist.find(&keyId))
-                return false;
-            }
-        }
-    return true;
+  for (CTxOut const &txout : tx.vout) {
+    vector<vector<uint8_t>> vSolutions;
+    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+      return false;
+    // return false if not P2PKH
+    if (!(whichType == TX_PUBKEYHASH))
+      return false;
+    CKeyID keyId;
+    keyId = CKeyID(uint160(vSolutions[0]));
+    // Search in whitelist for the presence of each output address.
+    // If one is not found, return false.
+    if(uint160(vSolutions[0]).IsNull()) continue;
+    if (!addressFreezelist.find(&keyId))
+      return false;
   }
-  return false;
+  return true;
 }
 
 bool IsFreezelisted(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
@@ -267,47 +232,34 @@ bool IsFreezelisted(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
     if (whichType == TX_PUBKEYHASH) {
       CKeyID keyId = CKeyID(uint160(vSolutions[0]));
       // search in freezelist for the presence of keyid
-      if (addressFreezelist.find(&keyId))
-        return true;
-    }
-  }
-  return false;
-}
-
-bool IsBurnlisted(const CTransaction& tx, const CCoinsViewCache& mapInputs)
-{
-  if (tx.IsCoinBase())
-    return false; // Coinbases don't use vin normally
-  //are input pubkeys are on the burn list
-  unsigned int nin = 0;
-  for (unsigned int i = 0; i < tx.vin.size(); i++) {
-    const CTxOut& prev = mapInputs.GetOutputFor(tx.vin[i]);
-    std::vector<std::vector<unsigned char> > vSolutions;
-    txnouttype whichType;
-    const CScript& prevScript = prev.scriptPubKey;
-    if (!Solver(prevScript, whichType, vSolutions))
+      if (!addressFreezelist.find(&keyId)) return false;
+    } else if (whichType == TX_FEE || whichType == TX_REGISTERADDRESS) {
+      continue;
+     } else {
       return false;
-    if (whichType == TX_PUBKEYHASH) {
-      CKeyID keyId;
-      keyId = CKeyID(uint160(vSolutions[0]));
-      // search in freezelist for the presence of keyid
-      if (addressBurnlist.find(&keyId)) nin++;
     }
-  }
-  if(nin > 0) {
-    //are ALL outputs OP_RETURN burn outputs
-    for (CTxOut const &txout : tx.vout) {
-      std::vector<std::vector<unsigned char> > vSolutions;
-      txnouttype whichType;
-      if (!Solver(txout.scriptPubKey, whichType, vSolutions)) return false;
-      if(!(whichType == TX_NULL_DATA || txout.nAsset.GetAsset() == policyAsset)) return false;
-    }
-  } else {
-    return false;
   }
   return true;
 }
 
+bool IsBurnlisted(const CTransaction& tx, const CCoinsViewCache& mapInputs)
+{
+    //are input pubkeys are on the burn list
+    if(tx.vin.size() != 1) return false;
+    const CTxOut& prev = mapInputs.GetOutputFor(tx.vin[0]);
+    std::vector<std::vector<unsigned char> > vSolutions;
+    txnouttype whichType;
+    const CScript& prevScript = prev.scriptPubKey;
+    if (!Solver(prevScript, whichType, vSolutions))
+        return false;
+    if (whichType == TX_PUBKEYHASH) {
+        CKeyID keyId;
+        keyId = CKeyID(uint160(vSolutions[0]));
+        // search in freezelist for the presence of keyid
+        if (addressBurnlist.find(&keyId)) return true;
+    }
+  return false;
+}
 
 bool UpdateFreezeList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {

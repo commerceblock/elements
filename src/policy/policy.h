@@ -100,10 +100,6 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason);
      */
 bool IsBurn(const CTransaction& tx);
     /**
-     * Check if a transaction has outputs what are of a policy asset type
-     */
-bool IsPolicy(const CTransaction& tx);
-    /**
      * Check if an asset is of a policy asset type
      */
 bool IsPolicy(const CAsset& asset);
@@ -119,16 +115,16 @@ bool IsPolicy(const CTransaction& tx);
      */
 bool IsWhitelisted(const CTransaction& tx);
     /**
-     *
+     * Function to determine if transaction is a redemption transaction (i.e. has a null address output)
      */
 bool IsRedemption(CTransaction const &tx);
     /**
-     *
+     * Function to determine if all P2PKH outputs of a transaction are on the freezelist
      */
-bool IsValidBurn(CTransaction const &tx, CCoinsViewCache const &mapInputs);
+bool IsRedemptionListed(CTransaction const &tx);
     /**
-     * Check all inputs and determine if public keys are on the burnlist and all non-fee outputs are OP_RETURN
-     * Return true if all inputs of tx are type TX_PUBKEYHASH and all PUBKEYs are on the burn list
+     * Burn transactions can only be one-input-one-output
+     * The input address must be on the burnlist
      */
 bool IsBurnlisted(const CTransaction& tx, const CCoinsViewCache& mapInputs);
     /**
