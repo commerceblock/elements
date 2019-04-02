@@ -44,12 +44,16 @@ def test_validBurn_1(node):
   # Create Transaction & Signed Transaction
   #=============================================================================
   tx = node.createrawtransaction(inputs, outputs,0,assets);
+  txd = node.decoderawtransaction(tx)
+  for vout in txd["vout"]:
+    if vout["asset"] == issue["asset"]:
+      n = vout["n"]
   signedtx = node.signrawtransaction(tx)
   sendtx = node.sendrawtransaction(signedtx["hex"])
   node.generate(10)
 
   #burn outputs
-  burntx = node.createrawburn(sendtx, '1', issue["asset"], '10')
+  burntx = node.createrawburn(sendtx, str(n), issue["asset"], '10')
   signtx = node.signrawtransaction(burntx["hex"])
 
   txid = node.testmempoolaccept(signtx["hex"])
@@ -101,13 +105,17 @@ def test_validBurn_2(node):
   # Create Transaction & Signed Transaction
   #=============================================================================
   tx = node.createrawtransaction(inputs, outputs,0,assets);
+  txd = node.decoderawtransaction(tx)
+  for vout in txd["vout"]:
+    if vout["asset"] == issue["asset"]:
+      n = vout["n"]
   signedtx = node.signrawtransaction(tx)
   sendtx = node.sendrawtransaction(signedtx["hex"])
   node.generate(10)
 
   #burn outputs
   node.addtoburnlist(addr1)
-  burntx = node.createrawburn(sendtx, '1', issue["asset"], '10')
+  burntx = node.createrawburn(sendtx, str(n), issue["asset"], '10')
   signtx = node.signrawtransaction(burntx["hex"])
 
   txid = node.testmempoolaccept(signtx["hex"])
