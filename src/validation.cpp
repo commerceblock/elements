@@ -1176,7 +1176,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
       return state.Invalid(false, REJECT_NONSTANDARD, "bad-txns-nonstandard-inputs");
     // Accept only transactions that spend from scriptSig inputs with pubkeys that are NOT on the freezelist
     // Pubkeys that are on the freezelist AND the burnlist AND that are sent to OP_RETURN outputs are passed
-    if (fRequireFreezelistCheck && !IsPolicy(tx)) {
+    if(fRequireFreezelistCheck && !IsPolicy(tx)) {
         if (IsFreezelisted(tx, view)) {
             if (fEnableBurnlistCheck && IsBurn(tx)) {
                 if (!IsBurnlisted(tx, view))
@@ -1184,9 +1184,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
             } else
                 return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-address-input");
         }
-        if (IsRedemption(tx))
+        if (IsRedemption(tx)) {
             if(!IsRedemptionListed(tx))
                 return state.DoS(0, false, REJECT_NONSTANDARD, "redemption-tx-not-freezelisted");
+        }
     }
     if (fEnableBurnlistCheck && IsBurn(tx))
         if(!IsBurnlisted(tx, view))
