@@ -120,13 +120,15 @@ bool IsBurn(const CTransaction &tx) {
 // @retrun true == successful process.
 // @retrun false == failed process.
 bool IsPolicy(CTransaction const &tx) {
-  for (CTxOut const &txout : tx.vout)
-    if (IsPolicy(txout.nAsset.GetAsset()))
-      return true;
+    for (CTxOut const &txout : tx.vout)
+        if (IsPolicy(txout.nAsset.GetAsset()))
+            return true;
+    return false;
 }
 
 bool IsPolicy(const CAsset& asset){
-  if(asset == freezelistAsset ||
+  if(asset == policyAsset ||
+     asset == freezelistAsset ||
      asset == burnlistAsset ||
      asset == whitelistAsset ||
      asset == challengeAsset)
@@ -183,12 +185,12 @@ bool IsRedemption(CTransaction const &tx) {
   vector<vector<uint8_t>> vSolutions;
   for (uint32_t itr = 0; itr < tx.vout.size(); ++itr) {
     if (Solver(tx.vout[itr].scriptPubKey, whichType, vSolutions)) {
-      if (whichType != TX_FEE && whichType != TX_PUBKEYHASH &&
-          whichType != TX_REGISTERADDRESS)
-        return false;
-      if (whichType == TX_FEE)
+      if (whichType == TX_FEE || whichType == TX_REGISTERADDRESS)
         continue;
-      if (whichType == TX_PUBKEYHASH && uint160(vSolutions[0]).IsNull()) {
+      //set freeze-flag key
+      uint160 frzInt;
+      frzInt.SetHex("0x0000000000000000000000000000000000000000");
+      if (whichType == TX_PUBKEYHASH && uint160(vSolutions[0]) == frzInt) {
         return true;
       }
     } else
