@@ -46,7 +46,7 @@ def test_validBurn_1(node):
   tx = node.createrawtransaction(inputs, outputs,0,assets);
   txd = node.decoderawtransaction(tx)
   for vout in txd["vout"]:
-    if vout["asset"] == issue["asset"]:
+    if vout["asset"] == issue["asset"] and vout["value"] > 0:
       n = vout["n"]
   signedtx = node.signrawtransaction(tx)
   sendtx = node.sendrawtransaction(signedtx["hex"])
@@ -107,7 +107,7 @@ def test_validBurn_2(node):
   tx = node.createrawtransaction(inputs, outputs,0,assets);
   txd = node.decoderawtransaction(tx)
   for vout in txd["vout"]:
-    if vout["asset"] == issue["asset"]:
+    if vout["asset"] == issue["asset"] and vout["value"] > 0:
       n = vout["n"]
   signedtx = node.signrawtransaction(tx)
   sendtx = node.sendrawtransaction(signedtx["hex"])
