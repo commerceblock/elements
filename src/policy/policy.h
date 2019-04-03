@@ -96,9 +96,13 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
      */
 bool IsStandardTx(const CTransaction& tx, std::string& reason);
     /**
-     * Check if all a transactions outputs are OP_RETURN
+     * Check if all transactions outputs are OP_RETURN
      */
-bool IsBurn(const CTransaction& tx);
+bool IsAllBurn(const CTransaction& tx);
+    /**
+     * Check if any transaction outputs are null with non-zero amounts
+     */
+bool IsAnyBurn(const CTransaction& tx);
     /**
      * Check if an asset is of a policy asset type
      */

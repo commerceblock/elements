@@ -136,13 +136,8 @@ def test_validBurn_3(node):
   for vout in tx["vout"]:
     if vout["asset"] == issue["asset"]:
       n = vout["n"]
-  inputs = [{
-    "txid": issue["txid"],
-    "vout": n,
-    "nValue": Decimal(10.0)
-  }]
 
-  burntx = node.createrawburn(issue["txid"], '1', issue["asset"], '10')
+  burntx = node.createrawburn(issue["txid"], str(n), issue["asset"], '10')
   signtx = node.signrawtransaction(burntx["hex"])
 
   txid = node.testmempoolaccept(signtx["hex"])

@@ -1091,7 +1091,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
     return state.DoS(0, false, REJECT_NONSTANDARD, reason);
   // Accept only transactions that have P2PKH outputs with addresses in the whitelist
   if (fRequireWhitelistCheck)
-    if (!IsBurn(tx) && !IsPolicy(tx) && !IsWhitelisted(tx))
+    if (!IsAllBurn(tx) && !IsPolicy(tx) && !IsWhitelisted(tx))
       return state.DoS(0, false, REJECT_NONSTANDARD, "non-whitelisted-address");
   // Only accept nLockTime-using transactions that can be mined in the next
   // block; we don't want our mempool filled up with transactions that can't
@@ -1178,7 +1178,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
     // Pubkeys that are on the freezelist AND the burnlist AND that are sent to OP_RETURN outputs are passed
     if(fRequireFreezelistCheck && !IsPolicy(tx)) {
         if (IsFreezelisted(tx, view)) {
-            if (fEnableBurnlistCheck && IsBurn(tx)) {
+            if (fEnableBurnlistCheck && IsAllBurn(tx)) {
                 if (!IsBurnlisted(tx, view))
                     return state.DoS(0, false, REJECT_NONSTANDARD, "freezelist-burn-no-burnlist");
             } else
@@ -1189,7 +1189,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
                 return state.DoS(0, false, REJECT_NONSTANDARD, "redemption-tx-not-freezelisted");
         }
     }
-    if (fEnableBurnlistCheck && IsBurn(tx))
+    if (fEnableBurnlistCheck && IsAnyBurn(tx))
         if(!IsBurnlisted(tx, view))
             return state.DoS(0, false, REJECT_NONSTANDARD, "burn-tx-not-burnlisted");
     // Accept only transactions that are asset issuances if they have a policyAsset input.
@@ -1248,10 +1248,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
       return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops", false,
     strprintf("%d", nSigOpsCost));
     CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
-    if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee && tx.vin[0].assetIssuance.IsNull() && !IsBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx))
+    if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx))
       return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d for asset %s", nFees, mempoolRejectFee, feeAsset.GetHex()));
     // No transactions are allowed below minRelayTxFee except from disconnected blocks
-    if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize) && tx.vin[0].assetIssuance.IsNull() && !IsBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx))
+    if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize) && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx))
       return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
     if (nAbsurdFee && nFees > nAbsurdFee)
       return state.Invalid(false, REJECT_HIGHFEE, "absurdly-high-fee",

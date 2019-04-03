@@ -99,19 +99,24 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
     return true;
 }
 
-// @fn IsBurn.
-// @brief determines if all outputs of a transaction are OP_RETURN.
-// @param[in] class that contains the transaction.
-// @retrun true == successful process.
-// @retrun false == failed process.
-bool IsBurn(const CTransaction &tx) {
+bool IsAllBurn(const CTransaction &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
   for (CTxOut const &txout : tx.vout)
     if (!Solver(txout.scriptPubKey, whichType, vSolutions) ||
-        whichType != TX_NULL_DATA || whichType != TX_REGISTERADDRESS)
+        whichType != TX_NULL_DATA)
       return false;
   return true;
+}
+
+bool IsAnyBurn(const CTransaction &tx) {
+  txnouttype whichType;
+  vector<vector<uint8_t>> vSolutions;
+  for (CTxOut const &txout : tx.vout) {
+    if (!Solver(txout.scriptPubKey, whichType, vSolutions)) return false;
+    if ((whichType == TX_NULL_DATA || whichType == TX_REGISTERADDRESS) && txout.nValue.GetAmount() != 0) return true;
+  }
+  return false;
 }
 
 // @fn IsPolicy.
@@ -426,7 +431,7 @@ void UpdateFreezeHistory(const CTransaction& tx, uint32_t bheight)
         for (uint32_t itr2 = 0; itr2 < freezeHistList.size(); ++itr2) {
             if(tx.vin[itr].prevout.n == freezeHistList[itr2].vout && tx.vin[itr].prevout.hash == freezeHistList[itr2].txid) {
                 //if not burn, add spend-height
-                if(!IsBurn(tx)) {
+                if(!IsAnyBurn(tx)) {
                     freezeHistList[itr2].spendheight = bheight;
                 }
             }
