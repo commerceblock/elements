@@ -113,8 +113,11 @@ bool IsAnyBurn(const CTransaction &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
   for (CTxOut const &txout : tx.vout) {
-    if (!Solver(txout.scriptPubKey, whichType, vSolutions)) return false;
-    if ((whichType == TX_NULL_DATA || whichType == TX_REGISTERADDRESS) && txout.nValue.GetAmount() != 0) return true;
+    if(Solver(txout.scriptPubKey, whichType, vSolutions)) {
+      if ((whichType == TX_NULL_DATA || whichType == TX_REGISTERADDRESS) && txout.nValue.GetAmount() != 0) return true;
+    } else {
+      return true;
+    }
   }
   return false;
 }
