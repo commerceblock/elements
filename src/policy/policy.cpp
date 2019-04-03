@@ -109,7 +109,7 @@ bool IsBurn(const CTransaction &tx) {
   vector<vector<uint8_t>> vSolutions;
   for (CTxOut const &txout : tx.vout)
     if (!Solver(txout.scriptPubKey, whichType, vSolutions) ||
-        whichType != TX_NULL_DATA)
+        whichType != TX_NULL_DATA || whichType != TX_REGISTERADDRESS)
       return false;
   return true;
 }
