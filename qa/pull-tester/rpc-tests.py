@@ -172,7 +172,7 @@ testScripts = [
     'listsinceblock.py',
     'p2p-leaktests.py',
     'redemption.py',
-    'createrawrequesttx.py',
+    'guardnode.py',
     'validBurn.py'
 ]
 if ENABLE_ZMQ:

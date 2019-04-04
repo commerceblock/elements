@@ -872,11 +872,11 @@ static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
         if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
             ss << key;
             bool frozenTx = false;
-      
+
 	    //loop over vouts within a single transaction
 	    for (unsigned int i=0; i<coins.vout.size(); i++) {
 	        const CTxOut &out = coins.vout[i];
-	
+
 		//check if the tx is flagged frozen (i.e. one output is a zero address)
 		txnouttype whichType;
 		std::vector<std::vector<unsigned char> > vSolutions;
@@ -887,11 +887,10 @@ static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
 		  if(keyId == frzId) frozenTx = true;
 		}
 	    }
-      
-	    //loop over all vouts within a single transaction
+      	    //loop over all vouts within a single transaction
 	    for (unsigned int i=0; i<coins.vout.size(); i++) {
 	        const CTxOut &out = coins.vout[i];
-	
+
 		//null vouts are spent
 		if (!out.IsNull()) {
 		    ss << VARINT(i+1);
@@ -2402,7 +2401,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "dumpwhitelist",          &dumpwhitelist,          true,  {} },
     { "blockchain",         "clearwhitelist",         &clearwhitelist,         true,  {} },
 
-   
+
     { "blockchain",         "addtofreezelist",        &addtofreezelist,        true,  {"address"} },
     { "blockchain",         "removefromfreezelist",   &removefromfreezelist,   true,  {"address"} },
     { "blockchain",         "queryfreezelist",        &queryfreezelist,        true,  {"address"} },
