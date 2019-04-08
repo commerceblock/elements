@@ -596,6 +596,7 @@ UniValue createrawrequesttx(JSONRPCRequest const &request) {
     UniValue output = request.params[1].get_obj();
     CAmount nAmount = AmountFromValue(find_value(output, KEY_VALUE));
     CMutableTransaction rawTx;
+    rawTx.nLockTime = chainActive.Height();
 
     createrawrequesttx_input(rawTx, input);
     createrawrequesttx_output(rawTx, asset, nAmount, output);
