@@ -873,11 +873,11 @@ static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
             ss << key;
             bool frozenTx = false;
 
-	    //loop over vouts within a single transaction
+            //loop over vouts within a single transaction
 	    for (unsigned int i=0; i<coins.vout.size(); i++) {
 	        const CTxOut &out = coins.vout[i];
 
-		//check if the tx is flagged frozen (i.e. one output is a zero address)
+                //check if the tx is flagged frozen (i.e. one output is a zero address)
 		txnouttype whichType;
 		std::vector<std::vector<unsigned char> > vSolutions;
 		Solver(out.scriptPubKey, whichType, vSolutions);
@@ -887,11 +887,11 @@ static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
 		  if(keyId == frzId) frozenTx = true;
 		}
 	    }
-      	    //loop over all vouts within a single transaction
-	    for (unsigned int i=0; i<coins.vout.size(); i++) {
+            //loop over all vouts within a single transaction
+            for (unsigned int i=0; i<coins.vout.size(); i++) {
 	        const CTxOut &out = coins.vout[i];
 
-		//null vouts are spent
+                //null vouts are spent
 		if (!out.IsNull()) {
 		    ss << VARINT(i+1);
 		    ss << out;
@@ -998,6 +998,63 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
         ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
     } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+    }
+    return ret;
+}
+
+UniValue getrequests(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw runtime_error(
+            "getrequests\n"
+            "Returns an object containing all active requests in the system.\n"
+            "\nResult:\n"
+            "{\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getrequests", "")
+            + HelpExampleRpc("getrequests", "")
+    );
+
+    UniValue ret(UniValue::VARR);
+
+    FlushStateToDisk();
+    std::unique_ptr<CCoinsViewCursor> pcursor(static_cast<CCoinsView*>(pcoinsTip)->Cursor());
+
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        uint256 key;
+        CCoins coins;
+        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
+            if (coins.vout.size() == 1 && !coins.IsCoinBase() &&
+            coins.vout[0].nAsset.IsExplicit() && coins.vout[0].nAsset.GetAsset() == permissionAsset) {
+                vector<vector<unsigned char>> vSolutions;
+                if (SolverRequests(coins.vout[0].scriptPubKey, vSolutions)) {
+                    UniValue item(UniValue::VOBJ);
+                    item.push_back(Pair("txid", key.ToString()));
+                    // get end block height from output 0
+                    item.push_back(Pair("endBlockHeight", CScriptNum(vSolutions[0], true).getint()));
+                    // output 2 contains the address that spends this request - skipped
+                    // get genesis from output 3
+                    std::vector<unsigned char> genesisdata(vSolutions[3].begin() + 1, vSolutions[3].end());
+                    item.push_back(Pair("genesisBlock", uint256(genesisdata).GetHex()));
+                    // get remaining request data from output 4
+                    item.push_back(Pair("startBlockHeight",
+                        stoi(HexStr(vSolutions[4].begin() + 1, vSolutions[4].begin() + 5), nullptr, 16)));
+                    item.push_back(Pair("numTickets",
+                        stoi(HexStr(vSolutions[4].begin() + 5, vSolutions[4].begin() + 9), nullptr, 16)));
+                    item.push_back(Pair("decayConst",
+                        stoi(HexStr(vSolutions[4].begin() + 9, vSolutions[4].begin() + 13), nullptr, 16)));
+                    item.push_back(Pair("feePercentage",
+                        stoi(HexStr(vSolutions[4].begin() + 13, vSolutions[4].begin() + 17), nullptr, 16)));
+
+                    ret.push_back(item);
+                }
+            }
+        } else {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+        }
+        pcursor->Next();
     }
     return ret;
 }
@@ -2368,60 +2425,62 @@ static UniValue getblockstats(const JSONRPCRequest& request)
 }
 
 static const CRPCCommand commands[] =
-{ //  category              name                      actor (function)         okSafe argNames
-  //  --------------------- ------------------------  -----------------------  ------ ----------
-    { "blockchain",         "getblockchaininfo",      &getblockchaininfo,      true,  {} },
-    { "blockchain",         "getblockstats",          &getblockstats,          true,  {"hash_or_height", "stats"} },
-    { "blockchain",         "getbestblockhash",       &getbestblockhash,       true,  {} },
-    { "blockchain",         "getblockcount",          &getblockcount,          true,  {} },
-    { "blockchain",         "getblock",               &getblock,               true,  {"blockhash","verbosity"} },
-    { "blockchain",         "getblockhash",           &getblockhash,           true,  {"height"} },
-    { "blockchain",         "getblockheader",         &getblockheader,         true,  {"blockhash","verbose"} },
-    { "blockchain",         "getchaintips",           &getchaintips,           true,  {} },
-    { "blockchain",         "getdifficulty",          &getdifficulty,          true,  {} },
-    { "blockchain",         "getmempoolancestors",    &getmempoolancestors,    true,  {"txid","verbose"} },
-    { "blockchain",         "getmempooldescendants",  &getmempooldescendants,  true,  {"txid","verbose"} },
-    { "blockchain",         "getmempoolentry",        &getmempoolentry,        true,  {"txid"} },
-    { "blockchain",         "getmempoolinfo",         &getmempoolinfo,         true,  {} },
-    { "blockchain",         "getrawmempool",          &getrawmempool,          true,  {"verbose"} },
-    { "blockchain",         "getsidechaininfo",       &getsidechaininfo,       true,  {} },
-    { "blockchain",         "gettxout",               &gettxout,               true,  {"txid","n","include_mempool"} },
-    { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true,  {} },
-    { "blockchain",         "getutxoassetinfo",       &getutxoassetinfo,       true,  {} },
-    { "blockchain",         "getfreezehistory",       &getfreezehistory,       true,  {"height"} },
-    { "blockchain",         "pruneblockchain",        &pruneblockchain,        true,  {"height"} },
-    { "blockchain",         "verifychain",            &verifychain,            true,  {"checklevel","nblocks"} },
+    {
+        //  category              name                      actor (function)         okSafe argNames
+        //  --------------------- ------------------------  -----------------------  ------ ----------
+        {"blockchain", "getblockchaininfo", &getblockchaininfo, true, {}},
+        {"blockchain", "getblockstats", &getblockstats, true, {"hash_or_height", "stats"}},
+        {"blockchain", "getbestblockhash", &getbestblockhash, true, {}},
+        {"blockchain", "getblockcount", &getblockcount, true, {}},
+        {"blockchain", "getblock", &getblock, true, {"blockhash", "verbosity"}},
+        {"blockchain", "getblockhash", &getblockhash, true, {"height"}},
+        {"blockchain", "getblockheader", &getblockheader, true, {"blockhash", "verbose"}},
+        {"blockchain", "getchaintips", &getchaintips, true, {}},
+        {"blockchain", "getdifficulty", &getdifficulty, true, {}},
+        {"blockchain", "getmempoolancestors", &getmempoolancestors, true, {"txid", "verbose"}},
+        {"blockchain", "getmempooldescendants", &getmempooldescendants, true, {"txid", "verbose"}},
+        {"blockchain", "getmempoolentry", &getmempoolentry, true, {"txid"}},
+        {"blockchain", "getmempoolinfo", &getmempoolinfo, true, {}},
+        {"blockchain", "getrawmempool", &getrawmempool, true, {"verbose"}},
+        {"blockchain", "getsidechaininfo", &getsidechaininfo, true, {}},
+        {"blockchain", "gettxout", &gettxout, true, {"txid", "n", "include_mempool"}},
+        {"blockchain", "gettxoutsetinfo", &gettxoutsetinfo, true, {}},
+        {"blockchain", "getutxoassetinfo", &getutxoassetinfo, true, {}},
+        {"blockchain", "getrequests", &getrequests, true, {}},
+        {"blockchain", "getfreezehistory", &getfreezehistory, true, {"height"}},
+        {"blockchain", "pruneblockchain", &pruneblockchain, true, {"height"}},
+        {"blockchain", "verifychain", &verifychain, true, {"checklevel", "nblocks"}},
 
-    { "blockchain",         "preciousblock",          &preciousblock,          true,  {"blockhash"} },
+        {"blockchain", "preciousblock", &preciousblock, true, {"blockhash"}},
 
-    { "blockchain",         "addtowhitelist",         &addtowhitelist,         true,  {"address","basepubkey", "kycpubkey"} },
-    { "blockchain",         "readwhitelist",          &readwhitelist,          true,  {"filename", "kycaddress"} },
-    { "blockchain",         "querywhitelist",         &querywhitelist,         true,  {"address"} },
-    { "blockchain",         "removefromwhitelist",    &removefromwhitelist,    true,  {"address"} },
-    { "blockchain",         "dumpwhitelist",          &dumpwhitelist,          true,  {} },
-    { "blockchain",         "clearwhitelist",         &clearwhitelist,         true,  {} },
+        {"blockchain", "addtowhitelist", &addtowhitelist, true, {"address", "basepubkey", "kycpubkey"}},
+        {"blockchain", "readwhitelist", &readwhitelist, true, {"filename", "kycaddress"}},
+        {"blockchain", "querywhitelist", &querywhitelist, true, {"address"}},
+        {"blockchain", "removefromwhitelist", &removefromwhitelist, true, {"address"}},
+        {"blockchain", "dumpwhitelist", &dumpwhitelist, true, {}},
+        {"blockchain", "clearwhitelist", &clearwhitelist, true, {}},
 
 
-    { "blockchain",         "addtofreezelist",        &addtofreezelist,        true,  {"address"} },
-    { "blockchain",         "removefromfreezelist",   &removefromfreezelist,   true,  {"address"} },
-    { "blockchain",         "queryfreezelist",        &queryfreezelist,        true,  {"address"} },
-    { "blockchain",         "clearfreezelist",        &clearfreezelist,        true,  {} },
+        {"blockchain", "addtofreezelist", &addtofreezelist, true, {"address"}},
+        {"blockchain", "removefromfreezelist", &removefromfreezelist, true, {"address"}},
+        {"blockchain", "queryfreezelist", &queryfreezelist, true, {"address"}},
+        {"blockchain", "clearfreezelist", &clearfreezelist, true, {}},
 
-    { "blockchain",         "addtoburnlist",          &addtoburnlist,          true,  {"address"} },
-    { "blockchain",         "removefromburnlist",     &removefromburnlist,     true,  {"address"} },
-    { "blockchain",         "queryburnlist",          &queryburnlist,          true,  {"address"} },
-    { "blockchain",         "clearburnlist",          &clearburnlist,          true,  {} },
+        {"blockchain", "addtoburnlist", &addtoburnlist, true, {"address"}},
+        {"blockchain", "removefromburnlist", &removefromburnlist, true, {"address"}},
+        {"blockchain", "queryburnlist", &queryburnlist, true, {"address"}},
+        {"blockchain", "clearburnlist", &clearburnlist, true, {}},
 
-    { "blockchain",         "getcontract",             &getcontract,         true,  {} },
-    { "blockchain",         "getcontracthash",         &getcontracthash,     true,  {"blockheight"} },
-    { "blockchain",         "getmappinghash",          &getmappinghash,     true,  {"blockheight"} },
+        {"blockchain", "getcontract", &getcontract, true, {}},
+        {"blockchain", "getcontracthash", &getcontracthash, true, {"blockheight"}},
+        {"blockchain", "getmappinghash", &getmappinghash, true, {"blockheight"}},
 
-    /* Not shown in help */
-    { "hidden",             "invalidateblock",        &invalidateblock,        true,  {"blockhash"} },
-    { "hidden",             "reconsiderblock",        &reconsiderblock,        true,  {"blockhash"} },
-    { "hidden",             "waitfornewblock",        &waitfornewblock,        true,  {"timeout"} },
-    { "hidden",             "waitforblock",           &waitforblock,           true,  {"blockhash","timeout"} },
-    { "hidden",             "waitforblockheight",     &waitforblockheight,     true,  {"height","timeout"} },
+        /* Not shown in help */
+        {"hidden", "invalidateblock", &invalidateblock, true, {"blockhash"}},
+        {"hidden", "reconsiderblock", &reconsiderblock, true, {"blockhash"}},
+        {"hidden", "waitfornewblock", &waitfornewblock, true, {"timeout"}},
+        {"hidden", "waitforblock", &waitforblock, true, {"blockhash", "timeout"}},
+        {"hidden", "waitforblockheight", &waitforblockheight, true, {"height", "timeout"}},
 };
 
 void RegisterBlockchainRPCCommands(CRPCTable &t)

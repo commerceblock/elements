@@ -60,6 +60,15 @@ class GuardnodeTest(BitcoinTestFramework):
     self.sync_all()
     assert(txid in self.nodes[0].getblock(self.nodes[0].getblockhash(self.nodes[0].getblockcount()))["tx"])
 
+    request = self.nodes[0].getrequests()[0];
+    assert_equal(request['txid'], txid)
+    assert_equal(request['endBlockHeight'], 105)
+    assert_equal(request['genesisBlock'], genesis)
+    assert_equal(request['numTickets'], 10)
+    assert_equal(request['decayConst'], 10)
+    assert_equal(request['feePercentage'], 1)
+    assert_equal(request['startBlockHeight'], 100)
+
     # try send spend transaction
     inputs = {"txid": txid, "vout": 0, "sequence": 4294967294}
     fee = Decimal('0.0001')
