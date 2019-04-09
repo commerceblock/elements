@@ -557,10 +557,16 @@ static inline void createrawrequesttx_output(CMutableTransaction& rawTx,
         throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_TICKETS);
     if (ticket.get_int() < 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_TICKETS_VALUE);
-    auto script3 = CScript() << startBlockHeight.get_int() << ticket.get_int()
-                            << decayConst.get_int() << fee.get_int();
-    std::vector<unsigned char> datapubkey3 = {3};
-    datapubkey3.insert(datapubkey3.begin() + 1, script3.begin(), script3.end());
+
+    std::vector<unsigned char> datapubkey3 = {3}; // initialise with pubkey byte
+    auto startblockheighVec = ParseHex(strprintf("%08x", startBlockHeight.get_int()));
+    datapubkey3.insert(datapubkey3.end(), startblockheighVec.begin(), startblockheighVec.end());
+    auto ticketVec = ParseHex(strprintf("%08x", ticket.get_int()));
+    datapubkey3.insert(datapubkey3.end(), ticketVec.begin(), ticketVec.end());
+    auto decayconstVec = ParseHex(strprintf("%08x", decayConst.get_int()));
+    datapubkey3.insert(datapubkey3.end(), decayconstVec.begin(), decayconstVec.end());
+    auto feeVec = ParseHex(strprintf("%08x", fee.get_int()));
+    datapubkey3.insert(datapubkey3.end(), feeVec.begin(), feeVec.end());
     datapubkey3.resize(33, 0); // pubkey size
 
     // get lock time block height
