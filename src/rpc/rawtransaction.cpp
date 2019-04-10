@@ -536,7 +536,7 @@ static inline void createrawrequesttx_output(CMutableTransaction& rawTx,
     // get genesis for request
     uint256 genesisBlockHash = ParseHashO(output, KEY_GENESIS);
     CDataStream datapubkey2(SER_NETWORK, PROTOCOL_VERSION);
-    datapubkey2 << (char)2;
+    datapubkey2 << (char)2; // pubkey prefix
     datapubkey2 << genesisBlockHash;
 
     // get the rest request info
@@ -560,7 +560,7 @@ static inline void createrawrequesttx_output(CMutableTransaction& rawTx,
         throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_TICKETS_VALUE);
 
     CDataStream datapubkey3(SER_NETWORK, PROTOCOL_VERSION);
-    datapubkey3 << (char)3;
+    datapubkey3 << (char)3; // pubkey prefix
     datapubkey3 << startBlockHeight.get_int();
     datapubkey3 << ticket.get_int();
     datapubkey3 << decayConst.get_int();

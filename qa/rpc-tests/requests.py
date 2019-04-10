@@ -27,9 +27,10 @@ class GuardnodeTest(BitcoinTestFramework):
 
     # send PERMISSION asset to node 1
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
+    self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
     self.nodes[0].generate(1)
     self.sync_all()
-    assert(self.nodes[1].getbalance()["PERMISSION"] == 1000)
+    assert(self.nodes[1].getbalance()["PERMISSION"] == 2000)
 
     # create new raw request transaction
     addr = self.nodes[1].getnewaddress()
@@ -37,7 +38,10 @@ class GuardnodeTest(BitcoinTestFramework):
     pubkey = self.nodes[1].validateaddress(addr)["pubkey"]
     unspent = self.nodes[1].listunspent()
     genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
+    genesis2 = "967da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
     inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"], "asset": unspent[0]["asset"]}
+    inputs2 = {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"], "asset": unspent[1]["asset"]}
+
     outputs = {"decayConst": 10, "endBlockHeight": 20000, "fee": 1, "genesisBlockHash": genesis,
     "startBlockHeight": 10000, "tickets": 10, "value": unspent[0]["amount"]}
 
@@ -50,24 +54,63 @@ class GuardnodeTest(BitcoinTestFramework):
     # re create transaction again and add pubkey
     outputs = {"decayConst": 10, "endBlockHeight": 105, "fee": 1, "genesisBlockHash": genesis,
     "startBlockHeight": 100, "tickets": 10, "value": unspent[0]["amount"], "pubkey": pubkey}
+    outputs2 = {"decayConst": 5, "endBlockHeight": 120, "fee": 3, "genesisBlockHash": genesis2,
+    "startBlockHeight": 105, "tickets": 5, "value": unspent[1]["amount"], "pubkey": pubkey}
 
     # send transaction
     tx = self.nodes[1].createrawrequesttx(inputs, outputs)
     signedtx = self.nodes[1].signrawtransaction(tx)
     txid = self.nodes[1].sendrawtransaction(signedtx["hex"])
+
+    tx2 = self.nodes[1].createrawrequesttx(inputs2, outputs2)
+    signedtx2 = self.nodes[1].signrawtransaction(tx2)
+    txid2 = self.nodes[1]. sendrawtransaction(signedtx2["hex"])
     self.sync_all()
     self.nodes[0].generate(1)
     self.sync_all()
     assert(txid in self.nodes[0].getblock(self.nodes[0].getblockhash(self.nodes[0].getblockcount()))["tx"])
 
-    request = self.nodes[0].getrequests()[0];
-    assert_equal(request['txid'], txid)
-    assert_equal(request['endBlockHeight'], 105)
-    assert_equal(request['genesisBlock'], genesis)
-    assert_equal(request['numTickets'], 10)
-    assert_equal(request['decayConst'], 10)
-    assert_equal(request['feePercentage'], 1)
-    assert_equal(request['startBlockHeight'], 100)
+    # test get request method with/without genesis hash parameter
+    requests = self.nodes[0].getrequests()
+    assert_equal(2, len(requests))
+    for req in requests:
+        if txid == req['txid']:
+            assert_equal(req['endBlockHeight'], 105)
+            assert_equal(req['genesisBlock'], genesis)
+            assert_equal(req['numTickets'], 10)
+            assert_equal(req['decayConst'], 10)
+            assert_equal(req['feePercentage'], 1)
+            assert_equal(req['startBlockHeight'], 100)
+        elif txid2 == req['txid']:
+            assert(True)
+        else:
+            assert(False)
+    requests = self.nodes[0].getrequests(genesis)
+    assert_equal(1, len(requests))
+    for req in requests:
+        if txid == req['txid']:
+            assert_equal(req['endBlockHeight'], 105)
+            assert_equal(req['genesisBlock'], genesis)
+            assert_equal(req['numTickets'], 10)
+            assert_equal(req['decayConst'], 10)
+            assert_equal(req['feePercentage'], 1)
+            assert_equal(req['startBlockHeight'], 100)
+        else:
+            assert(False)
+    requests = self.nodes[0].getrequests(genesis2)
+    assert_equal(1, len(requests))
+    for req in requests:
+        if txid2 == req['txid']:
+            assert_equal(req['endBlockHeight'], 120)
+            assert_equal(req['genesisBlock'], genesis2)
+            assert_equal(req['numTickets'], 5)
+            assert_equal(req['decayConst'], 5)
+            assert_equal(req['feePercentage'], 3)
+            assert_equal(req['startBlockHeight'], 105)
+        else:
+            assert(False)
+    requests = self.nodes[0].getrequests("123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+    assert_equal(requests, [])
 
     # try send spend transaction
     inputs = {"txid": txid, "vout": 0, "sequence": 4294967294}
@@ -78,9 +121,39 @@ class GuardnodeTest(BitcoinTestFramework):
     signedTxSpend = self.nodes[1].signrawtransaction(txSpend)
     assert_equal(signedTxSpend["errors"][0]["error"], "Locktime requirement not satisfied")
 
+    # make request 1 inactive
+    self.nodes[0].generate(10)
+    requests = self.nodes[0].getrequests()
+    assert_equal(1, len(requests))
+    for req in requests:
+        if txid2 == req['txid']:
+            assert_equal(req['endBlockHeight'], 120)
+            assert_equal(req['genesisBlock'], genesis2)
+            assert_equal(req['numTickets'], 5)
+            assert_equal(req['decayConst'], 5)
+            assert_equal(req['feePercentage'], 3)
+            assert_equal(req['startBlockHeight'], 105)
+        else:
+            assert(False)
+    requests = self.nodes[0].getrequests(genesis2)
+    assert_equal(1, len(requests))
+    for req in requests:
+        if txid2 == req['txid']:
+            assert_equal(req['endBlockHeight'], 120)
+            assert_equal(req['genesisBlock'], genesis2)
+            assert_equal(req['numTickets'], 5)
+            assert_equal(req['decayConst'], 5)
+            assert_equal(req['feePercentage'], 3)
+            assert_equal(req['startBlockHeight'], 105)
+        else:
+            assert(False)
+
+    # make request 2 inactive
+    self.nodes[0].generate(10)
+    assert_equal([], self.nodes[0].getrequests())
+
     # # generate more blocks and try again
     # # CLTV signing not supported in bitcoin
-    # self.nodes[0].generate(10)
     # txraw = self.nodes[1].getrawtransaction(txid, 1)
     # txSpend2 = self.nodes[1].createrawtransaction([inputs], outputs, self.nodes[1].getblockcount())
     # signedTxSpend2 = self.nodes[1].signrawtransaction(txSpend2,

@@ -1004,23 +1004,42 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
 
 UniValue getrequests(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0)
+    if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
-            "getrequests\n"
+            "getrequests ( \"genesishash\" ) \n"
             "Returns an object containing all active requests in the system.\n"
+            "\nArguments:\n"
+            "1. \"genesishash\"   (string, optional) The client genesis hash for the request\n"
             "\nResult:\n"
-            "{\n"
-            "}\n"
+            "[\n"
+            " {\n"
+            "   \"genesisBlock\": \"hash\",     (string) Client genesis for request\n"
+            "   \"startBlockHeight\": n,   (numeric) Request start height\n"
+            "   \"numTickets\": n,      (numeric) The number of guardnodes required\n"
+            "   \"decayConst\": n,            (numeric) Decay constant for auction\n"
+            "   \"feePercentage\": n,  (numeric) Fee percentage\n"
+            "   \"endBlockHeight\": n,   (numeric) Request end height\n"
+            "   \"txid\": \"hash\",   (string) The request transaction hash\n"
+            " },\n"
+            "]\n"
             "\nExamples:\n"
             + HelpExampleCli("getrequests", "")
+            + HelpExampleCli("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
             + HelpExampleRpc("getrequests", "")
+            + HelpExampleRpc("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
     );
 
-    UniValue ret(UniValue::VARR);
+    bool fGenesisCheck = false;
+    uint256 hash;
+    if (request.params.size() == 1 && !request.params[0].isNull()) {
+        fGenesisCheck = true;
+        hash.SetHex(request.params[0].get_str());
+    }
 
     FlushStateToDisk();
     std::unique_ptr<CCoinsViewCursor> pcursor(static_cast<CCoinsView*>(pcoinsTip)->Cursor());
 
+    UniValue ret(UniValue::VARR);
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         uint256 key;
@@ -1030,31 +1049,37 @@ UniValue getrequests(const JSONRPCRequest& request)
             coins.vout[0].nAsset.IsExplicit() && coins.vout[0].nAsset.GetAsset() == permissionAsset) {
                 vector<vector<unsigned char>> vSolutions;
                 if (SolverRequests(coins.vout[0].scriptPubKey, vSolutions)) {
-                    UniValue item(UniValue::VOBJ);
-                    item.push_back(Pair("txid", key.ToString()));
-                    // get end block height from output 0
-                    item.push_back(Pair("endBlockHeight", CScriptNum(vSolutions[0], true).getint()));
-                    // output 2 contains the address that spends this request - skipped
-                    // get genesis from output 3
-                    char pubInt;
-                    uint256 genesisHash;
-                    CDataStream output3(vSolutions[3], SER_NETWORK, PROTOCOL_VERSION);
-                    output3 >> pubInt;
-                    output3 >> genesisHash;
-                    item.push_back(Pair("genesisBlock", genesisHash.GetHex()));
-                    // get remaining request data from output 4
-                    CDataStream output4(vSolutions[4], SER_NETWORK, PROTOCOL_VERSION);
-                    int val;
-                    output4 >> pubInt;
-                    output4 >> val;
-                    item.push_back(Pair("startBlockHeight", val));
-                    output4 >> val;
-                    item.push_back(Pair("numTickets", val));
-                    output4 >> val;
-                    item.push_back(Pair("decayConst", val));
-                    output4 >> val;
-                    item.push_back(Pair("feePercentage", val));
-                    ret.push_back(item);
+                    int endBlockHeight = CScriptNum(vSolutions[0], true).getint();
+                    if (endBlockHeight >= chainActive.Height()) { // check request active
+                        UniValue item(UniValue::VOBJ);
+                        // get genesis from output 3
+                        char pubInt;
+                        uint256 genesisHash;
+                        CDataStream output3(vSolutions[3], SER_NETWORK, PROTOCOL_VERSION);
+                        output3 >> pubInt;
+                        output3 >> genesisHash;
+                        if (!fGenesisCheck || (genesisHash == hash)) {
+                            item.push_back(Pair("genesisBlock", genesisHash.GetHex()));
+                            // get remaining request data from output 4
+                            CDataStream output4(vSolutions[4], SER_NETWORK, PROTOCOL_VERSION);
+                            int val;
+                            output4 >> pubInt;
+                            output4 >> val;
+                            item.push_back(Pair("startBlockHeight", val));
+                            output4 >> val;
+                            item.push_back(Pair("numTickets", val));
+                            output4 >> val;
+                            item.push_back(Pair("decayConst", val));
+                            output4 >> val;
+                            item.push_back(Pair("feePercentage", val));
+
+                            // get end block height from output 0
+                            item.push_back(Pair("endBlockHeight", endBlockHeight));
+
+                            item.push_back(Pair("txid", key.ToString()));
+                            ret.push_back(item);
+                        }
+                    }
                 }
             }
         } else {
