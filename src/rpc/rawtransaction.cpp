@@ -458,7 +458,6 @@ UniValue verifytxoutproof(const JSONRPCRequest& request)
 #define ERROR_VOUT_VALUE "Invalid parameter, vout must be positive"
 // @brief Key for Dictionary.
 #define KEY_PUBKEY "pubkey"
-#define KEY_ASSET "asset"
 #define KEY_DECAY_CONST "decayConst"
 #define KEY_END_BLOCK_HEIGHT "endBlockHeight"
 #define KEY_FEE "fee"
@@ -481,9 +480,6 @@ Arguments:
 {
   "txid": xxxx,             (string, required) The transaction id.
   "vout": n,                (numeric, required) The output number.
-  "asset": xxxx             (string, optional, default=bitcoin)
-                              The asset of the input,
-                              as a tag string or a hex value."
 }
 
 2. "outputs"                (object, required) a json object with outputs.
@@ -591,19 +587,15 @@ UniValue createrawrequesttx(JSONRPCRequest const &request) {
     RPCTypeCheck(request.params, {VALUE_OBJ, VALUE_OBJ}, true);
 
     UniValue input = request.params[0].get_obj();
-
-    CAsset asset = CAsset(policyAsset);
-    UniValue const& assetValue = find_value(input, KEY_ASSET);
-    if (assetValue.isStr())
-        asset = CAsset(ParseHashO(input, KEY_ASSET));
-
-    UniValue output = request.params[1].get_obj();
-    CAmount nAmount = AmountFromValue(find_value(output, KEY_VALUE));
     CMutableTransaction rawTx;
     rawTx.nLockTime = chainActive.Height();
-
     createrawrequesttx_input(rawTx, input);
+
+    CAsset asset = CAsset(permissionAsset);
+    UniValue output = request.params[1].get_obj();
+    CAmount nAmount = AmountFromValue(find_value(output, KEY_VALUE));
     createrawrequesttx_output(rawTx, asset, nAmount, output);
+
     return EncodeHexTx(rawTx);
 }
 

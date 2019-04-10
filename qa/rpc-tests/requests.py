@@ -28,20 +28,34 @@ class GuardnodeTest(BitcoinTestFramework):
     # send PERMISSION asset to node 1
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
+    self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "CBT")
     self.nodes[0].generate(1)
     self.sync_all()
     assert(self.nodes[1].getbalance()["PERMISSION"] == 2000)
 
-    # create new raw request transaction
+    # test create request with incorrect asset
     addr = self.nodes[1].getnewaddress()
     priv = self.nodes[1].dumpprivkey(addr)
     pubkey = self.nodes[1].validateaddress(addr)["pubkey"]
-    unspent = self.nodes[1].listunspent()
+    unspent = self.nodes[1].listunspent(1, 9999999, [], True, "CBT")
     genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
     genesis2 = "967da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
     inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"], "asset": unspent[0]["asset"]}
-    inputs2 = {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"], "asset": unspent[1]["asset"]}
+    outputs = {"decayConst": 10, "endBlockHeight": 20000, "fee": 1, "genesisBlockHash": genesis,
+    "startBlockHeight": 10000, "tickets": 10, "value": unspent[0]["amount"], "pubkey": pubkey}
 
+    # catch errror - missing pubkey from outputs
+    try:
+        tx = self.nodes[1].createrawrequesttx(inputs, outputs)
+        signedtx = self.nodes[1].signrawtransaction(tx)
+        self.nodes[1].sendrawtransaction(signedtx["hex"])
+    except JSONRPCException as e:
+        assert("bad-txns-in-ne-out" in e.error['message'])
+
+    # create new raw request transaction with missing details
+    unspent = self.nodes[1].listunspent(1, 9999999, [], True, "PERMISSION")
+    inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"], "asset": unspent[0]["asset"]}
+    inputs2 = {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"], "asset": unspent[1]["asset"]}
     outputs = {"decayConst": 10, "endBlockHeight": 20000, "fee": 1, "genesisBlockHash": genesis,
     "startBlockHeight": 10000, "tickets": 10, "value": unspent[0]["amount"]}
 
