@@ -1036,18 +1036,24 @@ UniValue getrequests(const JSONRPCRequest& request)
                     item.push_back(Pair("endBlockHeight", CScriptNum(vSolutions[0], true).getint()));
                     // output 2 contains the address that spends this request - skipped
                     // get genesis from output 3
-                    std::vector<unsigned char> genesisdata(vSolutions[3].begin() + 1, vSolutions[3].end());
-                    item.push_back(Pair("genesisBlock", uint256(genesisdata).GetHex()));
+                    char pubInt;
+                    uint256 genesisHash;
+                    CDataStream output3(vSolutions[3], SER_NETWORK, PROTOCOL_VERSION);
+                    output3 >> pubInt;
+                    output3 >> genesisHash;
+                    item.push_back(Pair("genesisBlock", genesisHash.GetHex()));
                     // get remaining request data from output 4
-                    item.push_back(Pair("startBlockHeight",
-                        stoi(HexStr(vSolutions[4].begin() + 1, vSolutions[4].begin() + 5), nullptr, 16)));
-                    item.push_back(Pair("numTickets",
-                        stoi(HexStr(vSolutions[4].begin() + 5, vSolutions[4].begin() + 9), nullptr, 16)));
-                    item.push_back(Pair("decayConst",
-                        stoi(HexStr(vSolutions[4].begin() + 9, vSolutions[4].begin() + 13), nullptr, 16)));
-                    item.push_back(Pair("feePercentage",
-                        stoi(HexStr(vSolutions[4].begin() + 13, vSolutions[4].begin() + 17), nullptr, 16)));
-
+                    CDataStream output4(vSolutions[4], SER_NETWORK, PROTOCOL_VERSION);
+                    int val;
+                    output4 >> pubInt;
+                    output4 >> val;
+                    item.push_back(Pair("startBlockHeight", val));
+                    output4 >> val;
+                    item.push_back(Pair("numTickets", val));
+                    output4 >> val;
+                    item.push_back(Pair("decayConst", val));
+                    output4 >> val;
+                    item.push_back(Pair("feePercentage", val));
                     ret.push_back(item);
                 }
             }

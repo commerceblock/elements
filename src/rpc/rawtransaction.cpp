@@ -535,8 +535,9 @@ static inline void createrawrequesttx_output(CMutableTransaction& rawTx,
 
     // get genesis for request
     uint256 genesisBlockHash = ParseHashO(output, KEY_GENESIS);
-    std::vector<unsigned char> datapubkey2 = {2};
-    datapubkey2.insert(datapubkey2.begin() + 1, genesisBlockHash.begin(), genesisBlockHash.end()); // pubkey size
+    CDataStream datapubkey2(SER_NETWORK, PROTOCOL_VERSION);
+    datapubkey2 << (char)2;
+    datapubkey2 << genesisBlockHash;
 
     // get the rest request info
     UniValue const& decayConst = output[KEY_DECAY_CONST];
@@ -558,16 +559,13 @@ static inline void createrawrequesttx_output(CMutableTransaction& rawTx,
     if (ticket.get_int() < 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_TICKETS_VALUE);
 
-    std::vector<unsigned char> datapubkey3 = {3}; // initialise with pubkey byte
-    auto startblockheighVec = ParseHex(strprintf("%08x", startBlockHeight.get_int()));
-    datapubkey3.insert(datapubkey3.end(), startblockheighVec.begin(), startblockheighVec.end());
-    auto ticketVec = ParseHex(strprintf("%08x", ticket.get_int()));
-    datapubkey3.insert(datapubkey3.end(), ticketVec.begin(), ticketVec.end());
-    auto decayconstVec = ParseHex(strprintf("%08x", decayConst.get_int()));
-    datapubkey3.insert(datapubkey3.end(), decayconstVec.begin(), decayconstVec.end());
-    auto feeVec = ParseHex(strprintf("%08x", fee.get_int()));
-    datapubkey3.insert(datapubkey3.end(), feeVec.begin(), feeVec.end());
-    datapubkey3.resize(33, 0); // pubkey size
+    CDataStream datapubkey3(SER_NETWORK, PROTOCOL_VERSION);
+    datapubkey3 << (char)3;
+    datapubkey3 << startBlockHeight.get_int();
+    datapubkey3 << ticket.get_int();
+    datapubkey3 << decayConst.get_int();
+    datapubkey3 << fee.get_int();
+    datapubkey3.resize(33);
 
     // get lock time block height
     UniValue const& endBlockHeight = find_value(output, KEY_END_BLOCK_HEIGHT);
@@ -581,8 +579,8 @@ static inline void createrawrequesttx_output(CMutableTransaction& rawTx,
             CScript() << endBlockHeight.get_int() << OP_CHECKLOCKTIMEVERIFY << OP_DROP
                       << CScript::EncodeOP_N(1)
                       << ToByteVector(targetPubKey)
-                      << datapubkey2
-                      << datapubkey3
+                      << ToByteVector(datapubkey2)
+                      << ToByteVector(datapubkey3)
                       << CScript::EncodeOP_N(3) << OP_CHECKMULTISIG));
 };
 
