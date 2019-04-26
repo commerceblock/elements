@@ -173,6 +173,7 @@ testScripts = [
     'p2p-leaktests.py',
     'redemption.py',
     'requests.py',
+    'request-bids.py',
     'validBurn.py'
 ]
 if ENABLE_ZMQ:

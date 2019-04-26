@@ -3,7 +3,6 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
 # Test for the request covalence system
-# TODO: add more tests as work on this progresses
 class RequestsTest(BitcoinTestFramework):
   def __init__(self):
     super().__init__()
@@ -41,7 +40,7 @@ class RequestsTest(BitcoinTestFramework):
     unspent = self.nodes[1].listunspent(1, 9999999, [], True, "CBT")
     genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
     genesis2 = "967da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
-    inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"], "asset": unspent[0]["asset"]}
+    inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"]}
     outputs = {"decayConst": 10, "endBlockHeight": 20000, "fee": 1, "genesisBlockHash": genesis,
     "startBlockHeight": 10000, "tickets": 10, "value": unspent[0]["amount"], "pubkey": pubkey}
 
@@ -55,8 +54,8 @@ class RequestsTest(BitcoinTestFramework):
 
     # create new raw request transaction with missing details
     unspent = self.nodes[1].listunspent(1, 9999999, [], True, "PERMISSION")
-    inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"], "asset": unspent[0]["asset"]}
-    inputs2 = {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"], "asset": unspent[1]["asset"]}
+    inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"]}
+    inputs2 = {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"]}
     outputs = {"decayConst": 10, "endBlockHeight": 20000, "fee": 1, "genesisBlockHash": genesis,
     "startBlockHeight": 10000, "tickets": 10, "value": unspent[0]["amount"]}
 
