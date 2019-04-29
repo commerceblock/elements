@@ -596,16 +596,20 @@ static string createrawbidtx_runtime_error(void) {
 Arguments:
 
 1. "inputs"                 (object, required) A json array of json objects.
-{
-  "txid": xxxx,             (string, required) The transaction id.
-  "vout": n,                (numeric, required) The output number.
-  "asset": "string"         (string, required) The asset of the input, as a tag string or a hex value"
-}
+[
+  {
+    "txid": xxxx,             (string, required) The transaction id.
+    "vout": n,                (numeric, required) The output number.
+    "asset": "string"         (string, required) The asset of the input, as a tag string or a hex value"
+  },
+]
 
 2. "outputs"                (object, required) a json object with outputs.
 {
   "pubkey": xxxx,           (string, required)  Target stake pubkey
-  "value": n,               (numeric, required) Staked value locked in target address
+  "value": n,               (numeric, required) Staked value locked in target pubkey
+  "change": n,              (numeric, optional) Change value of transaction
+  "changeAddress": "string" (string, optional) Change address of transaction
   "fee": n,                 (numeric, required) Fee value of transaction
   "endBlockHeight": n,      (numeric, required) Service end height
   "requestTxid": xxxx,      (string, required) Request txid for providing services
@@ -621,20 +625,22 @@ Examples:
 }
 
 static inline void createrawbidtx_input(CMutableTransaction &rawTx,
-                                            UniValue const &input) {
-    uint32_t nOutput;
-    uint256 txid = ParseHashO(input, "txid");
-    UniValue const& vout = find_value(input, "vout");
-    if (!vout.isNum())
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
-    if ((nOutput = vout.get_int()) < 0)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
-    rawTx.vin.push_back(CTxIn(COutPoint(txid, nOutput), CScript(), UINT_MAX - 1));
+                                            UniValue const &inputs) {
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        const auto &inputObj = inputs[i].get_obj();
+        uint32_t nOutput;
+        uint256 txid = ParseHashO(inputObj, "txid");
+        UniValue const& vout = find_value(inputObj, "vout");
+        if (!vout.isNum())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+        if ((nOutput = vout.get_int()) < 0)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
+        rawTx.vin.push_back(CTxIn(COutPoint(txid, nOutput), CScript(), UINT_MAX - 1));
+    }
 }
 
 static inline void createrawbidtx_output(CMutableTransaction& rawTx,
                                             CAsset const& asset,
-                                            CAmount const& amount,
                                             UniValue const& output)
 {
     // get target public key first
@@ -643,7 +649,6 @@ static inline void createrawbidtx_output(CMutableTransaction& rawTx,
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey must be a hex string");
     std::vector<unsigned char> datapubkey(ParseHex(pkey.getValStr()));
     CPubKey targetPubKey(datapubkey.begin(), datapubkey.end());
-    //we check that this pubkey is a real curve point
     if (!targetPubKey.IsFullyValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey is not a valid public key");
 
@@ -659,7 +664,6 @@ static inline void createrawbidtx_output(CMutableTransaction& rawTx,
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Fee Pubkey must be a hex string");
     std::vector<unsigned char> datapubkey3(ParseHex(feePkey.getValStr()));
     CPubKey feePubKey(datapubkey3.begin(), datapubkey3.end());
-    //we check that this pubkey is a real curve point
     if (!feePubKey.IsFullyValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Fee Pubkey is not a valid public key");
 
@@ -670,6 +674,7 @@ static inline void createrawbidtx_output(CMutableTransaction& rawTx,
     if (endBlockHeight.get_int() < 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_END_BLOCK_HEIGHT_VALUE);
 
+    CAmount amount = AmountFromValue(find_value(output, "value"));
     rawTx.vout.push_back(
         CTxOut(asset, amount,
             CScript() << CScriptNum(endBlockHeight.get_int()) << OP_CHECKLOCKTIMEVERIFY << OP_DROP
@@ -684,17 +689,28 @@ UniValue createrawbidtx(JSONRPCRequest const &request) {
     if (request.fHelp || request.params.size() != 2)
         throw runtime_error(createrawbidtx_runtime_error());
 
-    RPCTypeCheck(request.params, {VALUE_OBJ, VALUE_OBJ}, true);
+    RPCTypeCheck(request.params, {UniValue::VARR, UniValue::VOBJ}, true);
 
-    UniValue input = request.params[0].get_obj();
+    UniValue inputs = request.params[0].get_array();
     CMutableTransaction rawTx;
     rawTx.nLockTime = chainActive.Height();
-    createrawbidtx_input(rawTx, input);
+    createrawbidtx_input(rawTx, inputs);
 
-    CAsset asset = CAsset(ParseHashO(input, "asset"));
+    CAsset asset = CAsset(ParseHashO(inputs[0].get_obj(), "asset"));
     UniValue output = request.params[1].get_obj();
-    CAmount nAmount = AmountFromValue(find_value(output, "value"));
-    createrawbidtx_output(rawTx, asset, nAmount, output);
+    createrawbidtx_output(rawTx, asset, output);
+
+    const UniValue &change = find_value(output, "change");
+    const UniValue &changeAddr = find_value(output, "changeAddress");
+    if (!change.isNull() && !changeAddr.isNull()) {
+        const auto &nChange = AmountFromValue(change);
+        CBitcoinAddress address(changeAddr.get_str());
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Bitcoin address: ")+changeAddr.get_str());
+        CScript scriptPubKey = GetScriptForDestination(address.Get());
+        CTxOut out(asset, nChange, scriptPubKey);
+        rawTx.vout.push_back(out);
+    }
 
     CAmount nFee = AmountFromValue(find_value(output, "fee"));
     CTxOut out(asset, nFee, CScript());

@@ -3,7 +3,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
 # Test for the request bids of the covalence system
-class RequestBidsTest(BitcoinTestFramework):
+class CreaterawbidtxTest(BitcoinTestFramework):
   def __init__(self):
     super().__init__()
     self.setup_clean_chain = True
@@ -35,16 +35,16 @@ class RequestBidsTest(BitcoinTestFramework):
 
     # test create raw bid transaction
     addr = self.nodes[1].getnewaddress()
-    addrFee = self.nodes[1].getnewaddress()
-    priv = self.nodes[1].dumpprivkey(addr)
     pubkey = self.nodes[1].validateaddress(addr)["pubkey"]
-    pubkeyFee = self.nodes[1].validateaddress(addrFee)["pubkey"]
+    pubkeyFee = self.nodes[1].validateaddress(self.nodes[1].getnewaddress())["pubkey"]
     unspent = self.nodes[1].listunspent(1, 9999999, [], True, asset_hash)
     requestTxid = "666d55514441333122241110000557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
-    inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"], "asset": asset_hash}
+    inputs = [{"txid": unspent[0]["txid"], "vout": unspent[0]["vout"], "asset": asset_hash},
+            {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"], "asset": asset_hash}]
     fee = Decimal('0.0001')
-    outputs = {"pubkey": pubkey, "requestTxid": requestTxid, "feePubkey": pubkeyFee,
-        "fee": fee, "value": unspent[0]["amount"] - fee, "endBlockHeight": 105}
+    outputs = {"endBlockHeight": 105, "requestTxid": requestTxid, "feePubkey": pubkeyFee,
+        "pubkey": pubkey, "fee": fee, "value": 75 - fee,
+        "change": 25, "changeAddress": addr}
 
     tx = self.nodes[1].createrawbidtx(inputs, outputs)
     signedtx = self.nodes[1].signrawtransaction(tx)
@@ -53,7 +53,7 @@ class RequestBidsTest(BitcoinTestFramework):
     self.sync_all()
     self.nodes[0].generate(1)
     self.sync_all()
-    assert_equal(50, self.nodes[1].getbalance()[asset_hash])
+    assert_equal(25, self.nodes[1].getbalance()[asset_hash])
 
     # try send spend transaction
     inputPrev = {"txid": txid, "vout": 0, "sequence": 4294967294}
@@ -67,10 +67,11 @@ class RequestBidsTest(BitcoinTestFramework):
     self.sync_all()
 
     # need to add another input to pay for fees
-    inputFee = {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"]}
+    unspent = self.nodes[1].listunspent()
+    inputFee = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"]}
     addrChange = self.nodes[1].getnewaddress()
     txSpend = self.nodes[1].createrawtransaction([inputPrev, inputFee],
-        {addr: unspent[1]["amount"] - fee, addrChange: unspent[1]["amount"] - fee, "fee": fee},
+        {addr: 75 - fee, addrChange: 25 - fee, "fee": fee},
         self.nodes[1].getblockcount(),
         {addr: asset_hash, addrChange: asset_hash, "fee": asset_hash})
     signedTxSpend = self.nodes[1].signrawtransaction(txSpend)
@@ -84,4 +85,4 @@ class RequestBidsTest(BitcoinTestFramework):
     return
 
 if __name__ == '__main__':
-  RequestBidsTest().main()
+  CreaterawbidtxTest().main()
