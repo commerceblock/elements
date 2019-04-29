@@ -11,34 +11,38 @@ CRequestList::~CRequestList(){;}
 
 std::pair<bool, CRequestList::baseIter> CRequestList::find(const uint256 &txid)
 {
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  base::find(txid);
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+    baseIter it = base::find(txid);
+    if (it != this->end()) {
+        return std::make_pair(true, it);
+    }
+    return std::make_pair(false, this->end());
 }
 
 void CRequestList::clear()
 {
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  return base::clear();
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+    return base::clear();
 }
 
 void CRequestList::remove(const uint256 &txid)
 {
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  baseIter it = base::find(txid);
-  if(it != this->end())
-    base::erase(it);
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+    baseIter it = base::find(txid);
+    if(it != this->end())
+        base::erase(it);
 }
 
 CRequestList::base::size_type CRequestList::size()
 {
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  return base::size();
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+    return base::size();
 }
 
 void CRequestList::add(const uint256 &txid, CRequest *req)
 {
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  base::insert(std::make_pair(txid, *req));
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+    base::insert(std::make_pair(txid, *req));
 }
 
 /** Load request list from utxo set */

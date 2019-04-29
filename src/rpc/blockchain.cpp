@@ -1015,6 +1015,79 @@ UniValue requestToJSON(const CRequest &request)
     return item;
 }
 
+UniValue getrequestbids(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+            "getrequestbids ( \"requesthash\" ) \n"
+            "Returns an object containing the bids for the specified request.\n"
+            "\nArguments:\n"
+            "1. \"requesthash\"   (string, optional) The request transaction hash\n"
+            "\nResult:\n"
+            "[\n"
+            " {\n"
+            "   \"genesisBlock\": \"hash\",     (string) Client genesis for request\n"
+            "   \"startBlockHeight\": n,   (numeric) Request start height\n"
+            "   \"numTickets\": n,      (numeric) The number of guardnodes required\n"
+            "   \"decayConst\": n,            (numeric) Decay constant for auction\n"
+            "   \"feePercentage\": n,  (numeric) Fee percentage\n"
+            "   \"endBlockHeight\": n,   (numeric) Request end height\n"
+            "   \"txid\": \"hash\",   (string) The request transaction hash\n"
+            "   \"bids\": [         (array of strings) List of bid transaction hashes\n"
+            "       \"hash\",\n"
+            "   ]\n"
+            " },\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getrequestbids", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+            + HelpExampleRpc("getrequestbids", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+    );
+
+    uint256 hash(uint256S(request.params[0].get_str()));
+    UniValue ret(UniValue::VOBJ);
+    UniValue retBids(UniValue::VARR);
+
+    FlushStateToDisk();
+    std::unique_ptr<CCoinsViewCursor> pcursor(static_cast<CCoinsView*>(pcoinsTip)->Cursor());
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        uint256 key;
+        CCoins coins;
+        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
+            vector<vector<unsigned char>> vSolutions;
+            txnouttype whichType;
+            if (key == hash) { // request unspent
+                if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
+                    const auto &request = CRequest::FromSolutions(vSolutions);
+                    if ((int32_t)request.nEndBlockHeight >= chainActive.Height()) { // check request active
+                        ret = requestToJSON(request);
+                        ret.push_back(Pair("txid", key.ToString()));
+                    }
+                }
+            } else if (coins.vout.size() > 1) { // bid transactions
+                for (const auto &out : coins.vout) {
+                    if (Solver(out.scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
+                        auto bid = CBid::FromSolutions(vSolutions);
+                        if (bid.hashRequest == hash) {
+                            UniValue bidObj(UniValue::VOBJ);
+                            bidObj.push_back(Pair("txid", key.ToString()));
+                            bidObj.push_back(Pair("feePubKey", HexStr(bid.feePubKey)));
+                            retBids.push_back(bidObj);
+                        }
+                    }
+                }
+            }
+        } else {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+        }
+        pcursor->Next();
+    }
+    if (ret.size() > 0) {
+        ret.push_back(Pair("bids", retBids));
+    }
+    return ret;
+}
+
 UniValue getrequests(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() > 1)
@@ -2483,7 +2556,8 @@ static const CRPCCommand commands[] =
         {"blockchain", "gettxout", &gettxout, true, {"txid", "n", "include_mempool"}},
         {"blockchain", "gettxoutsetinfo", &gettxoutsetinfo, true, {}},
         {"blockchain", "getutxoassetinfo", &getutxoassetinfo, true, {}},
-        {"blockchain", "getrequests", &getrequests, true, {}},
+        {"blockchain", "getrequests", &getrequests, true, {"genesis_hash"}},
+        {"blockchain", "getrequestbids", &getrequestbids, true, {"request_hash"}},
         {"blockchain", "getfreezehistory", &getfreezehistory, true, {"height"}},
         {"blockchain", "pruneblockchain", &pruneblockchain, true, {"height"}},
         {"blockchain", "verifychain", &verifychain, true, {"checklevel", "nblocks"}},

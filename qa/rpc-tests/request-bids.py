@@ -2,8 +2,8 @@
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
-# Test for the request bids of the covalence system
-class CreaterawbidtxTest(BitcoinTestFramework):
+# Test for request bids of the covalence system
+class RequestbidsTest(BitcoinTestFramework):
   def __init__(self):
     super().__init__()
     self.setup_clean_chain = True
@@ -33,16 +33,34 @@ class CreaterawbidtxTest(BitcoinTestFramework):
     self.sync_all()
     assert_equal(100, self.nodes[1].getbalance()[asset_hash])
 
+    # create request
+    addr = self.nodes[0].getnewaddress()
+    pubkey = self.nodes[0].validateaddress(addr)["pubkey"]
+    unspent = self.nodes[0].listunspent(1, 9999999, [], True, "PERMISSION")
+    genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
+    inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"]}
+    outputs = {"decayConst": 10, "endBlockHeight": 110, "fee": 1, "genesisBlockHash": genesis,
+    "startBlockHeight": 105, "tickets": 10, "value": unspent[0]["amount"], "pubkey": pubkey}
+
+    tx = self.nodes[0].createrawrequesttx(inputs, outputs)
+    signedtx = self.nodes[0].signrawtransaction(tx)
+    requestTxid = self.nodes[0].sendrawtransaction(signedtx["hex"])
+    self.nodes[0].generate(1)
+    self.sync_all()
+
+    request_bids = self.nodes[1].getrequestbids(requestTxid)
+    assert(request_bids != {})
+    assert_equal(genesis, request_bids['genesisBlock'])
+
     # test create raw bid transaction
     addr = self.nodes[1].getnewaddress()
     pubkey = self.nodes[1].validateaddress(addr)["pubkey"]
     pubkeyFee = self.nodes[1].validateaddress(self.nodes[1].getnewaddress())["pubkey"]
     unspent = self.nodes[1].listunspent(1, 9999999, [], True, asset_hash)
-    requestTxid = "666d55514441333122241110000557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
     inputs = [{"txid": unspent[0]["txid"], "vout": unspent[0]["vout"], "asset": asset_hash},
             {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"], "asset": asset_hash}]
     fee = Decimal('0.0001')
-    outputs = {"endBlockHeight": 105, "requestTxid": requestTxid, "feePubkey": pubkeyFee,
+    outputs = {"endBlockHeight": 110, "requestTxid": requestTxid, "feePubkey": pubkeyFee,
         "pubkey": pubkey, "fee": fee, "value": 75 - fee,
         "change": 25, "changeAddress": addr}
 
@@ -54,6 +72,12 @@ class CreaterawbidtxTest(BitcoinTestFramework):
     self.nodes[0].generate(1)
     self.sync_all()
     assert_equal(25, self.nodes[1].getbalance()[asset_hash])
+
+    request_bids = self.nodes[1].getrequestbids(requestTxid)
+    assert(request_bids != {})
+    assert_equal(txid, request_bids['bids'][0]['txid'])
+    assert_equal(pubkeyFee, request_bids['bids'][0]['feePubKey'])
+    assert_equal(genesis, request_bids['genesisBlock'])
 
     # try send spend transaction
     inputPrev = {"txid": txid, "vout": 0, "sequence": 4294967294}
@@ -82,7 +106,10 @@ class CreaterawbidtxTest(BitcoinTestFramework):
     self.sync_all()
     assert_equal(Decimal('99.99980000'), self.nodes[1].getbalance()[asset_hash])
 
+    request_bids = self.nodes[1].getrequestbids(requestTxid)
+    assert(request_bids == {})
+
     return
 
 if __name__ == '__main__':
-  CreaterawbidtxTest().main()
+  RequestbidsTest().main()

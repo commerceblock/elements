@@ -29,8 +29,7 @@ public:
         CDataStream output3(vSolutions[3], SER_NETWORK, PROTOCOL_VERSION);
         output3 >> pubInt;
         output3 >> bid.hashRequest;
-        CDataStream output4(vSolutions[4], SER_NETWORK, PROTOCOL_VERSION);
-        output4 >> bid.feePubKey;
+        bid.feePubKey = CPubKey(vSolutions[4]);
         return bid;
     }
 };
