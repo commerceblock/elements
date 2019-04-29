@@ -8,12 +8,32 @@
 #include "version.h"
 #include "streams.h"
 #include "uint256.h"
+#include "pubkey.h"
 #include "script/script.h"
 
 using namespace std;
 
 /** Class for service request winning bids */
-class CBid {};
+class CBid {
+public:
+    uint256 hashRequest;
+    CPubKey feePubKey;
+
+    uint256 hashBid;
+    void SetBidHash(const uint256 &hash) { hashBid = hash; };
+
+    static CBid FromSolutions(const vector<vector<unsigned char>> &vSolutions)
+    {
+        CBid bid;
+        char pubInt;
+        CDataStream output3(vSolutions[3], SER_NETWORK, PROTOCOL_VERSION);
+        output3 >> pubInt;
+        output3 >> bid.hashRequest;
+        CDataStream output4(vSolutions[4], SER_NETWORK, PROTOCOL_VERSION);
+        output4 >> bid.feePubKey;
+        return bid;
+    }
+};
 
 /** Class for service requests */
 class CRequest {
@@ -25,8 +45,8 @@ public:
     uint32_t nEndBlockHeight;
     uint256 hashGenesis;
 
-    // removed until CBid class is finalized
-    //set<CBid> vBids;
+    vector<CBid> vBids;
+    void AddBid(const CBid &bid) { vBids.push_back(bid); };
 
     static CRequest FromSolutions(const vector<vector<unsigned char>> &vSolutions)
     {

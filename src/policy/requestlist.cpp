@@ -57,7 +57,7 @@ bool CRequestList::Load(CCoinsView *view, uint32_t nHeight)
                 if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions)
                 && whichType == TX_LOCKED_MULTISIG) {
                     auto request = CRequest::FromSolutions(vSolutions);
-                    if ((int32_t)request.nEndBlockHeight >= nHeight) {
+                    if (request.nEndBlockHeight >= nHeight) {
                         add(key, &request);
                     }
                 }
