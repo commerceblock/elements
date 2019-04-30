@@ -47,7 +47,10 @@ public:
     CAmount nStartPrice;
 
     vector<CBid> vBids;
-    void AddBid(const CBid &bid) { vBids.push_back(bid); };
+    void AddBid(const CBid &bid) {
+        if (vBids.size() < nNumTickets)
+            vBids.push_back(bid);
+    };
 
     CAmount GetAuctionPrice(uint32_t height) const
     {
@@ -71,6 +74,7 @@ public:
         output4 >> request.nDecayConst;
         output4 >> request.nFeePercentage;
         output4 >> request.nStartPrice;
+        request.vBids.reserve(request.nNumTickets);
         return request;
     }
 };

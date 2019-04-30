@@ -415,6 +415,42 @@ bool UpdateRequestList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
     return false;
 }
 
+bool UpdateRequestBidList(const CTransaction& tx, const CCoinsViewCache& mapInputs, uint32_t nHeight)
+{
+    if (tx.IsCoinBase() || tx.vout.size() <= 1)
+        return false;
+
+    txnouttype whichType;
+    vector<vector<unsigned char>> vSolutions;
+    for (const auto &out : tx.vout) {
+        if (out.nAsset.IsExplicit() && !IsPolicy(out.nAsset.GetAsset())
+        && Solver(out.scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
+            auto bid = CBid::FromSolutions(vSolutions);
+            auto res = requestList.find(bid.hashRequest);
+            if (res.first) {
+                CRequest req = res.second->second;
+                // auction already finished
+                if (req.nStartBlockHeight <= nHeight)
+                    return false;
+                // amount less than current auction price
+                if (out.nValue.GetAmount() < req.GetAuctionPrice(nHeight))
+                    return false;
+                // stake lock expires before request end
+                if ((int32_t)req.nEndBlockHeight > CScriptNum(vSolutions[0], true).getint())
+                    return false;
+                // max tickets filled
+                if (req.vBids.size() >= req.nNumTickets)
+                    return false;
+
+                bid.SetBidHash(tx.GetHash());
+                res.second->second.AddBid(bid);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool UpdateAssetMap(const CTransaction& tx)
 {
     if(!tx.vin[0].assetIssuance.IsNull()){
