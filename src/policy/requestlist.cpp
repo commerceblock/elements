@@ -48,6 +48,7 @@ void CRequestList::add(const uint256 &txid, CRequest *req)
 /** Load request bid from utxo set */
 bool CRequestList::LoadBid(vector<CTxOut> outs, uint256 hash, uint32_t nHeight)
 {
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     txnouttype whichType;
     vector<vector<unsigned char>> vSolutions;
     for (const auto &out : outs) {
@@ -137,6 +138,7 @@ bool CRequestList::Load(CCoinsView *view, uint32_t nHeight)
 /** Remove any expired requests */
 void CRequestList::RemoveExpired(uint32_t nHeight)
 {
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     for (auto it = this->begin(); it != this->cend();)
     {
         if (it->second.nEndBlockHeight < nHeight) {
