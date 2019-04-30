@@ -49,6 +49,13 @@ public:
     vector<CBid> vBids;
     void AddBid(const CBid &bid) { vBids.push_back(bid); };
 
+    CAmount GetAuctionPrice(uint32_t height) const
+    {
+        uint32_t t = height - nStartBlockHeight;
+        if(t < 0) return 0; // auction not started yet
+        return nStartPrice*(1 + t)/(1 + t + pow(t,3)/nDecayConst);
+    }
+
     static CRequest FromSolutions(const vector<vector<unsigned char>> &vSolutions)
     {
         CRequest request;

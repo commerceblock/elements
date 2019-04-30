@@ -1013,6 +1013,7 @@ UniValue requestToJSON(const CRequest &request)
     item.push_back(Pair("feePercentage", (int32_t)request.nFeePercentage));
     item.push_back(Pair("endBlockHeight", (int32_t)request.nEndBlockHeight));
     item.push_back(Pair("startPrice", ValueFromAmount(request.nStartPrice)));
+    item.push_back(Pair("auctionPrice", ValueFromAmount(request.GetAuctionPrice(chainActive.Height()))));
     return item;
 }
 
@@ -1032,6 +1033,8 @@ UniValue getrequestbids(const JSONRPCRequest& request)
             "   \"numTickets\": n,      (numeric) The number of guardnodes required\n"
             "   \"decayConst\": n,            (numeric) Decay constant for auction\n"
             "   \"feePercentage\": n,  (numeric) Fee percentage\n"
+            "   \"startPrice\": n,  (numeric) Auction starting price\n"
+            "   \"auctionPrice\": n,  (numeric) Auction current price\n"
             "   \"endBlockHeight\": n,   (numeric) Request end height\n"
             "   \"txid\": \"hash\",   (string) The request transaction hash\n"
             "   \"bids\": [         (array of strings) List of bid transaction hashes\n"
@@ -1060,7 +1063,7 @@ UniValue getrequestbids(const JSONRPCRequest& request)
             if (key == hash) { // request unspent
                 if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
                     const auto &request = CRequest::FromSolutions(vSolutions);
-                    if ((int32_t)request.nEndBlockHeight >= chainActive.Height()) { // check request active
+                    if ((int32_t)request.nEndBlockHeight >= chainActive.Height()) { // check request expired
                         ret = requestToJSON(request);
                         ret.push_back(Pair("txid", key.ToString()));
                     }
@@ -1105,6 +1108,8 @@ UniValue getrequests(const JSONRPCRequest& request)
             "   \"numTickets\": n,      (numeric) The number of guardnodes required\n"
             "   \"decayConst\": n,            (numeric) Decay constant for auction\n"
             "   \"feePercentage\": n,  (numeric) Fee percentage\n"
+            "   \"startPrice\": n,  (numeric) Auction starting price\n"
+            "   \"auctionPrice\": n,  (numeric) Auction current price\n"
             "   \"endBlockHeight\": n,   (numeric) Request end height\n"
             "   \"txid\": \"hash\",   (string) The request transaction hash\n"
             " },\n"

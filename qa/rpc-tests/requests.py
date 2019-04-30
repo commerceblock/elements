@@ -97,6 +97,7 @@ class RequestsTest(BitcoinTestFramework):
             assert_equal(req['feePercentage'], 1)
             assert_equal(req['startBlockHeight'], 100)
             assert_equal(req['startPrice'], 5)
+            assert(float(req['auctionPrice']) == 2.98507462)
         elif txid2 == req['txid']:
             assert(True)
         else:
@@ -113,6 +114,7 @@ class RequestsTest(BitcoinTestFramework):
             assert_equal(req['feePercentage'], 1)
             assert_equal(req['startBlockHeight'], 100)
             assert_equal(req['startPrice'], 5)
+            assert(float(req['auctionPrice']) == 2.98507462)
         else:
             assert(False)
     requests = self.nodes[0].getrequests(genesis2)
@@ -127,6 +129,7 @@ class RequestsTest(BitcoinTestFramework):
             assert_equal(req['feePercentage'], 3)
             assert_equal(req['startBlockHeight'], 105)
             assert_equal(req['startPrice'], 5)
+            assert_equal(req['auctionPrice'], 0) # auction not started yet
         else:
             assert(False)
     requests = self.nodes[0].getrequests("123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
@@ -166,6 +169,7 @@ class RequestsTest(BitcoinTestFramework):
             assert_equal(req['feePercentage'], 3)
             assert_equal(req['startBlockHeight'], 105)
             assert_equal(req['startPrice'], 5)
+            assert(float(req['auctionPrice']) == 0.40394973)
         else:
             assert(False)
     requests = self.nodes[0].getrequests(genesis2)
@@ -180,6 +184,7 @@ class RequestsTest(BitcoinTestFramework):
             assert_equal(req['feePercentage'], 3)
             assert_equal(req['startBlockHeight'], 105)
             assert_equal(req['startPrice'], 5)
+            assert(float(req['auctionPrice']) == 0.40394973)
         else:
             assert(False)
 
