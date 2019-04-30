@@ -479,6 +479,7 @@ Arguments:
   "fee": n,                 (numeric, required)
   "genesisBlockHash": xxxx, (string, required)
   "startBlockHeight": n,    (numeric, required)
+  "startPrice": n,          (numeric, required)
   "tickets": n,             (numeric, required)
   "value": n.               (numeric, required)
 }
@@ -529,6 +530,7 @@ static inline void createrawrequesttx_output(CMutableTransaction& rawTx,
     UniValue const& fee = output["fee"];
     UniValue const& startBlockHeight = output["startBlockHeight"];
     UniValue const& ticket = output["tickets"];
+    UniValue const& startPrice = output["startPrice"];
     if (!decayConst.isNum())
         throw JSONRPCError(RPC_INVALID_PARAMETER, ERROR_DECAY_CONST);
     if (!fee.isNum())
@@ -550,6 +552,7 @@ static inline void createrawrequesttx_output(CMutableTransaction& rawTx,
     datapubkey3 << ticket.get_int();
     datapubkey3 << decayConst.get_int();
     datapubkey3 << fee.get_int();
+    datapubkey3 << AmountFromValue(startPrice);
     datapubkey3.resize(33);
 
     // get lock time block height

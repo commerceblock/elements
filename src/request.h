@@ -9,6 +9,7 @@
 #include "streams.h"
 #include "uint256.h"
 #include "pubkey.h"
+#include "amount.h"
 #include "script/script.h"
 
 using namespace std;
@@ -43,6 +44,7 @@ public:
     uint32_t nStartBlockHeight;
     uint32_t nEndBlockHeight;
     uint256 hashGenesis;
+    CAmount nStartPrice;
 
     vector<CBid> vBids;
     void AddBid(const CBid &bid) { vBids.push_back(bid); };
@@ -61,6 +63,7 @@ public:
         output4 >> request.nNumTickets;
         output4 >> request.nDecayConst;
         output4 >> request.nFeePercentage;
+        output4 >> request.nStartPrice;
         return request;
     }
 };

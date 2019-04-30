@@ -40,7 +40,7 @@ class RequestbidsTest(BitcoinTestFramework):
     genesis = "867da0e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"
     inputs = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"]}
     outputs = {"decayConst": 10, "endBlockHeight": 110, "fee": 1, "genesisBlockHash": genesis,
-    "startBlockHeight": 105, "tickets": 10, "value": unspent[0]["amount"], "pubkey": pubkey}
+    "startBlockHeight": 105, "tickets": 10, "startPrice": 5, "value": unspent[0]["amount"], "pubkey": pubkey}
 
     tx = self.nodes[0].createrawrequesttx(inputs, outputs)
     signedtx = self.nodes[0].signrawtransaction(tx)

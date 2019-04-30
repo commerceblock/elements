@@ -1012,6 +1012,7 @@ UniValue requestToJSON(const CRequest &request)
     item.push_back(Pair("decayConst", (int32_t)request.nDecayConst));
     item.push_back(Pair("feePercentage", (int32_t)request.nFeePercentage));
     item.push_back(Pair("endBlockHeight", (int32_t)request.nEndBlockHeight));
+    item.push_back(Pair("startPrice", ValueFromAmount(request.nStartPrice)));
     return item;
 }
 
