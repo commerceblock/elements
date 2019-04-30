@@ -45,6 +45,74 @@ void CRequestList::add(const uint256 &txid, CRequest *req)
     base::insert(std::make_pair(txid, *req));
 }
 
+/** Load request bid from utxo set */
+bool CRequestList::LoadBid(vector<CTxOut> outs, uint256 hash, uint32_t nHeight)
+{
+    txnouttype whichType;
+    vector<vector<unsigned char>> vSolutions;
+    for (const auto &out : outs) {
+        if (out.nAsset.IsExplicit() && !IsPolicy(out.nAsset.GetAsset())
+        && Solver(out.scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
+            auto bid = CBid::FromSolutions(vSolutions);
+            auto res = base::find(bid.hashRequest);
+            if (res != this->end()) {
+                // auction already finished
+                if (res->second.nStartBlockHeight <= nHeight)
+                    return false;
+                // amount less than current auction price
+                if (out.nValue.GetAmount() < res->second.GetAuctionPrice(nHeight))
+                    return false;
+                // stake lock expires before request end
+                if ((int32_t)res->second.nEndBlockHeight > CScriptNum(vSolutions[0], true).getint())
+                    return false;
+                // max tickets filled
+                if (res->second.vBids.size() >= res->second.nNumTickets)
+                    return false;
+
+                bid.SetBidHash(hash);
+                res->second.AddBid(bid);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/** Load request bids from utxo set */
+bool CRequestList::LoadBids(CCoinsView *view, uint32_t nHeight)
+{
+    std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        uint256 key;
+        CCoins coins;
+        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
+            if (coins.vout.size() > 1){
+                this->LoadBid(coins.vout, key, nHeight);
+            }
+        } else {
+            return error("%s: unable to read value", __func__);
+        }
+        pcursor->Next();
+    }
+    return true;
+}
+
+/** Load request from utxo set */
+bool CRequestList::LoadRequest(CTxOut out, uint256 hash, uint32_t nHeight)
+{
+    vector<vector<unsigned char>> vSolutions;
+    txnouttype whichType;
+    if (Solver(out.scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
+        auto request = CRequest::FromSolutions(vSolutions);
+        if (request.nEndBlockHeight >= nHeight) {
+            this->add(hash, &request);
+            return true;
+        }
+    }
+    return false;
+}
+
 /** Load request list from utxo set */
 bool CRequestList::Load(CCoinsView *view, uint32_t nHeight)
 {
@@ -56,22 +124,14 @@ bool CRequestList::Load(CCoinsView *view, uint32_t nHeight)
         if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
             if (coins.vout.size() == 1 && !coins.IsCoinBase() &&
             coins.vout[0].nAsset.IsExplicit() && coins.vout[0].nAsset.GetAsset() == permissionAsset) {
-                vector<vector<unsigned char>> vSolutions;
-                txnouttype whichType;
-                if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions)
-                && whichType == TX_LOCKED_MULTISIG) {
-                    auto request = CRequest::FromSolutions(vSolutions);
-                    if (request.nEndBlockHeight >= nHeight) {
-                        add(key, &request);
-                    }
-                }
+                this->LoadRequest(coins.vout[0], key, nHeight);
             }
         } else {
             return error("%s: unable to read value", __func__);
         }
         pcursor->Next();
     }
-    return true;
+    return LoadBids(view, nHeight);
 }
 
 /** Remove any expired requests */

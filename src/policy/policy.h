@@ -165,7 +165,7 @@ bool UpdateBurnList(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
 
 /** Update the request list with the input transaction */
-bool UpdateRequestList(const CTransaction& tx, const CCoinsViewCache& mapInputs);
+bool UpdateRequestList(const CTransaction& tx, const CCoinsViewCache& mapInputs, uint32_t nHeight);
 
 /** Update the request bid list with the input transaction */
 bool UpdateRequestBidList(const CTransaction& tx, const CCoinsViewCache& mapInputs, uint32_t nHeight);

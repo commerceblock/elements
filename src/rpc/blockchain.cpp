@@ -1017,6 +1017,14 @@ UniValue requestToJSON(const CRequest &request)
     return item;
 }
 
+UniValue bidToJSON(const CBid &bid)
+{
+    UniValue item(UniValue::VOBJ);
+    item.push_back(Pair("txid", bid.hashBid.ToString()));
+    item.push_back(Pair("feePubKey", HexStr(bid.feePubKey)));
+    return item;
+}
+
 UniValue getrequestbids(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -1051,41 +1059,52 @@ UniValue getrequestbids(const JSONRPCRequest& request)
     UniValue ret(UniValue::VOBJ);
     UniValue retBids(UniValue::VARR);
 
-    FlushStateToDisk();
-    std::unique_ptr<CCoinsViewCursor> pcursor(static_cast<CCoinsView*>(pcoinsTip)->Cursor());
-    while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
-        uint256 key;
-        CCoins coins;
-        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
-            vector<vector<unsigned char>> vSolutions;
-            txnouttype whichType;
-            if (key == hash) { // request unspent
-                if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
-                    const auto &request = CRequest::FromSolutions(vSolutions);
-                    if ((int32_t)request.nEndBlockHeight >= chainActive.Height()) { // check request expired
-                        ret = requestToJSON(request);
-                        ret.push_back(Pair("txid", key.ToString()));
-                    }
+    if (fRequestList) {
+        for (auto it = requestList.begin(); it != requestList.end(); ++it) {
+            if (it->first == hash) {
+                ret = requestToJSON(it->second);
+                ret.push_back(Pair("txid", it->first.ToString()));
+                for (const auto &bid : it->second.vBids) {
+                    retBids.push_back(bidToJSON(bid));
                 }
-            } else if (coins.vout.size() > 1) { // bid transactions
-                for (const auto &out : coins.vout) {
-                    if (Solver(out.scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
-                        auto bid = CBid::FromSolutions(vSolutions);
-                        if (bid.hashRequest == hash) {
-                            UniValue bidObj(UniValue::VOBJ);
-                            bidObj.push_back(Pair("txid", key.ToString()));
-                            bidObj.push_back(Pair("feePubKey", HexStr(bid.feePubKey)));
-                            retBids.push_back(bidObj);
+            }
+        }
+    } else {
+        FlushStateToDisk();
+        std::unique_ptr<CCoinsViewCursor> pcursor(static_cast<CCoinsView*>(pcoinsTip)->Cursor());
+        while (pcursor->Valid()) {
+            boost::this_thread::interruption_point();
+            uint256 key;
+            CCoins coins;
+            if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
+                vector<vector<unsigned char>> vSolutions;
+                txnouttype whichType;
+                if (key == hash) { // request unspent
+                    if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
+                        const auto &request = CRequest::FromSolutions(vSolutions);
+                        if ((int32_t)request.nEndBlockHeight >= chainActive.Height()) { // check request expired
+                            ret = requestToJSON(request);
+                            ret.push_back(Pair("txid", key.ToString()));
+                        }
+                    }
+                } else if (coins.vout.size() > 1) { // bid transactions
+                    for (const auto &out : coins.vout) {
+                        if (Solver(out.scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
+                            auto bid = CBid::FromSolutions(vSolutions);
+                            if (bid.hashRequest == hash) {
+                                bid.SetBidHash(key);
+                                retBids.push_back(bidToJSON(bid));
+                            }
                         }
                     }
                 }
+            } else {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
             }
-        } else {
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+            pcursor->Next();
         }
-        pcursor->Next();
     }
+
     if (ret.size() > 0) {
         ret.push_back(Pair("bids", retBids));
     }
@@ -1138,35 +1157,34 @@ UniValue getrequests(const JSONRPCRequest& request)
                 ret.push_back(item);
             }
         }
-        return ret;
-    }
-
-    FlushStateToDisk();
-    std::unique_ptr<CCoinsViewCursor> pcursor(static_cast<CCoinsView*>(pcoinsTip)->Cursor());
-    while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
-        uint256 key;
-        CCoins coins;
-        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
-            if (coins.vout.size() == 1 && !coins.IsCoinBase() &&
-            coins.vout[0].nAsset.IsExplicit() && coins.vout[0].nAsset.GetAsset() == permissionAsset) {
-                vector<vector<unsigned char>> vSolutions;
-                txnouttype whichType;
-                if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
-                    auto request = CRequest::FromSolutions(vSolutions);
-                    if ((int32_t)request.nEndBlockHeight >= chainActive.Height()) { // check request active
-                        if (!fGenesisCheck || (request.hashGenesis == hash)) {
-                            auto item = requestToJSON(request);
-                            item.push_back(Pair("txid", key.ToString()));
-                            ret.push_back(item);
+    } else {
+        FlushStateToDisk();
+        std::unique_ptr<CCoinsViewCursor> pcursor(static_cast<CCoinsView*>(pcoinsTip)->Cursor());
+        while (pcursor->Valid()) {
+            boost::this_thread::interruption_point();
+            uint256 key;
+            CCoins coins;
+            if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
+                if (coins.vout.size() == 1 && !coins.IsCoinBase() &&
+                coins.vout[0].nAsset.IsExplicit() && coins.vout[0].nAsset.GetAsset() == permissionAsset) {
+                    vector<vector<unsigned char>> vSolutions;
+                    txnouttype whichType;
+                    if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
+                        auto request = CRequest::FromSolutions(vSolutions);
+                        if ((int32_t)request.nEndBlockHeight >= chainActive.Height()) { // check request active
+                            if (!fGenesisCheck || (request.hashGenesis == hash)) {
+                                auto item = requestToJSON(request);
+                                item.push_back(Pair("txid", key.ToString()));
+                                ret.push_back(item);
+                            }
                         }
                     }
                 }
+            } else {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
             }
-        } else {
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+            pcursor->Next();
         }
-        pcursor->Next();
     }
     return ret;
 }
