@@ -50,7 +50,9 @@ class RequestbidsTest(BitcoinTestFramework):
 
     request_bids = self.nodes[1].getrequestbids(requestTxid)
     assert(request_bids != {})
+    assert_equal(request_bids, self.nodes[0].getrequestbids(requestTxid))
     assert_equal(genesis, request_bids['genesisBlock'])
+    assert_equal([], request_bids['bids'])
 
     # test create raw bid transaction
     addr = self.nodes[1].getnewaddress()
@@ -75,9 +77,17 @@ class RequestbidsTest(BitcoinTestFramework):
 
     request_bids = self.nodes[1].getrequestbids(requestTxid)
     assert(request_bids != {})
+    assert_equal(request_bids, self.nodes[0].getrequestbids(requestTxid))
     assert_equal(txid, request_bids['bids'][0]['txid'])
     assert_equal(pubkeyFee, request_bids['bids'][0]['feePubKey'])
     assert_equal(genesis, request_bids['genesisBlock'])
+
+    #test stopping and restarting to make sure list is reloaded
+    self.stop_node(1)
+    self.nodes[1] = start_node(1, self.options.tmpdir, self.extra_args[1])
+    assert_equal(request_bids, self.nodes[1].getrequestbids(requestTxid))
+    connect_nodes_bi(self.nodes, 0, 1)
+    self.sync_all()
 
     # try send spend transaction
     inputPrev = {"txid": txid, "vout": 0, "sequence": 4294967294}
@@ -108,6 +118,14 @@ class RequestbidsTest(BitcoinTestFramework):
 
     request_bids = self.nodes[1].getrequestbids(requestTxid)
     assert(request_bids == {})
+    assert_equal(request_bids, self.nodes[0].getrequestbids(requestTxid))
+
+    #test stopping and restarting to make sure list is reloaded
+    self.stop_node(1)
+    self.nodes[1] = start_node(1, self.options.tmpdir, self.extra_args[1])
+    assert_equal(request_bids, self.nodes[1].getrequestbids(requestTxid))
+    connect_nodes_bi(self.nodes, 0, 1)
+    self.sync_all()
 
     return
 
