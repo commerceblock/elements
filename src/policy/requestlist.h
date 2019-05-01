@@ -37,7 +37,7 @@ public:
 
     // Load request list from utxo set
     bool Load(CCoinsView *view, uint32_t nHeight);
-    bool LoadRequest(CTxOut out, uint256 hash, uint32_t nHeight);
+    bool LoadRequest(CTxOut out, uint256 hash, uint32_t nHeight, uint32_t nConfirmedHeight);
     // Load request bids from utxo set
     bool LoadBids(CCoinsView *view, uint32_t nHeight);
     bool LoadBid(vector<CTxOut> outs, uint256 hash, uint32_t nHeight);

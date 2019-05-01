@@ -1007,6 +1007,7 @@ UniValue requestToJSON(const CRequest &request)
 {
     UniValue item(UniValue::VOBJ);
     item.push_back(Pair("genesisBlock", request.hashGenesis.GetHex()));
+    item.push_back(Pair("confirmedBlockHeight", (int32_t)request.nConfirmedBlockHeight));
     item.push_back(Pair("startBlockHeight", (int32_t)request.nStartBlockHeight));
     item.push_back(Pair("numTickets", (int32_t)request.nNumTickets));
     item.push_back(Pair("decayConst", (int32_t)request.nDecayConst));
@@ -1081,7 +1082,7 @@ UniValue getrequestbids(const JSONRPCRequest& request)
                 txnouttype whichType;
                 if (key == hash) { // request unspent
                     if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
-                        const auto &request = CRequest::FromSolutions(vSolutions);
+                        const auto &request = CRequest::FromSolutions(vSolutions, coins.nHeight);
                         if ((int32_t)request.nEndBlockHeight >= chainActive.Height()) { // check request expired
                             ret = requestToJSON(request);
                             ret.push_back(Pair("txid", key.ToString()));
@@ -1130,6 +1131,7 @@ UniValue getrequests(const JSONRPCRequest& request)
             "   \"startPrice\": n,  (numeric) Auction starting price\n"
             "   \"auctionPrice\": n,  (numeric) Auction current price\n"
             "   \"endBlockHeight\": n,   (numeric) Request end height\n"
+            "   \"confirmedBlockHeight\": n,   (numeric) Block height Request was confirmed\n"
             "   \"txid\": \"hash\",   (string) The request transaction hash\n"
             " },\n"
             "]\n"
@@ -1170,7 +1172,7 @@ UniValue getrequests(const JSONRPCRequest& request)
                     vector<vector<unsigned char>> vSolutions;
                     txnouttype whichType;
                     if (Solver(coins.vout[0].scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
-                        auto request = CRequest::FromSolutions(vSolutions);
+                        auto request = CRequest::FromSolutions(vSolutions, coins.nHeight);
                         if ((int32_t)request.nEndBlockHeight >= chainActive.Height()) { // check request active
                             if (!fGenesisCheck || (request.hashGenesis == hash)) {
                                 auto item = requestToJSON(request);

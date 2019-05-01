@@ -43,6 +43,7 @@ public:
     uint32_t nFeePercentage;
     uint32_t nStartBlockHeight;
     uint32_t nEndBlockHeight;
+    uint32_t nConfirmedBlockHeight;
     uint256 hashGenesis;
     CAmount nStartPrice;
 
@@ -54,12 +55,12 @@ public:
 
     CAmount GetAuctionPrice(uint32_t height) const
     {
-        uint32_t t = height - nStartBlockHeight;
+        uint32_t t = height - nConfirmedBlockHeight;
         if(t < 0) return 0; // auction not started yet
         return nStartPrice*(1 + t)/(1 + t + pow(t,3)/nDecayConst);
     }
 
-    static CRequest FromSolutions(const vector<vector<unsigned char>> &vSolutions)
+    static CRequest FromSolutions(const vector<vector<unsigned char>> &vSolutions, uint32_t nConfirmedHeight)
     {
         CRequest request;
         request.nEndBlockHeight = CScriptNum(vSolutions[0], true).getint();
@@ -74,6 +75,8 @@ public:
         output4 >> request.nDecayConst;
         output4 >> request.nFeePercentage;
         output4 >> request.nStartPrice;
+
+        request.nConfirmedBlockHeight = nConfirmedHeight;
         request.vBids.reserve(request.nNumTickets);
         return request;
     }

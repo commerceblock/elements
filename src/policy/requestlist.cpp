@@ -100,13 +100,13 @@ bool CRequestList::LoadBids(CCoinsView *view, uint32_t nHeight)
 }
 
 /** Load request from utxo set */
-bool CRequestList::LoadRequest(CTxOut out, uint256 hash, uint32_t nHeight)
+bool CRequestList::LoadRequest(CTxOut out, uint256 hash, uint32_t nHeight, uint32_t nConfirmedHeight)
 {
     vector<vector<unsigned char>> vSolutions;
     txnouttype whichType;
     if (Solver(out.scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
-        auto request = CRequest::FromSolutions(vSolutions);
-        if (request.nEndBlockHeight >= nHeight) {
+        auto request = CRequest::FromSolutions(vSolutions, nConfirmedHeight);
+        if (request.nEndBlockHeight > nHeight) {
             this->add(hash, &request);
             return true;
         }
@@ -125,7 +125,7 @@ bool CRequestList::Load(CCoinsView *view, uint32_t nHeight)
         if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
             if (coins.vout.size() == 1 && !coins.IsCoinBase() &&
             coins.vout[0].nAsset.IsExplicit() && coins.vout[0].nAsset.GetAsset() == permissionAsset) {
-                this->LoadRequest(coins.vout[0], key, nHeight);
+                this->LoadRequest(coins.vout[0], key, nHeight, coins.nHeight);
             }
         } else {
             return error("%s: unable to read value", __func__);

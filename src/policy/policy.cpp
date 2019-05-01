@@ -400,14 +400,15 @@ bool UpdateBurnList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
     return true;
 }
 
-bool UpdateRequestList(const CTransaction& tx, const CCoinsViewCache& mapInputs, uint32_t nHeight)
+bool UpdateRequestList(const CTransaction& tx, uint32_t nHeight)
 {
     if (tx.IsCoinBase() || tx.vout.size() != 1)
         return false;
-    return requestList.LoadRequest(tx.vout[0], tx.GetHash(), nHeight);
+    // confirmed height will be the next height
+    return requestList.LoadRequest(tx.vout[0], tx.GetHash(), nHeight, nHeight + 1);
 }
 
-bool UpdateRequestBidList(const CTransaction& tx, const CCoinsViewCache& mapInputs, uint32_t nHeight)
+bool UpdateRequestBidList(const CTransaction& tx, uint32_t nHeight)
 {
     if (tx.IsCoinBase() || tx.vout.size() <= 1)
         return false;
