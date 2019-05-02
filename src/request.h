@@ -17,13 +17,15 @@ using namespace std;
 /** Class for service request winning bids */
 class CBid {
 public:
+    uint32_t nLockHeight;
     uint256 hashRequest;
     CPubKey feePubKey;
+    CAmount nStakePrice;
 
     uint256 hashBid;
     void SetBidHash(const uint256 &hash) { hashBid = hash; };
 
-    static CBid FromSolutions(const vector<vector<unsigned char>> &vSolutions)
+    static CBid FromSolutions(const vector<vector<unsigned char>> &vSolutions, CAmount nAmount)
     {
         CBid bid;
         char pubInt;
@@ -31,7 +33,15 @@ public:
         output3 >> pubInt;
         output3 >> bid.hashRequest;
         bid.feePubKey = CPubKey(vSolutions[4]);
+
+        bid.nLockHeight = CScriptNum(vSolutions[0], true).getint();
+        bid.nStakePrice = nAmount;
         return bid;
+    }
+
+    bool operator<(const CBid& other) const
+    {
+        return hashBid < other.hashBid;
     }
 };
 
@@ -47,10 +57,12 @@ public:
     uint256 hashGenesis;
     CAmount nStartPrice;
 
-    vector<CBid> vBids;
-    void AddBid(const CBid &bid) {
-        if (vBids.size() < nNumTickets)
-            vBids.push_back(bid);
+    set<CBid> sBids;
+    bool AddBid(const CBid &bid)
+    {
+        if (sBids.size() < nNumTickets)
+            return sBids.insert(bid).second;
+        return false;
     };
 
     CAmount GetAuctionPrice(uint32_t height) const
@@ -77,7 +89,6 @@ public:
         output4 >> request.nStartPrice;
 
         request.nConfirmedBlockHeight = nConfirmedHeight;
-        request.vBids.reserve(request.nNumTickets);
         return request;
     }
 };

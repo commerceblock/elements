@@ -9,6 +9,7 @@
 #include "consensus/consensus.h"
 #include "script/interpreter.h"
 #include "script/standard.h"
+#include "request.h"
 
 #include <string>
 #include <vector>
@@ -163,6 +164,18 @@ bool UpdateFreezeList(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 */
 bool UpdateBurnList(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
+
+/** Check if Request is valid */
+bool IsValidRequest(const CRequest &request, uint32_t nHeight);
+
+/** Check if Request Bid is valid */
+bool IsValidRequestBid(const CRequest &request, const CBid &bid, uint32_t nConfirmedHeight);
+
+/** Get Request from a transaction */
+bool GetRequest(const CTxOut &out, uint256 hash, uint32_t nConfirmedHeight, CRequest &request);
+
+/** Get Request Bid from a transaction */
+bool GetRequestBid(const vector<CTxOut> &outs, uint256 hash, CBid &bid);
 
 /** Update the request list with the input transaction */
 bool UpdateRequestList(const CTransaction& tx, uint32_t nHeight);
