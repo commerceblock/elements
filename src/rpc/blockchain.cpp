@@ -1101,10 +1101,9 @@ UniValue getrequestbids(const JSONRPCRequest& request)
             if (pcursor2->GetKey(key) && pcursor2->GetValue(coins)) {
                 if (coins.vout.size() > 1) { // bid transactions
                     CBid bid;
-                    if (GetRequestBid(coins.vout, key, bid)) {
+                    if (GetRequestBid(coins.vout, key, coins.nHeight, bid)) {
                         if (IsValidRequestBid(req, bid, coins.nHeight)) {
-                            if (req.AddBid(bid)) // need this to count num of bids as we are replaying
-                                retBids.push_back(bidToJSON(bid));
+                            req.AddBid(bid, true);
                         }
                     }
                 }
@@ -1112,6 +1111,9 @@ UniValue getrequestbids(const JSONRPCRequest& request)
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
             }
             pcursor2->Next();
+        }
+        for (const auto &bid : req.sBids) {
+            retBids.push_back(bidToJSON(bid));
         }
     }
 

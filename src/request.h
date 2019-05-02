@@ -17,7 +17,8 @@ using namespace std;
 /** Class for service request winning bids */
 class CBid {
 public:
-    uint32_t nLockHeight;
+    uint32_t nLockBlockHeight;
+    uint32_t nConfirmedBlockHeight;
     uint256 hashRequest;
     CPubKey feePubKey;
     CAmount nStakePrice;
@@ -25,7 +26,7 @@ public:
     uint256 hashBid;
     void SetBidHash(const uint256 &hash) { hashBid = hash; };
 
-    static CBid FromSolutions(const vector<vector<unsigned char>> &vSolutions, CAmount nAmount)
+    static CBid FromSolutions(const vector<vector<unsigned char>> &vSolutions, CAmount nAmount, uint32_t nConfirmedHeight)
     {
         CBid bid;
         char pubInt;
@@ -34,14 +35,15 @@ public:
         output3 >> bid.hashRequest;
         bid.feePubKey = CPubKey(vSolutions[4]);
 
-        bid.nLockHeight = CScriptNum(vSolutions[0], true).getint();
+        bid.nLockBlockHeight = CScriptNum(vSolutions[0], true).getint();
+        bid.nConfirmedBlockHeight = nConfirmedHeight;
         bid.nStakePrice = nAmount;
         return bid;
     }
 
     bool operator<(const CBid& other) const
     {
-        return hashBid < other.hashBid;
+        return nConfirmedBlockHeight < other.nConfirmedBlockHeight;
     }
 };
 
@@ -58,10 +60,19 @@ public:
     CAmount nStartPrice;
 
     set<CBid> sBids;
-    bool AddBid(const CBid &bid)
+    bool AddBid(const CBid &bid, bool fRescan)
     {
-        if (sBids.size() < nNumTickets)
-            return sBids.insert(bid).second;
+        if (!fRescan && sBids.size() == nNumTickets)
+            return false;
+
+        if (sBids.insert(bid).second) {
+            // If size exceeded, remove the last element
+            // Size might be exceeded in the rescan case only
+            if (sBids.size() > nNumTickets) {
+                sBids.erase(prev(sBids.end()));
+            }
+            return true;
+        }
         return false;
     };
 

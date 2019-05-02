@@ -175,7 +175,7 @@ bool IsValidRequestBid(const CRequest &request, const CBid &bid, uint32_t nConfi
 bool GetRequest(const CTxOut &out, uint256 hash, uint32_t nConfirmedHeight, CRequest &request);
 
 /** Get Request Bid from a transaction */
-bool GetRequestBid(const vector<CTxOut> &outs, uint256 hash, CBid &bid);
+bool GetRequestBid(const vector<CTxOut> &outs, uint256 hash, uint32_t nConfirmedHeight, CBid &bid);
 
 /** Update the request list with the input transaction */
 bool UpdateRequestList(const CTransaction& tx, uint32_t nHeight);

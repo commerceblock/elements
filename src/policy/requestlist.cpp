@@ -46,16 +46,16 @@ void CRequestList::add(const uint256 &txid, CRequest *req)
 }
 
 /** Load request bid from utxo set */
-bool CRequestList::LoadBid(vector<CTxOut> outs, uint256 hash, uint32_t nHeight, uint32_t nConfirmedHeight)
+bool CRequestList::LoadBid(vector<CTxOut> outs, uint256 hash, uint32_t nHeight, uint32_t nConfirmedHeight, bool fRescan)
 {
     boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     CBid bid;
-    if (GetRequestBid(outs, hash, bid)) {
+    if (GetRequestBid(outs, hash, nConfirmedHeight, bid)) {
         auto res = base::find(bid.hashRequest);
         if (res != this->end()) {
             if (IsValidRequestBid(res->second, bid, nConfirmedHeight)) {
                 bid.SetBidHash(hash);
-                if (res->second.AddBid(bid))
+                if (res->second.AddBid(bid, fRescan))
                     return true;
             }
         }
@@ -73,7 +73,7 @@ bool CRequestList::LoadBids(CCoinsView *view, uint32_t nHeight)
         CCoins coins;
         if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
             if (coins.vout.size() > 1){
-                this->LoadBid(coins.vout, key, nHeight, coins.nHeight);
+                this->LoadBid(coins.vout, key, nHeight, coins.nHeight, true);
             }
         } else {
             return error("%s: unable to read value", __func__);

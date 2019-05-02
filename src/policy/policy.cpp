@@ -424,14 +424,14 @@ bool UpdateRequestList(const CTransaction& tx, uint32_t nHeight)
     return requestList.LoadRequest(tx.vout[0], tx.GetHash(), nHeight, nHeight + 1);
 }
 
-bool GetRequestBid(const vector<CTxOut> &outs, uint256 hash, CBid &bid)
+bool GetRequestBid(const vector<CTxOut> &outs, uint256 hash, uint32_t nConfirmedHeight, CBid &bid)
 {
     txnouttype whichType;
     vector<vector<unsigned char>> vSolutions;
     for (const auto &out : outs) {
         if (out.nAsset.IsExplicit() && !IsPolicy(out.nAsset.GetAsset())
         && Solver(out.scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
-            bid = CBid::FromSolutions(vSolutions, out.nValue.GetAmount());
+            bid = CBid::FromSolutions(vSolutions, out.nValue.GetAmount(), nConfirmedHeight);
             bid.SetBidHash(hash);
             return true;
         }
@@ -445,7 +445,7 @@ bool IsValidRequestBid(const CRequest &request, const CBid &bid, uint32_t nConfi
     if (bid.nStakePrice < request.GetAuctionPrice(nConfirmedHeight))
         return false;
     // stake lock expires before request end
-    if (request.nEndBlockHeight > bid.nLockHeight)
+    if (request.nEndBlockHeight > bid.nLockBlockHeight)
         return false;
     // auction finished
     if (request.nStartBlockHeight <= nConfirmedHeight)
