@@ -43,7 +43,12 @@ public:
 
     bool operator<(const CBid& other) const
     {
-        return nConfirmedBlockHeight < other.nConfirmedBlockHeight;
+        if (nConfirmedBlockHeight != other.nConfirmedBlockHeight) {
+            return nConfirmedBlockHeight < other.nConfirmedBlockHeight;
+        } else if (nStakePrice != other.nStakePrice) {
+            return nStakePrice < other.nStakePrice;
+        }
+        return false;
     }
 };
 
