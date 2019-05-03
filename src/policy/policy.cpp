@@ -439,16 +439,16 @@ bool GetRequestBid(const vector<CTxOut> &outs, uint256 hash, uint32_t nConfirmed
     return false;
 }
 
-bool IsValidRequestBid(const CRequest &request, const CBid &bid, uint32_t nConfirmedHeight)
+bool IsValidRequestBid(const CRequest &request, const CBid &bid)
 {
     // amount less than current auction price
-    if (bid.nStakePrice < request.GetAuctionPrice(nConfirmedHeight))
+    if (bid.nStakePrice < request.GetAuctionPrice(bid.nConfirmedBlockHeight))
         return false;
     // stake lock expires before request end
     if (request.nEndBlockHeight > bid.nLockBlockHeight)
         return false;
     // auction finished
-    if (request.nStartBlockHeight <= nConfirmedHeight)
+    if (request.nStartBlockHeight <= bid.nConfirmedBlockHeight)
         return false;
 
     return true;
@@ -458,7 +458,7 @@ bool UpdateRequestBidList(const CTransaction& tx, uint32_t nHeight)
 {
     if (tx.IsCoinBase() || tx.vout.size() <= 1)
         return false;
-    return requestList.LoadBid(tx.vout, tx.GetHash(), nHeight, nHeight + 1);
+    return requestList.LoadBid(tx.vout, tx.GetHash(), nHeight + 1);
 }
 
 bool UpdateAssetMap(const CTransaction& tx)

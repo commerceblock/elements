@@ -169,7 +169,7 @@ bool UpdateBurnList(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 bool IsValidRequest(const CRequest &request, uint32_t nHeight);
 
 /** Check if Request Bid is valid */
-bool IsValidRequestBid(const CRequest &request, const CBid &bid, uint32_t nConfirmedHeight);
+bool IsValidRequestBid(const CRequest &request, const CBid &bid);
 
 /** Get Request from a transaction */
 bool GetRequest(const CTxOut &out, uint256 hash, uint32_t nConfirmedHeight, CRequest &request);

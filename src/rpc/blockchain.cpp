@@ -1102,7 +1102,7 @@ UniValue getrequestbids(const JSONRPCRequest& request)
                 if (coins.vout.size() > 1) { // bid transactions
                     CBid bid;
                     if (GetRequestBid(coins.vout, key, coins.nHeight, bid)) {
-                        if (IsValidRequestBid(req, bid, coins.nHeight)) {
+                        if (IsValidRequestBid(req, bid)) {
                             req.AddBid(bid, true);
                         }
                     }
