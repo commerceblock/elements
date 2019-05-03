@@ -223,6 +223,7 @@ class RequestsTest(BitcoinTestFramework):
 
     self.sync_all()
     self.nodes[0].generate(1)
+    self.sync_all()
     assert(self.nodes[1].getbalance()["PERMISSION"] == 2000)
 
     return
