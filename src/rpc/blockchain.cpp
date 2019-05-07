@@ -1106,7 +1106,7 @@ UniValue getrequestbids(const JSONRPCRequest& request)
                     CBid bid;
                     if (GetRequestBid(coins.vout, key, coins.nHeight, bid)) {
                         if (IsValidRequestBid(req, bid)) {
-                            req.AddBid(bid, true);
+                            req.AddBid(bid);
                         }
                     }
                 }

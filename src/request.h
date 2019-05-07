@@ -46,9 +46,9 @@ public:
         if (nConfirmedBlockHeight != other.nConfirmedBlockHeight) {
             return nConfirmedBlockHeight < other.nConfirmedBlockHeight;
         } else if (nStakePrice != other.nStakePrice) {
-            return nStakePrice < other.nStakePrice;
+            return nStakePrice > other.nStakePrice;
         }
-        return false;
+        return hashBid < other.hashBid;
     }
 };
 
@@ -65,11 +65,8 @@ public:
     CAmount nStartPrice;
 
     set<CBid> sBids;
-    bool AddBid(const CBid &bid, bool fRescan)
+    bool AddBid(const CBid &bid)
     {
-        if (!fRescan && sBids.size() == nNumTickets)
-            return false;
-
         if (sBids.insert(bid).second) {
             // If size exceeded, remove the last element
             // Size might be exceeded in the rescan case only

@@ -117,6 +117,8 @@ BOOST_FIXTURE_TEST_CASE(valid_requestbid_test, TestChain100Setup)
 
     auto someAsset = "fa821b0be5e1387adbcb69dbb3ad33edb5e470831c7c938c4e7b344edbe8bb11";
     const CAsset exampleAsset = CAsset(uint256S(someAsset));
+
+    // Test adding bid to the request list
     CTxOut out(exampleAsset, 1, s);
     auto outHash = uint256S("0xaa749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
     vector<CTxOut> vOut{out};
@@ -129,21 +131,85 @@ BOOST_FIXTURE_TEST_CASE(valid_requestbid_test, TestChain100Setup)
     BOOST_CHECK_EQUAL(true, IsValidRequestBid(request, bid));
     BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash, 30));
 
+    // Test adding a second bid to the request list
     auto outHash2 = uint256S("0xbb749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
-    out = CTxOut(exampleAsset, 40, s);
+    out = CTxOut(exampleAsset, 39, s);
     vOut[0] = out;
-    BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash2, 30));
+    BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash2, 29));
 
+    // Test adding a third bid to the request list
+    // This has an earlier confirmed height so it should replace the latest bid
     auto outHash3 = uint256S("0xcc749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
-    BOOST_CHECK_EQUAL(false, list.LoadBid(vOut, outHash3, 28));
-    BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash3, 28, true));
+    BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash3, 28));
 
     auto res = list.find(someHash);
+    auto bids = (*res.second).second.sBids;
     BOOST_CHECK_EQUAL(true, res.first);
-    auto req = (*res.second).second;
+    BOOST_CHECK_EQUAL(2UL, bids.size());
+    for (const auto &bid : bids) {
+        BOOST_CHECK(bid.hashBid == outHash2 || bid.hashBid == outHash3);
+    }
 
-    for (const auto &bid : req.sBids) {
-        BOOST_CHECK(bid.hashBid == outHash || bid.hashBid == outHash3);
+    // Test adding the same bid is rejected
+    BOOST_CHECK_EQUAL(false, list.LoadBid(vOut, outHash3, 28));
+
+    // Test adding a bid on height 29 with highest bid replaces the previous bid
+    out = CTxOut(exampleAsset, 45, s);
+    vOut[0] = out;
+    auto outHash4 = uint256S("0xdd749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
+    BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash4, 29));
+
+    res = list.find(someHash);
+    bids = (*res.second).second.sBids;
+    BOOST_CHECK_EQUAL(true, res.first);
+    BOOST_CHECK_EQUAL(2UL, bids.size());
+    for (const auto &bid : bids) {
+        BOOST_CHECK(bid.hashBid == outHash4 || bid.hashBid == outHash3);
+    }
+
+    // Test a bid with larger height is rejected
+    // Test a bid with lower bid is rejected
+    out = CTxOut(exampleAsset, 39, s);
+    vOut[0] = out;
+    auto outHash5 = uint256S("0xdd749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff61");
+    BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash5, 45));
+
+    res = list.find(someHash);
+    bids = (*res.second).second.sBids;
+    BOOST_CHECK_EQUAL(true, res.first);
+    BOOST_CHECK_EQUAL(2UL, bids.size());
+    for (const auto &bid : bids) {
+        BOOST_CHECK(bid.hashBid == outHash4 || bid.hashBid == outHash3);
+    }
+
+    out = CTxOut(exampleAsset, 38, s);
+    vOut[0] = out;
+    auto outHash6 = uint256S("0xdd749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff62");
+    BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash6, 29));
+
+    res = list.find(someHash);
+    bids = (*res.second).second.sBids;
+    BOOST_CHECK_EQUAL(true, res.first);
+    BOOST_CHECK_EQUAL(2UL, bids.size());
+    for (const auto &bid : bids) {
+        BOOST_CHECK(bid.hashBid == outHash4 || bid.hashBid == outHash3);
+    }
+
+    // Test adding a bid on height 29 with same bid and smaller hash replaces the previous bid
+    // while a larger hash fails with the same price and height is removed from the list
+    out = CTxOut(exampleAsset, 45, s);
+    vOut[0] = out;
+    auto outHash7 = uint256S("0x11749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
+    auto outHash8 = uint256S("0x33749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
+    BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash7, 29));
+    BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash8, 29));
+
+    res = list.find(someHash);
+    bids = (*res.second).second.sBids;
+    BOOST_CHECK_EQUAL(true, res.first);
+    BOOST_CHECK_EQUAL(2UL, bids.size());
+    for (const auto &bid : bids) {
+        BOOST_CHECK(bid.hashBid == outHash7 || bid.hashBid == outHash3);
     }
 }
 
