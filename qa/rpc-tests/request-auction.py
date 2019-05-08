@@ -174,9 +174,19 @@ class RequestAuctionTest(BitcoinTestFramework):
 
         self.nodes[0].generate(20) # 138
         self.sync_all()
-        request = self.nodes[0].getrequestbids(request_txid)
-        assert_equal({}, request)
-        assert_equal(self.nodes[3].getrequestbids(request_txid), request)
+
+        try:
+            self.nodes[0].getrequestbids(request_txid)
+        except JSONRPCException as exp:
+            assert_equal(exp.error["message"], "No such request transaction")
+        else:
+            assert(False)
+        try:
+            self.nodes[3].getrequestbids(request_txid)
+        except JSONRPCException as exp:
+            assert_equal(exp.error["message"], "No such request transaction")
+        else:
+            assert(False)
 
         return
 

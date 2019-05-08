@@ -1122,8 +1122,9 @@ UniValue getrequestbids(const JSONRPCRequest& request)
 
     if (ret.size() > 0) {
         ret.push_back(Pair("bids", retBids));
+        return ret;
     }
-    return ret;
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No such request transaction");
 }
 
 UniValue getrequests(const JSONRPCRequest& request)

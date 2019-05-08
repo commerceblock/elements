@@ -116,16 +116,28 @@ class RequestbidsTest(BitcoinTestFramework):
     self.sync_all()
     assert_equal(Decimal('99.99980000'), self.nodes[1].getbalance()[asset_hash])
 
-    request_bids = self.nodes[1].getrequestbids(requestTxid)
-    assert(request_bids == {})
-    assert_equal(request_bids, self.nodes[0].getrequestbids(requestTxid))
+    try:
+        request_bids = self.nodes[1].getrequestbids(requestTxid)
+    except JSONRPCException as exp:
+        assert_equal(exp.error["message"], "No such request transaction")
+    else:
+        assert(False)
+    try:
+        request_bids = self.nodes[0].getrequestbids(requestTxid)
+    except JSONRPCException as exp:
+        assert_equal(exp.error["message"], "No such request transaction")
+    else:
+        assert(False)
 
     #test stopping and restarting to make sure list is reloaded
     self.stop_node(1)
     self.nodes[1] = start_node(1, self.options.tmpdir, self.extra_args[1])
-    assert_equal(request_bids, self.nodes[1].getrequestbids(requestTxid))
-    connect_nodes_bi(self.nodes, 0, 1)
-    self.sync_all()
+    try:
+        request_bids = self.nodes[1].getrequestbids(requestTxid)
+    except JSONRPCException as exp:
+        assert_equal(exp.error["message"], "No such request transaction")
+    else:
+        assert(False)
 
     return
 
