@@ -44,6 +44,7 @@ def test_redemption_1(node):
     addr2 : issue["asset"],
     addr3 : issue["asset"]
   }
+
   #=============================================================================
   # Create Transaction & Signed Transaction
   #=============================================================================
@@ -52,13 +53,14 @@ def test_redemption_1(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  txid = node.testmempoolaccept(signedtx["hex"])
 
-  print(txid)
 
-  if txid["allowed"] == 0:
-    print(txid)
+  try:
+    newtx_send = node.sendrawtransaction(signedtx["hex"])
+  except JSONRPCException as e:
+    assert("redemption-tx-not-freezelisted" in e.error['message'])
     return False
+
   return True
 #===============================================================================
 # Test 2 : Test With an Address not Listed in FreezeList
@@ -110,10 +112,14 @@ def test_redemption_2(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  txid = node.testmempoolaccept(signedtx["hex"])
-  if txid["allowed"] == 0:
+
+  try:
+    newtx_send = node.sendrawtransaction(signedtx["hex"])
+  except JSONRPCException as e:
+    assert("redemption-tx-not-freezelisted" in e.error['message'])
     return True
-  return False
+
+  return False 
 #===============================================================================
 # Test 3 : Test With no Address Listed in FreezeList
 #===============================================================================
@@ -159,9 +165,12 @@ def test_redemption_3(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  txid = node.testmempoolaccept(signedtx["hex"])
-  if txid["allowed"] == 0:
+  try:
+    newtx_send = node.sendrawtransaction(signedtx["hex"])
+  except JSONRPCException as e:
+    assert("redemption-tx-not-freezelisted" in e.error['message'])
     return True
+
   return False
 #===============================================================================
 # Test 4 : Just Test With not Null Addresses
@@ -208,10 +217,12 @@ def test_redemption_4(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  txid = node.testmempoolaccept(signedtx["hex"])
-  if txid["allowed"] == 0:
-    print(txid)
+  try:
+    newtx_send = node.sendrawtransaction(signedtx["hex"])
+  except JSONRPCException as e:
+    assert("redemption-tx-not-freezelisted" in e.error['message'])
     return False
+
   return True
 #===============================================================================
 # Test 5 : Test With a Null Address that is not at the Top of the List
@@ -258,9 +269,12 @@ def test_redemption_5(node):
   #=============================================================================
   # Send Transaction and try if is valid or not valid
   #=============================================================================
-  txid = node.testmempoolaccept(signedtx["hex"])
-  if txid["allowed"] == 0:
+  try:
+    newtx_send = node.sendrawtransaction(signedtx["hex"])
+  except JSONRPCException as e:
+    assert("redemption-tx-not-freezelisted" in e.error['message'])
     return True
+
   return False
 
 class RedemptionTest (BitcoinTestFramework):
