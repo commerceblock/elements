@@ -7,6 +7,10 @@ from test_framework.util import *
 def test_redemption_1(node):
   #create asset to send
   issue = node.issueasset('10','0')
+  tx = node.getrawtransaction(issue["txid"],1)
+  for vout in tx["vout"]:
+    if vout["asset"] == issue["asset"]:
+      n = vout["n"]
   node.generate(10)
   #=============================================================================
   # Create Address
@@ -27,7 +31,7 @@ def test_redemption_1(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": 1,
+    "vout": n,
     "nValue": Decimal(10.0)
   }]
   # Make Outputs
@@ -58,7 +62,7 @@ def test_redemption_1(node):
   try:
     newtx_send = node.sendrawtransaction(signedtx["hex"])
   except JSONRPCException as e:
-    assert("redemption-tx-not-freezelisted" in e.error['message'])
+    print(e)
     return False
 
   return True
@@ -68,6 +72,10 @@ def test_redemption_1(node):
 def test_redemption_2(node):
   #create asset to send
   issue = node.issueasset('10','0')
+  tx = node.getrawtransaction(issue["txid"],1)
+  for vout in tx["vout"]:
+    if vout["asset"] == issue["asset"]:
+      n = vout["n"]
   node.generate(10)
   #=============================================================================
   # Create Address
@@ -87,7 +95,7 @@ def test_redemption_2(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": 1,
+    "vout": n,
     "nValue": Decimal(10.0)
   }]
   # Make Outputs
@@ -126,6 +134,10 @@ def test_redemption_2(node):
 def test_redemption_3(node):
   #create asset to send
   issue = node.issueasset('10','0')
+  tx = node.getrawtransaction(issue["txid"],1)
+  for vout in tx["vout"]:
+    if vout["asset"] == issue["asset"]:
+      n = vout["n"]
   node.generate(10)
   #=============================================================================
   # Create Address
@@ -140,7 +152,7 @@ def test_redemption_3(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": 1,
+    "vout": n,
     "nValue": Decimal(10.0)
   }]
   # Make Outputs
@@ -178,6 +190,10 @@ def test_redemption_3(node):
 def test_redemption_4(node):
   #create asset to send
   issue = node.issueasset('10','0')
+  tx = node.getrawtransaction(issue["txid"],1)
+  for vout in tx["vout"]:
+    if vout["asset"] == issue["asset"]:
+      n = vout["n"]
   node.generate(10)
   #=============================================================================
   # Create Address
@@ -192,7 +208,7 @@ def test_redemption_4(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": 1,
+    "vout": n,
     "nValue": Decimal(10.0)
   }]
   # Make Outputs
@@ -220,7 +236,7 @@ def test_redemption_4(node):
   try:
     newtx_send = node.sendrawtransaction(signedtx["hex"])
   except JSONRPCException as e:
-    assert("redemption-tx-not-freezelisted" in e.error['message'])
+    print(e)
     return False
 
   return True
@@ -230,6 +246,10 @@ def test_redemption_4(node):
 def test_redemption_5(node):
   #create asset to send
   issue = node.issueasset('10','0')
+  tx = node.getrawtransaction(issue["txid"],1)
+  for vout in tx["vout"]:
+    if vout["asset"] == issue["asset"]:
+      n = vout["n"]
   node.generate(10)
   #=============================================================================
   # Create Address
@@ -244,7 +264,7 @@ def test_redemption_5(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": 1,
+    "vout": n,
     "nValue": Decimal(10.0)
   }]
   # Make Outputs
