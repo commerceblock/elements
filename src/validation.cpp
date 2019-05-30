@@ -2558,8 +2558,14 @@ void UpdatePolicyLists(const CBlock& block, const CCoinsViewCache& view) {
         if (fRequestList) {
             if(tx.vout[0].nAsset.GetAsset() == permissionAsset) UpdateRequestList(tx,chainActive.Height());
             else UpdateRequestBidList(tx,chainActive.Height());
+
         }
     }
+
+    if (fRequestList) {
+        requestList.RemoveExpired(chainActive.Height() + 1);
+    }
+    
 }
 
 
@@ -2783,10 +2789,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         if (!MoneyRange(mapFees))
             return state.DoS(100, error("ConnectBlock(): total block reward overflowed"), REJECT_INVALID, "bad-blockreward-outofrange");
 
-    }
-
-    if (fRequestList) {
-        requestList.RemoveExpired(chainActive.Height() + 1);
     }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
