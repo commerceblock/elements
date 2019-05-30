@@ -2531,6 +2531,44 @@ static int64_t nTimeIndex = 0;
 static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
+
+void UpdatePolicyLists(const CBlock& block, const CCoinsViewCache& view) {
+    for (unsigned int i = 0; i < block.vtx.size(); i++){
+        const CTransaction &tx = *(block.vtx[i]);
+
+        if(fRequireFreezelistCheck) {
+                if(tx.vout[0].nAsset.GetAsset() == freezelistAsset) UpdateFreezeList(tx,view);
+            }
+        if(fEnableBurnlistCheck) {
+            if(tx.vout[0].nAsset.GetAsset() == burnlistAsset) UpdateBurnList(tx,view);
+        }
+        if(fRequireWhitelistCheck || fScanWhitelist){
+           if(!addressWhitelist.RegisterAddress(tx, view)){
+                if(tx.vout[0].nAsset.GetAsset() == whitelistAsset) {
+                    addressWhitelist.Update(tx,view);
+                }
+            }
+        }
+
+        if(fRecordInflation) {
+            UpdateAssetMap(tx);
+            UpdateFreezeHistory(tx,chainActive.Height()+1);
+        }
+
+        if (fRequestList) {
+            if(tx.vout[0].nAsset.GetAsset() == permissionAsset) UpdateRequestList(tx,chainActive.Height());
+            else UpdateRequestBidList(tx,chainActive.Height());
+
+        }
+    }
+
+    if (fRequestList) {
+        requestList.RemoveExpired(chainActive.Height() + 1);
+    }
+    
+}
+
+
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, const CChainParams& chainparams, std::set<std::pair<uint256, COutPoint> >* setPeginsSpent, bool fJustCheck)
 {
     AssertLockHeld(cs_main);
@@ -2715,30 +2753,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             }
         }
 
-        if(fRequireFreezelistCheck) {
-            if(tx.vout[0].nAsset.GetAsset() == freezelistAsset) UpdateFreezeList(tx,view);
-        }
-        if(fEnableBurnlistCheck) {
-            if(tx.vout[0].nAsset.GetAsset() == burnlistAsset) UpdateBurnList(tx,view);
-        }
-        if(fRequireWhitelistCheck || fScanWhitelist){
-           if(!addressWhitelist.RegisterAddress(tx, view)){
-                if(tx.vout[0].nAsset.GetAsset() == whitelistAsset) {
-                    addressWhitelist.Update(tx,view);
-                }
-            }
-        }
-
-        if(fRecordInflation) {
-            UpdateAssetMap(tx);
-            UpdateFreezeHistory(tx,chainActive.Height()+1);
-        }
-
-        if (fRequestList) {
-            if(tx.vout[0].nAsset.GetAsset() == permissionAsset) UpdateRequestList(tx,chainActive.Height());
-            else UpdateRequestBidList(tx,chainActive.Height());
-        }
-
         // GetTransactionSigOpCost counts 3 types of sigops:
         // * legacy (always)
         // * p2sh (when P2SH enabled in flags and excludes coinbase)
@@ -2775,10 +2789,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         if (!MoneyRange(mapFees))
             return state.DoS(100, error("ConnectBlock(): total block reward overflowed"), REJECT_INVALID, "bad-blockreward-outofrange");
 
-    }
-
-    if (fRequestList) {
-        requestList.RemoveExpired(chainActive.Height() + 1);
     }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
@@ -2824,6 +2834,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         if (!pblocktree->WriteTxIndex(vPos))
             return AbortNode(state, "Failed to write transaction index");
 
+    UpdatePolicyLists(block, view);
+
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
 
@@ -2838,6 +2850,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
+
 
     return true;
 }

@@ -584,6 +584,11 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& coins,
                   const CChainParams& chainparams, std::set<std::pair<uint256, COutPoint> >* setPeginsSpent = NULL, bool fJustCheck = false);
 
+
+/** Apply the effects of this block to the policy lists.
+*/
+void UpdatePolicyLists(const CBlock& block, const CCoinsViewCache& view);
+
 /** Undo the effects of this block (with given index) on the UTXO set represented by coins.
  *  In case pfClean is provided, operation will try to be tolerant about errors, and *pfClean
  *  will be true if no problems were found. Otherwise, the return value will be false in case
