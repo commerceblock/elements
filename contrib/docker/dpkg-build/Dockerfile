@@ -23,7 +23,7 @@ RUN set -ex \
     && mkdir -p ocean-$(git rev-parse --short HEAD)/DEBIAN \
     && cp contrib/docker/dpkg-build/control \
         ocean-$(git rev-parse --short HEAD)/DEBIAN/ \
-    && sed -i "s/Version:*/Version: $(git rev-parse --short HEAD)/" \
+    && sed -i "s/Version:*/Version: 1.0-$(git rev-parse --short HEAD)/" \
         ocean-$(git rev-parse --short HEAD)/DEBIAN/control \
     && dpkg-deb --build ocean-$(git rev-parse --short HEAD) \
     && go run github-release/main.go "Debian package" \
