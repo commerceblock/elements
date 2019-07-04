@@ -1,4 +1,4 @@
-FROM commerceblock:ubuntuoceanbase
+FROM commerceblock/debbase:latest
 
 ARG token
 ENV GITHUB_RELEASE_ACCESS_TOKEN=$token
