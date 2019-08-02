@@ -17,7 +17,19 @@ CWhiteList::CWhiteList(){
   //The written code behaviour expects nMultisigSize to be of length 1 at the moment. If it is changed in the future the code needs to be adjusted accordingly.
   assert(nMultisigSize == 1);
 }
+
 CWhiteList::~CWhiteList(){;}
+
+//Has to be called after global Params have been set
+void CWhiteList::InitCoinbaseDest(){
+if (Params().GetConsensus().mandatory_coinbase_destination != CScript()){
+    _coinbase_dest = new CTxDestination();
+    if(!ExtractDestination(Params().GetConsensus().mandatory_coinbase_destination, *_coinbase_dest)){
+      delete _coinbase_dest;
+      _coinbase_dest = nullptr;
+    }
+  }
+}
 
 bool CWhiteList::Load(CCoinsView *view)
 {
@@ -846,10 +858,14 @@ void CWhiteList::clear(){
 
 bool CWhiteList::is_whitelisted(const CTxDestination keyId){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  if(!find(keyId)) return false;
-  if(_kycMap[keyId] == CKeyID()) return true;
-  if(!find_kyc_whitelisted(_kycMap[keyId])) return false;
-  return true;
+  if(find(keyId)) {
+    if(_kycMap[keyId] == CKeyID()) return true;
+    if(!find_kyc_whitelisted(_kycMap[keyId])) return false;
+  }
+  if(_coinbase_dest != nullptr){
+    if (CTxDestination(keyId) == *_coinbase_dest) return true;
+  }
+  return false;
 }
 
 void CWhiteList::add_my_pending(const CTxDestination id){

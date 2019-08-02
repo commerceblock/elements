@@ -214,9 +214,9 @@ bool IsWhitelisted(CTransaction const &tx) {
     // return false if not P2PKH
     if (!(whichType == TX_PUBKEYHASH))
       return false;
-
     CKeyID keyId;
     keyId = CKeyID(uint160(vSolutions[0]));
+
     // Search in whitelist for the presence of each output address.
     // If one is not found, return false.
     if (!addressWhitelist.is_whitelisted(keyId) && uint160(vSolutions[0]) != frzInt)
