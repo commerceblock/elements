@@ -20,17 +20,6 @@ CWhiteList::CWhiteList(){
 
 CWhiteList::~CWhiteList(){;}
 
-//Has to be called after global Params have been set
-void CWhiteList::InitCoinbaseDest(){
-if (Params().GetConsensus().mandatory_coinbase_destination != CScript()){
-    _coinbase_dest = new CTxDestination();
-    if(!ExtractDestination(Params().GetConsensus().mandatory_coinbase_destination, *_coinbase_dest)){
-      delete _coinbase_dest;
-      _coinbase_dest = nullptr;
-    }
-  }
-}
-
 bool CWhiteList::Load(CCoinsView *view)
 {
     std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
@@ -89,6 +78,17 @@ bool CWhiteList::Load(CCoinsView *view)
   return true;
 }
 
+void CWhiteList::add_destination(const CTxDestination& dest){
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+  if (dest.which() == ((CTxDestination)CNoDestination()).which())
+    throw std::invalid_argument(std::string(std::string(__func__) + 
+      ": invalid destination"));
+  CKeyID kycKeyID;
+  _kycPubkeyMap[kycKeyID]=CPubKey();  
+  _kycMap[dest]=kycKeyID;
+   add_sorted(dest);
+}
+
 void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubKey){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
   CWhiteList::add_derived(address, pubKey, nullptr);
@@ -105,6 +105,7 @@ void CWhiteList::add_derived(const CBitcoinAddress& address,  const CPubKey& pub
     //Will throw an error if address is not a valid derived address.
   CTxDestination keyId;
   keyId = address.Get();
+  
   if (keyId.which() == ((CTxDestination)CNoDestination()).which())
       throw std::invalid_argument(std::string(std::string(__func__) + 
       ": invalid key id"));
@@ -858,14 +859,10 @@ void CWhiteList::clear(){
 
 bool CWhiteList::is_whitelisted(const CTxDestination keyId){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  if(find(keyId)) {
-    if(_kycMap[keyId] == CKeyID()) return true;
-    if(!find_kyc_whitelisted(_kycMap[keyId])) return false;
-  }
-  if(_coinbase_dest != nullptr){
-    if (CTxDestination(keyId) == *_coinbase_dest) return true;
-  }
-  return false;
+  if(!find(keyId)) return false;
+  if(_kycMap[keyId] == CKeyID()) return true;
+  if(!find_kyc_whitelisted(_kycMap[keyId])) return false;
+  return true;
 }
 
 void CWhiteList::add_my_pending(const CTxDestination id){

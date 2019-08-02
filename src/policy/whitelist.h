@@ -17,8 +17,6 @@ public:
 	CWhiteList();
 	virtual ~CWhiteList();
 
-	void InitCoinbaseDest();
-
 	static const int64_t MAX_UNASSIGNED_KYCPUBKEYS=10000;
 
 	enum status {
@@ -27,6 +25,8 @@ public:
   	};
 
 	bool Load(CCoinsView *view);
+
+	void add_destination(const CTxDestination& dest);
 
 	void add_derived(const CBitcoinAddress& address, const CPubKey& pubKey, 
 		const std::unique_ptr<CPubKey>& kycPubKey);
@@ -111,8 +111,6 @@ public:
     }
   
 private:
-
-	CTxDestination* _coinbase_dest=nullptr;
 
 	//Make add_sorted private because we only want verified derived keys 
 	//to be added to the CWhiteList.

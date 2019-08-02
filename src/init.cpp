@@ -1222,7 +1222,20 @@ bool AppInitSanityChecks()
 bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 {
     const CChainParams& chainparams = Params();
-    addressWhitelist.InitCoinbaseDest();       
+    
+    if (fRequireWhitelistCheck  || fScanWhitelist){ 
+        if (chainparams.GetConsensus().mandatory_coinbase_destination != CScript()){
+            CTxDestination man_con_dest;
+            if(ExtractDestination(chainparams.GetConsensus().mandatory_coinbase_destination, man_con_dest)){
+                try{
+                    addressWhitelist.add_destination(man_con_dest); 
+                } catch (std::invalid_argument e){
+                    LogPrintf(std::string("Error adding coinbase destination to whitelist: ") + std::string(e.what()) + "\n");
+                } 
+            }
+        }
+    } 
+   
     // ********************************************************* Step 4a: application initialization
     // After daemonization get the data directory lock again and hold on to it until exit
     // This creates a slight window for a race condition to happen, however this condition is harmless: it

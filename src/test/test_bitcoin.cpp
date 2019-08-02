@@ -37,7 +37,7 @@ FastRandomContext insecure_rand_ctx(true);
 extern bool fPrintToConsole;
 extern void noui_connect();
 
-BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::string& fedpegscript)
+BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::string& fedpegscript, const std::string& con_mandatorycoinbase)
 {
         ECC_Start();
         SetupEnvironment();
@@ -52,6 +52,10 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::st
             SoftSetArg("-fedpegscript", fedpegscript);
             SoftSetArg("-fedpegaddress", "efff2561de5ba19d38071addddd9d434b9111160");
         }
+        if (!con_mandatorycoinbase.empty()){
+            SoftSetArg("-con_mandatorycoinbase","76a914567884b53d417d36b37a0409521f4644a7f46ffe88ac");
+            SoftSetArg("-pkhwhitelist", "1");
+        }
         // MAX_MONEY
         SoftSetArg("-initialfreecoins", "2100000000000000");
         SoftSetArg("-policycoins", "2100000000000000");
@@ -65,7 +69,7 @@ BasicTestingSetup::~BasicTestingSetup()
         g_connman.reset();
 }
 
-TestingSetup::TestingSetup(const std::string& chainName, const std::string& fedpegscript) : BasicTestingSetup(chainName, fedpegscript)
+TestingSetup::TestingSetup(const std::string& chainName, const std::string& fedpegscript, const std::string& con_mandatorycoinbase) : BasicTestingSetup(chainName, fedpegscript)
 {
     const CChainParams& chainparams = Params();
         // Ideally we'd move all the RPC tests to the functional testing framework
@@ -90,6 +94,7 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::string& fedp
         pathTemp = GetTempPath() / strprintf("test_bitcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
         boost::filesystem::create_directories(pathTemp);
         ForceSetArg("-datadir", pathTemp.string());
+        ForceSetArg("-con_mandatorycoinbase", std::string("76a914567884b53d417d36b37a0409521f4644a7f46ffe88ac"));
         mempool.setSanityCheck(1.0);
         pblocktree = new CBlockTreeDB(1 << 20, true);
         pcoinsdbview = new CCoinsViewDB(1 << 23, true);
