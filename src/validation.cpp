@@ -1255,18 +1255,15 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
     strprintf("%d", nSigOpsCost));
     CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
 
-    if (tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx) && !fSpendsCoinbase) {
-        if (fixedTxFee > 0) {
-            if (nFees != fixedTxFee) 
-                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "incorrect transaction fee", false, strprintf("%d != %d", nFees, fixedTxFee));
-
-        } else {
-            if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
-                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d for asset %s", nFees, mempoolRejectFee, feeAsset.GetHex()));
-            }
-            // No transactions are allowed below minRelayTxFee except from disconnected blocks
-            if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize))
-                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
+    if (fixedTxFee > 0 && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx) && !fSpendsCoinbase) {
+        if (nFees != fixedTxFee) 
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "incorrect transaction fee", false, strprintf("%d != %d", nFees, fixedTxFee));
+    } else {
+        if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx) && !fSpendsCoinbase) {
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d for asset %s", nFees, mempoolRejectFee, feeAsset.GetHex()));
+        // No transactions are allowed below minRelayTxFee except from disconnected blocks
+        if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize) && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx) && !fSpendsCoinbase)
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
         }
     }
     if (nAbsurdFee && nFees > nAbsurdFee)
