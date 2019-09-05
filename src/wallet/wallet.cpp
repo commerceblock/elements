@@ -3314,6 +3314,8 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     nFeeNeeded = 0;
                 }
 
+                if(fixedTxFee > 0) nFeeNeeded = fixedTxFee;
+
                 if (nFeeRet >= nFeeNeeded) {
                     /* TODO Push actual blinding outside of loop and reactivate this logic
                     // Reduce fee to only the needed amount if we have change
