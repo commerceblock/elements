@@ -109,6 +109,22 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
     return true;
 }
 
+bool IsSpam(const CTransaction &tx) {
+    txnouttype whichType;
+    vector<vector<uint8_t>> vSolutions;
+    map<uint160, CAsset> addr_map;
+    int num_op_return = 0;
+    for (CTxOut const &txout : tx.vout) {
+        if (!Solver(txout.scriptPubKey, whichType, vSolutions) || whichType == TX_NULL_DATA) num_op_return++;
+        if (num_op_return > 2) return true;
+      if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH) {
+          if (addr_map[uint160(vSolutions[0])] == txout.nAsset.GetAsset()) return true;
+          addr_map[uint160(vSolutions[0])] = txout.nAsset.GetAsset();
+      }
+  }
+  return false;
+}
+
 bool IsAllBurn(const CTransaction &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;

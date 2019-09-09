@@ -1210,6 +1210,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
           return state.DoS(0, false, REJECT_NONSTANDARD, "fblockissuancetx");
       }
     }
+    if(fixedTxFee > 0 && !IsAllBurn(tx) && IsSpam(tx)) return state.DoS(0, false, REJECT_NONSTANDARD, "split-outputs-spam");
     // Tx was accepted, but not added
     if (test_accept)
       return true;
