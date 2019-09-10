@@ -112,14 +112,15 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
 bool IsSpam(const CTransaction &tx) {
     txnouttype whichType;
     vector<vector<uint8_t>> vSolutions;
-    map<uint160, CAsset> addr_map;
+    vector<tuple<uint160, CAsset>> addr_asset;
     int num_op_return = 0;
     for (CTxOut const &txout : tx.vout) {
         if (!Solver(txout.scriptPubKey, whichType, vSolutions) || whichType == TX_NULL_DATA) num_op_return++;
         if (num_op_return > 1) return true;
       if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH) {
-          if (addr_map[uint160(vSolutions[0])] == txout.nAsset.GetAsset()) return true;
-          addr_map[uint160(vSolutions[0])] = txout.nAsset.GetAsset();
+          tuple<uint160, CAsset> aa_pair(uint160(vSolutions[0]), txout.nAsset.GetAsset());
+          if (find(addr_asset.begin(), addr_asset.end(), aa_pair) != addr_asset.end()) return true;
+          addr_asset.push_back(aa_pair);
       }
   }
   return false;
