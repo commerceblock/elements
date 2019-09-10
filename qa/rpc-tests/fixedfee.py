@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2016 The Bitcoin Core developers
+# Copyright (c) 2019 CommerceBlock developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
-class RawIssuance (BitcoinTestFramework):
+class FixedFee (BitcoinTestFramework):
 
     def __init__(self):
         super().__init__()
@@ -14,14 +14,17 @@ class RawIssuance (BitcoinTestFramework):
         self.num_nodes = 4
         self.extra_args = [['-issuanceblock'] for i in range(4)]
         self.extra_args[0].append("-txindex")
+        self.extra_args[0].append("-contractintx=1")
         self.extra_args[0].append("-fixedtxfee=100000")
         self.extra_args[0].append("-policycoins=50000000000000")
         self.extra_args[0].append("-issuancecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
         self.extra_args[1].append("-txindex")
+        self.extra_args[1].append("-contractintx=1")
         self.extra_args[1].append("-fixedtxfee=100000")
         self.extra_args[1].append("-policycoins=50000000000000")
         self.extra_args[1].append("-issuancecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
         self.extra_args[2].append("-txindex")
+        self.extra_args[2].append("-contractintx=1")
         self.extra_args[2].append("-fixedtxfee=100000")
         self.extra_args[2].append("-policycoins=50000000000000")
         self.extra_args[2].append("-issuancecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
@@ -220,8 +223,57 @@ class RawIssuance (BitcoinTestFramework):
 
         self.nodes[2].generate(10)
         self.sync_all()
-        
+
+        #send some CBT to node 2
+        new_add = self.nodes[2].getnewaddress()
+        txid = self.nodes[0].sendtoaddress(new_addr,11)
+        self.nodes[2].generate(10)
+        self.sync_all()
+        rawtx = self.nodes[2].getrawtransaction(txid,True)
+        for out in rawtx["vout"]:
+            if out["value"] == 11.0:
+                asset = out["asset"]
+                us_vout = out["n"]
+
+        #create a transaction with split outputs
+        new_add1 = self.nodes[0].getnewaddress()
+        new_add2 = self.nodes[0].getnewaddress()
+        inputs = []
+        inputs.append({"txid":txid,"vout":us_vout})
+        inputs.append({"txid":txid2,"vout":0})
+
+        outputs = {}
+        outputs[new_add1] = 2.499
+        outputs[new_add1] = 2.499
+        outputs[new_add2] = 5.5
+        outputs[new_add2] = 5.5
+        outputs["fee"] = 0.001
+
+        asset_ids = {}
+        asset_ids[new_add1] = issuance_tx["asset"]
+        asset_ids["fee"] = issuance_tx["asset"]
+        asset_ids[new_add2] = asset
+
+        raw_tx = self.nodes[2].createrawtransaction(inputs,outputs,0,asset_ids)
+
+        #createrawtransaction will not allow you to create a transaction sending more than one output to the same address
+        #so add the doubled outputs manually by splitting up the hex
+        doubled_outputs_tx = raw_tx[0:176] + '05' + raw_tx[178:316] + raw_tx[178:316] + raw_tx[316:454] + raw_tx[316:454] + raw_tx[454:]
+
+        signed_tx = self.nodes[2].signrawtransaction(doubled_outputs_tx)
+
+        #submit signed transaction to network
+        try:
+            txid3 = self.nodes[2].sendrawtransaction(signed_tx["hex"])
+        except JSONRPCException as exp:
+            assert_equal(exp.error['code'], -26) # blocked tx spam-split outputs
+        else:
+            assert(False)
+
+        self.nodes[2].generate(10)
+        self.sync_all()
+
         return
 
 if __name__ == '__main__':
-    RawIssuance().main()
+    FixedFee().main()

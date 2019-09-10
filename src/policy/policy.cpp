@@ -116,7 +116,7 @@ bool IsSpam(const CTransaction &tx) {
     int num_op_return = 0;
     for (CTxOut const &txout : tx.vout) {
         if (!Solver(txout.scriptPubKey, whichType, vSolutions) || whichType == TX_NULL_DATA) num_op_return++;
-        if (num_op_return > 2) return true;
+        if (num_op_return > 1) return true;
       if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH) {
           if (addr_map[uint160(vSolutions[0])] == txout.nAsset.GetAsset()) return true;
           addr_map[uint160(vSolutions[0])] = txout.nAsset.GetAsset();
