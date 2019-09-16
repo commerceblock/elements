@@ -212,7 +212,7 @@ public:
         GenerateAssetEntropy(entropy,  COutPoint(uint256(commit), 0), parentGenesisBlockHash);
         CalculateAsset(consensus.pegged_asset, entropy);
 
-        genesis = CreateGenesisBlock(consensus, strNetworkID, 1514764800, genesisChallengeScript, 1);
+        genesis = CreateGenesisBlock(consensus, strNetworkID, 1568700000, genesisChallengeScript, 1);
         int nOut = 0;
         if (initialFreeCoins != 0) {
             AppendInitialIssuance(genesis, COutPoint(uint256(commit), nOut), parentGenesisBlockHash, 100, initialFreeCoins/100, 0, 0, initialFreeCoinsDestination);
