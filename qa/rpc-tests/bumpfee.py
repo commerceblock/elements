@@ -145,7 +145,6 @@ def test_notmine_bumpfee_fails(rbf_node, peer_node, dest_address):
     inputs = [{
         "txid": utxo["txid"],
         "vout": utxo["vout"],
-        "address": utxo["address"],
         "sequence": BIP125_SEQUENCE_NUMBER
     } for utxo in utxos]
     output_val = sum(utxo["amount"] for utxo in utxos) - Decimal("0.001")

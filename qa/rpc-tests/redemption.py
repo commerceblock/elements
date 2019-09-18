@@ -31,8 +31,7 @@ def test_redemption_1(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": n,
-    "nValue": Decimal(10.0)
+    "vout": n
   }]
   # Make Outputs
   outputs = {
@@ -95,8 +94,7 @@ def test_redemption_2(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": n,
-    "nValue": Decimal(10.0)
+    "vout": n
   }]
   # Make Outputs
   outputs = {
@@ -127,7 +125,7 @@ def test_redemption_2(node):
     assert("redemption-tx-not-freezelisted" in e.error['message'])
     return True
 
-  return False 
+  return False
 #===============================================================================
 # Test 3 : Test With no Address Listed in FreezeList
 #===============================================================================
@@ -152,8 +150,7 @@ def test_redemption_3(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": n,
-    "nValue": Decimal(10.0)
+    "vout": n
   }]
   # Make Outputs
   outputs = {
@@ -208,8 +205,7 @@ def test_redemption_4(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": n,
-    "nValue": Decimal(10.0)
+    "vout": n
   }]
   # Make Outputs
   outputs = {
@@ -264,8 +260,7 @@ def test_redemption_5(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": n,
-    "nValue": Decimal(10.0)
+    "vout": n
   }]
   # Make Outputs
   outputs = {
