@@ -36,7 +36,7 @@ class ListTransactionsTest(BitcoinTestFramework):
         # Mine blocks to make sure coinbase are mature
         self.nodes[0].generate(100)
         self.sync_all()
-        
+
         #Need to dump all value out of op_return freebies
         self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 21000000, "", "", True)
         self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 100, "", "", True)
@@ -145,7 +145,7 @@ class ListTransactionsTest(BitcoinTestFramework):
         utxo_to_use = get_unconfirmed_utxo_entry(self.nodes[1], txid_1)
 
         # Create tx2 using createrawtransaction
-        inputs = [{"txid":utxo_to_use["txid"], "vout":utxo_to_use["vout"], "nValue":utxo_to_use["amount"]}]
+        inputs = [{"txid":utxo_to_use["txid"], "vout":utxo_to_use["vout"]}]
         outputs = {self.nodes[0].getnewaddress(): 0.999}
         tx2 = self.nodes[1].createrawtransaction(inputs, outputs)
         tx2 = self.nodes[1].blindrawtransaction(tx2)
@@ -162,7 +162,7 @@ class ListTransactionsTest(BitcoinTestFramework):
         utxo_to_use = get_unconfirmed_utxo_entry(self.nodes[0], txid_2)
         outaddr = self.nodes[1].getnewaddress()
         outaddr2 = self.nodes[1].getnewaddress()
-        inputs = [{"txid": txid_2, "vout":utxo_to_use["vout"], "nValue":utxo_to_use["amount"]}]
+        inputs = [{"txid": txid_2, "vout":utxo_to_use["vout"]}]
         outputs = {outaddr: 0.998, self.nodes[1].getnewaddress(): 0}
         inputsbackup = inputs
         outputsbackup = outputs
@@ -182,7 +182,7 @@ class ListTransactionsTest(BitcoinTestFramework):
         # Tx4 will chain off tx3.  Doesn't signal itself, but depends on one
         # that does.
         utxo_to_use = get_unconfirmed_utxo_entry(self.nodes[1], txid_3)
-        inputs = [{"txid": txid_3, "vout":utxo_to_use["vout"], "nValue":utxo_to_use["amount"]}]
+        inputs = [{"txid": txid_3, "vout":utxo_to_use["vout"]}]
         outputs = {self.nodes[0].getnewaddress(): 0.98, self.nodes[0].getnewaddress(): 0}
         tx4 = self.nodes[1].createrawtransaction(inputs, outputs)
         tx4 = self.nodes[1].blindrawtransaction(tx4)
@@ -228,8 +228,7 @@ class ListTransactionsTest(BitcoinTestFramework):
         assert(txid_3b not in self.nodes[0].getrawmempool())
         assert_equal(self.nodes[0].gettransaction(txid_3b)["bip125-replaceable"], "no")
         assert_equal(self.nodes[0].gettransaction(txid_4)["bip125-replaceable"], "unknown")
-        
+
 
 if __name__ == '__main__':
     ListTransactionsTest().main()
-

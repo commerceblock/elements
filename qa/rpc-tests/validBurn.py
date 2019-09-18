@@ -27,8 +27,7 @@ def test_validBurn_1(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": n,
-    "nValue": Decimal(10.0)
+    "vout": n
   }]
   # Make Outputs
   outputs = {
@@ -91,8 +90,7 @@ def test_validBurn_2(node):
   # Make Inputs
   inputs = [{
     "txid": issue["txid"],
-    "vout": n,
-    "nValue": Decimal(10.0)
+    "vout": n
   }]
   # Make Outputs
   outputs = {

@@ -71,7 +71,7 @@ class SplitTxTest (BitcoinTestFramework):
                     vout = txout['n']
             addrs = [self.nodes[3].getnewaddress(), self.nodes[3].getnewaddress(), self.nodes[3].getnewaddress(),\
                     self.nodes[3].getnewaddress(), self.nodes[3].getnewaddress()]
-            tx = self.nodes[3].createrawtransaction([{"txid":issuance['txid'], "vout":vout, "asset":issuance['asset']}], {addrs[0]: 1.5, addrs[1]: 2.5, addrs[2]: 0.5, addrs[3]: 3.5, addrs[4]: 1.9998, "fee": 0.0002}, 0, {addrs[0]: issuance['asset'], addrs[1]: issuance['asset'], addrs[2]: issuance['asset'], addrs[3]: issuance['asset'], addrs[4]: issuance['asset'], "fee": issuance['asset']})
+            tx = self.nodes[3].createrawtransaction([{"txid":issuance['txid'], "vout":vout}], {addrs[0]: 1.5, addrs[1]: 2.5, addrs[2]: 0.5, addrs[3]: 3.5, addrs[4]: 1.9998, "fee": 0.0002}, 0, {addrs[0]: issuance['asset'], addrs[1]: issuance['asset'], addrs[2]: issuance['asset'], addrs[3]: issuance['asset'], addrs[4]: issuance['asset'], "fee": issuance['asset']})
             signed_tx = self.nodes[3].signrawtransaction(tx)
             self.nodes[3].sendrawtransaction(signed_tx['hex'])
             self.nodes[3].generate(1)

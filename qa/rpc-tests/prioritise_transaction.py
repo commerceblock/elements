@@ -107,7 +107,7 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
 
         inputs = []
         outputs = {}
-        inputs.append({"txid" : utxo["txid"], "vout" : utxo["vout"], "nValue" : utxo["amount"]})
+        inputs.append({"txid" : utxo["txid"], "vout" : utxo["vout"]})
         outputs[self.nodes[0].getnewaddress()] = utxo["amount"] - self.relayfee
         raw_tx = self.nodes[0].createrawtransaction(inputs, outputs)
         tx_hex = self.nodes[0].signrawtransaction(raw_tx)["hex"]
@@ -116,7 +116,7 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
         # A tx that spends an in-mempool tx has 0 priority, so we can use it to
         # test the effect of using prioritise transaction for mempool acceptance
         inputs = []
-        inputs.append({"txid": txid, "vout": 0, "nValue": utxo["amount"] - self.relayfee})
+        inputs.append({"txid": txid, "vout": 0})
         outputs = {}
         outputs[self.nodes[0].getnewaddress()] = utxo["amount"] - self.relayfee
         raw_tx2 = self.nodes[0].createrawtransaction(inputs, outputs)
