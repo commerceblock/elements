@@ -87,7 +87,7 @@ class SplitTxTest (BitcoinTestFramework):
         assert(len(txids) == 2)
 
         valPaid = 0
-        for txid in self.nodes[2].getrawmempool():
+        for txid in txids:
             tx = self.nodes[2].getrawtransaction(txid, True)
             for vout in tx['vout']:
                 scriptPub = vout['scriptPubKey']
