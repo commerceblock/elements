@@ -109,6 +109,23 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
     return true;
 }
 
+bool IsSpam(const CTransaction &tx) {
+    txnouttype whichType;
+    vector<vector<uint8_t>> vSolutions;
+    vector<tuple<uint160, CAsset>> addr_asset;
+    int num_op_return = 0;
+    for (CTxOut const &txout : tx.vout) {
+        if (!Solver(txout.scriptPubKey, whichType, vSolutions) || whichType == TX_NULL_DATA) num_op_return++;
+        if (num_op_return > 1) return true;
+      if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH) {
+          tuple<uint160, CAsset> aa_pair(uint160(vSolutions[0]), txout.nAsset.GetAsset());
+          if (find(addr_asset.begin(), addr_asset.end(), aa_pair) != addr_asset.end()) return true;
+          addr_asset.push_back(aa_pair);
+      }
+  }
+  return false;
+}
+
 bool IsAllBurn(const CTransaction &tx) {
   txnouttype whichType;
   vector<vector<uint8_t>> vSolutions;
@@ -292,16 +309,19 @@ bool IsRedemptionListed(CTransaction const &tx) {
     vector<vector<uint8_t>> vSolutions;
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
       return false;
+    // skip op_return
+    if (whichType == TX_NULL_DATA) continue;
     // return false if not P2PKH
-    if (!(whichType == TX_PUBKEYHASH))
+    if (whichType == TX_PUBKEYHASH) {
+      CKeyID keyId;
+      keyId = CKeyID(uint160(vSolutions[0]));
+      // Search in whitelist for the presence of each output address.
+      // If one is not found, return false.
+      if(uint160(vSolutions[0]).IsNull()) continue;
+      if (!addressFreezelist.find(keyId)) return false;
+    } else {
       return false;
-    CKeyID keyId;
-    keyId = CKeyID(uint160(vSolutions[0]));
-    // Search in whitelist for the presence of each output address.
-    // If one is not found, return false.
-    if(uint160(vSolutions[0]).IsNull()) continue;
-    if (!addressFreezelist.find(keyId))
-      return false;
+    }
   }
   return true;
 }
@@ -444,6 +464,33 @@ bool UpdateBurnList(const CTransaction& tx, const CCoinsViewCache& mapInputs)
             keyId = CKeyID(uint160(extracted_addr));
             addressBurnlist.add_sorted(keyId);
             LogPrintf("POLICY: added address to burn-list "+CBitcoinAddress(keyId).ToString()+"\n");
+        }
+    }
+    return true;
+}
+
+bool IsValidIssuance(const CTransaction &tx, const CCoinsViewCache &view, std::string &reason)
+{
+    const CAssetIssuance &issuance = tx.vin[0].assetIssuance;
+    if (!issuance.IsNull() && !issuance.IsReissuance()) {
+        const CTxOut &prev = view.GetOutputFor(tx.vin[0]);
+        if (prev.nAsset.GetAsset() != issuanceAsset) {
+            reason = "non-issuance-asset";
+            return false;
+        }
+        if (fRequireWhitelistCheck) {
+            txnouttype whichType;
+            vector<vector<uint8_t>> vSolutions;
+            bool fWhitelisted = false;
+            if (Solver(tx.vout[0].scriptPubKey, whichType, vSolutions) && whichType == TX_PUBKEYHASH) {
+                CKeyID keyId;
+                keyId = CKeyID(uint160(vSolutions[0]));
+                fWhitelisted = addressWhitelist->is_whitelisted(keyId);
+            }
+            if (!fWhitelisted) {
+                reason = "non-whitelisted-address";
+                return false;
+            }
         }
     }
     return true;

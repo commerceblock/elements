@@ -117,6 +117,7 @@ testScripts = [
     'onboardencrypted.py',
     'onboardmanual.py',
     'onboardmanualencrypted.py',
+    'fixedfee.py',
     # Accounts not supported
     #'wallet-accounts.py',
     # TODO fix mininode
@@ -180,7 +181,9 @@ testScripts = [
     'requests.py',
     'request-bids.py',
     'request-auction.py',
-    'validBurn.py'
+    'validBurn.py',
+    'sendany.py',
+    'splittransactions.py'
 ]
 if ENABLE_ZMQ:
     testScripts.append('zmq_test.py')

@@ -46,7 +46,7 @@ class WalletTest (BitcoinTestFramework):
         assert_equal(len(self.nodes[1].listunspent()), 100)
         assert_equal(len(self.nodes[2].listunspent()), 200)
 
-        
+
 
         walletinfo = self.nodes[2].getbalance()
         assert_equal(walletinfo["CBT"], 21000000)
@@ -150,7 +150,7 @@ class WalletTest (BitcoinTestFramework):
                 continue
             inputs = []
             outputs = {}
-            inputs.append({ "txid" : utxo["txid"], "vout" : utxo["vout"], "nValue":utxo["amount"]})
+            inputs.append({ "txid" : utxo["txid"], "vout" : utxo["vout"]})
             outputs = {self.nodes[2].getnewaddress("from1"): utxo["amount"] - Decimal('1'),
                         "fee": Decimal('1')}
             raw_tx = self.nodes[0].createrawtransaction(inputs, outputs)
@@ -164,8 +164,8 @@ class WalletTest (BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
 
-        #test creatation of raw multisig issuance transactions                          
-        #get a new address and public and private key for each node                     
+        #test creatation of raw multisig issuance transactions
+        #get a new address and public and private key for each node
         address_node1 = self.nodes[0].getnewaddress()
         val_addr_node1 = self.nodes[0].validateaddress(address_node1)
         privkey_node1 = self.nodes[0].dumpprivkey(address_node1)
@@ -178,14 +178,14 @@ class WalletTest (BitcoinTestFramework):
         val_addr_node3 = self.nodes[2].validateaddress(address_node3)
         privkey_node3 =self.nodes[2].dumpprivkey(address_node3)
 
-        #create 2 of 3 multisig P2SH script and address                                 
+        #create 2 of 3 multisig P2SH script and address
         multisig = self.nodes[0].createmultisig(2,[val_addr_node1["pubkey"],val_addr_node2["pubkey"],val_addr_node3["pubkey"]])
         #send some policyasset to the P2SH address
         pa_txid = self.nodes[2].sendtoaddress(multisig["address"],1,"","",False,asasset)
         self.nodes[1].generate(1)
         self.sync_all()
 
-        #get the vout and scriptPubKey of the multisig output                                            
+        #get the vout and scriptPubKey of the multisig output
         vout = 0
         pa_tx = self.nodes[1].getrawtransaction(pa_txid,1)
 
@@ -196,23 +196,23 @@ class WalletTest (BitcoinTestFramework):
                 if i == "scriptPubKey":
                     for i2,j2 in j.items():
                         if i2 == "hex": script_t = j2
-                    for i2,j2 in j.items(): 
+                    for i2,j2 in j.items():
                         if(i2 == "type" and j2 == "scripthash"):
                             script_pk = script_t
                             vout = vout_t
 
-        #get address to send tokens and re-issuance tokens  
+        #get address to send tokens and re-issuance tokens
         asset_addr = self.nodes[1].getnewaddress()
         token_addr = self.nodes[1].getnewaddress()
 
-        #create an unsigned raw issuance transaction 
+        #create an unsigned raw issuance transaction
         issuance_tx = self.nodes[1].createrawissuance(asset_addr,10.0,token_addr,1.0,multisig["address"],1.0000,'1',pa_txid,str(vout))
 
         #node1 partially sign transaction
         partial_signed = self.nodes[0].signrawtransaction(issuance_tx["rawtx"],[{"txid":pa_txid,"vout":vout,"scriptPubKey":script_pk,"redeemScript":multisig["redeemScript"]}],[privkey_node1])
         assert(not partial_signed["complete"])
 
-        #node1 partially sign transaction 
+        #node1 partially sign transaction
         signed_tx = self.nodes[1].signrawtransaction(partial_signed["hex"],[{"txid":pa_txid,"vout":vout,"scriptPubKey":script_pk,"redeemScript":multisig["redeemScript"]}],[privkey_node2])
 
         assert(signed_tx["complete"])
@@ -222,7 +222,7 @@ class WalletTest (BitcoinTestFramework):
         #submit signed transaction to network
         submit = self.nodes[1].sendrawtransaction(signed_tx["hex"])
 
-        #confirm transaction accepted by mempool 
+        #confirm transaction accepted by mempool
         mempool_tx = self.nodes[1].getrawmempool()
         assert_equal(mempool_tx[0],submit)
         self.nodes[1].generate(10)

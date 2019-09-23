@@ -647,7 +647,7 @@ def create_confirmed_utxos(fee, node, count):
     for i in range(iterations):
         t = utxos.pop()
         inputs = []
-        inputs.append({ "txid" : t["txid"], "vout" : t["vout"], "nValue" : t["amount"]})
+        inputs.append({ "txid" : t["txid"], "vout" : t["vout"]})
         outputs = {}
         send_value = t['amount'] - fee
         outputs[addr1] = satoshi_round(send_value/2)
@@ -698,7 +698,7 @@ def create_lots_of_big_transactions(node, txouts, utxos, num, fee):
     txids = []
     for _ in range(num):
         t = utxos.pop()
-        inputs=[{ "txid" : t["txid"], "vout" : t["vout"], "nValue" : t["amount"]}]
+        inputs=[{ "txid" : t["txid"], "vout" : t["vout"]}]
         outputs = {}
         change = t['amount'] - fee
         outputs[addr] = satoshi_round(change)

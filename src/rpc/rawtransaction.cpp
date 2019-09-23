@@ -804,7 +804,6 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             "       {\n"
             "         \"txid\":\"id\",    (string, required) The transaction id\n"
             "         \"vout\":n,         (numeric, required) The output number\n"
-            "         \"asset\": \"string\"   (string, optional, default=bitcoin) The asset of the input, as a tag string or a hex value\n"
             "         \"sequence\":n      (numeric, optional) The sequence number\n"
             "       } \n"
             "       ,...\n"
@@ -871,10 +870,6 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
                 nSequence = (uint32_t)seqNr64;
         }
         CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
-        CAsset asset(policyAsset);
-        UniValue const &asset_val = find_value(o, "asset");
-        if (asset_val.isStr())
-            asset = CAsset(ParseHashO(o, "asset"));
         rawTx.vin.push_back(in);
     }
     set<CBitcoinAddress> setAddress;

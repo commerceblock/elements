@@ -88,7 +88,7 @@ bool fContractInTx = DEFAULT_CONTRACT_IN_TX;
 bool fContractInKYCFile = DEFAULT_CONTRACT_IN_KYCFILE;
 bool fRequireWhitelistCheck = DEFAULT_WHITELIST_CHECK;
 bool fScanWhitelist = DEFAULT_SCAN_WHITELIST;
-bool fWhitelistEncrypt = DEFAULT_WHITELIST_ENCRYPT;  
+bool fWhitelistEncrypt = DEFAULT_WHITELIST_ENCRYPT;
 bool fEnableBurnlistCheck = DEFAULT_BURNLIST_CHECK;
 bool fRequireFreezelistCheck = DEFAULT_BURNLIST_CHECK;
 bool fblockissuancetx = DEFAULT_BLOCK_ISSUANCE;
@@ -104,6 +104,7 @@ uint256 hashAssumeValid;
 
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
+CAmount fixedTxFee = 0;
 
 CWhiteList* addressWhitelist = nullptr;
 CPolicyList addressBurnlist;
@@ -1199,16 +1200,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
             return state.DoS(0, false, REJECT_NONSTANDARD, "burn-tx-not-burnlisted");
     // Accept only transactions that are asset issuances if they have a issuanceAsset input.
     if (fblockissuancetx) {
-      CAssetIssuance const &issuance = tx.vin[0].assetIssuance;
-      if (!issuance.IsNull() && !issuance.IsReissuance()) {
-        CAsset pAsset(issuanceAsset);
-        CTxOut const &prev = view.GetOutputFor(tx.vin[0]);
-        CAsset asset;
-        asset = prev.nAsset.GetAsset();
-        if (asset != pAsset)
-          return state.DoS(0, false, REJECT_NONSTANDARD, "fblockissuancetx");
-      }
+        std::string reason;
+        if (!IsValidIssuance(tx, &view, reason)) {
+            return state.DoS(0, false, REJECT_NONSTANDARD, "fblockissuancetx-" + reason);
+        }
     }
+    if(fixedTxFee > 0 && !IsAllBurn(tx) && IsSpam(tx)) return state.DoS(0, false, REJECT_NONSTANDARD, "split-outputs-spam");
     // Tx was accepted, but not added
     if (test_accept)
       return true;
@@ -1253,11 +1250,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state,
       return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops", false,
     strprintf("%d", nSigOpsCost));
     CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
-    if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx) && !fSpendsCoinbase)
-      return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d for asset %s", nFees, mempoolRejectFee, feeAsset.GetHex()));
-    // No transactions are allowed below minRelayTxFee except from disconnected blocks
-    if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize) && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx) && !fSpendsCoinbase)
-      return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
+
+    if (fixedTxFee > 0 && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx) && !fSpendsCoinbase) {
+        if (nFees != fixedTxFee)
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "incorrect transaction fee", false, strprintf("%d != %d", nFees, fixedTxFee));
+    } else {
+        if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx) && !fSpendsCoinbase) {
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d for asset %s", nFees, mempoolRejectFee, feeAsset.GetHex()));
+        // No transactions are allowed below minRelayTxFee except from disconnected blocks
+        if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize) && tx.vin[0].assetIssuance.IsNull() && !IsAllBurn(tx) && !IsPolicy(tx) && !IsRedemption(tx) && !fSpendsCoinbase)
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
+        }
+    }
     if (nAbsurdFee && nFees > nAbsurdFee)
       return state.Invalid(false, REJECT_HIGHFEE, "absurdly-high-fee",
                            strprintf("%d > %d for asset %s", nFees, nAbsurdFee, feeAsset.GetHex()));
