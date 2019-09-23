@@ -13,7 +13,7 @@ class OnboardTest (BitcoinTestFramework):
     def __init__(self):
         super().__init__()
         self.setup_clean_chain = True
-        self.num_nodes = 3
+        self.num_nodes = 4
         self.extra_args = [['-txindex'] for i in range(3)]
         self.extra_args[0].append("-keypool=100")
         self.extra_args[0].append("-freezelist=1")
@@ -60,6 +60,21 @@ class OnboardTest (BitcoinTestFramework):
         self.extra_args[2].append("-burnlistcoinsdestination=76a9142166a4cd304b86db7dfbbc7309131fb0c4b645cd88ac")
         self.extra_args[2].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
         self.extra_args[2].append("-contractintx=1")
+        self.extra_args[3].append("-keypool=100")
+        self.extra_args[3].append("-freezelist=1")
+        self.extra_args[3].append("-burnlist=1")
+        self.extra_args[3].append("-pkhwhitelist=1")
+        self.extra_args[3].append("-pkhwhitelist-encrypt=0")
+        self.extra_args[3].append("-rescan=1")
+        self.extra_args[3].append("-initialfreecoins=2100000000000000")
+        self.extra_args[3].append("-policycoins=50000000000000")
+        self.extra_args[3].append("-regtest=0")
+        self.extra_args[3].append("-initialfreecoinsdestination=76a914b87ed64e2613422571747f5d968fff29a466e24e88ac")
+        self.extra_args[3].append("-issuancecoinsdestination=76a914df4439eb1a54b3a91d71979a0bb5b3f5971ff44c88ac")
+        self.extra_args[3].append("-freezelistcoinsdestination=76a91474168445da07d331faabd943422653dbe19321cd88ac")
+        self.extra_args[3].append("-burnlistcoinsdestination=76a9142166a4cd304b86db7dfbbc7309131fb0c4b645cd88ac")
+        self.extra_args[3].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
+        self.extra_args[3].append("-contractintx=0")
         self.files=[]
         self.nodes=[]
 
@@ -257,6 +272,33 @@ class OnboardTest (BitcoinTestFramework):
                 if nline > 6 and len(x) > 1 and len(x[0]) > 1  and x[0][0] != '#':
                     try:
                         validate=self.nodes[1].validateaddress(x[0])
+                        assert_equal(validate['isvalid'],True)
+                        ismine=validate['ismine']
+                        assert_equal(ismine, True)
+                    except JSONRPCException as e:
+                        print(e.error['message'])
+                        assert(False)
+
+        #Onboard node3
+        kycfile3=self.initfile(os.path.join(self.options.tmpdir,"kycfile3.dat"))
+        self.nodes[3].dumpkycfile(kycfile3)
+        kycfile3_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile3_plain.dat"))
+        self.nodes[0].readkycfile(kycfile3, kycfile3_plain)        
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        self.nodes[0].onboarduser(kycfile3)
+        self.nodes[0].generate(101)
+        self.sync_all()
+        
+        with open(kycfile3_plain) as fp:
+            nline=0
+            for nline, line in enumerate(fp):
+                x=line.split()
+                if nline > 6 and len(x) > 1 and len(x[0]) > 1  and x[0][0] != '#':
+                    try:
+                        validate=self.nodes[3].validateaddress(x[0])
                         assert_equal(validate['isvalid'],True)
                         ismine=validate['ismine']
                         assert_equal(ismine, True)

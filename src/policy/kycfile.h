@@ -37,7 +37,7 @@ class CKYCFile{
 
 		bool parsePubkeyPair(const std::vector<std::string> vstr, const std::string line);
 		bool parseContractHash(const std::vector<std::string> vstr, const std::string line);
-		void parseMultisig(const std::vector<std::string> vstr, const std::string line);
+		bool parseMultisig(const std::vector<std::string> vstr, const std::string line);
 
 		const std::stringstream& getStream() const {return _decryptedStream;}
 
@@ -57,6 +57,7 @@ class CKYCFile{
     	std::vector<OnboardMultisig> _multisigData;
 
     	std::stringstream _decryptedStream;
+    	std::stringstream _errorStream;
 
     	std::string _filename;
 
@@ -64,6 +65,10 @@ class CKYCFile{
 
     	bool _fContractHash = false;
     	bool _fContractHash_parsed = false;
+    	bool _fAddressesValid = true;
+
+    	void appendOutStream(std::string line, std::string error);
+    	void appendOutStream(std::string line);
 };
 
 std::ostream& operator<<(std::ostream& os, const CKYCFile& fl); 

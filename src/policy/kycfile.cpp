@@ -7,7 +7,6 @@
 #include "policy/policy.h"
 
 CKYCFile::CKYCFile(){
-
 }
 
 CKYCFile::~CKYCFile(){
@@ -17,6 +16,7 @@ CKYCFile::~CKYCFile(){
 void CKYCFile::clear(){
     _addressKeys.clear();
     _decryptedStream.clear();
+    _errorStream.clear();
     delete _onboardPubKey;
     delete _onboardUserPubKey;
 }
@@ -58,20 +58,22 @@ bool CKYCFile::read(){
 
     CECIES encryptor;
 
+    _fAddressesValid=true;
+
     while (_file.good()){
         //Skip the header, footer
         std::string line;
         std::getline(_file, line);
         if(ss.str().size() >= nBytesTotal){
            if (line.empty() || line[0] == '#'){
-                _decryptedStream << line << "\n";
+                appendOutStream(line);
                 continue;
             }
         }
 
         //Read the metadata and initialize the decryptor
         if(!_onboardUserPubKey){
-            _decryptedStream << line << "\n";
+            appendOutStream(line);
             std::vector<std::string> vstr;
             boost::split(vstr, line, boost::is_any_of(" "));
             if (vstr.size() != 3)
@@ -125,7 +127,7 @@ bool CKYCFile::read(){
                 for(std::string line; std::getline(ss_data, line);){
                     std::vector<std::string> vstr;
                     if (line.empty() || line[0] == '#'){
-                        _decryptedStream << line << "\n";
+                        appendOutStream(line);
                         continue;
                     }
                     boost::split(vstr, line, boost::is_any_of(" "));
@@ -135,11 +137,11 @@ bool CKYCFile::read(){
                     else if (vstr.size() == 2){
                         if(parseContractHash(vstr,line))
                             continue;
-                        parsePubkeyPair(vstr,line);
+                        if(!parsePubkeyPair(vstr,line)) _fAddressesValid = false;
                     }
                     //Current line is a multisig line if there are more than two elements
                     else{
-                        parseMultisig(vstr,line);
+                        if(!parseMultisig(vstr,line)) _fAddressesValid = false;
                     }
                 }
             }
@@ -165,24 +167,37 @@ bool CKYCFile::parseContractHash(const std::vector<std::string> vstr, const std:
     }
 
     if(!_fContractHash){
-        _decryptedStream << line << ": incorrect contract hash - expected " + contract.ToString() +  "\n";
-    } else {
-        _decryptedStream << line << "\n";
-    }
+        appendOutStream(line, ": incorrect contract hash - expected " + contract.ToString());
+    } 
+        
+    appendOutStream(line);
     return true;
+}
+
+void CKYCFile::appendOutStream(std::string line){
+    _decryptedStream << line << std::endl;
+}
+
+void CKYCFile::appendOutStream(std::string line, std::string error){
+    std::stringstream ss;
+    ss << line << error;
+    _errorStream << ss.str() << std::endl;
+    appendOutStream(ss.str());
 }
 
 bool CKYCFile::parsePubkeyPair(const std::vector<std::string> vstr, const std::string line){
     CBitcoinAddress address;
     if (!address.SetString(vstr[0])) {
-        _decryptedStream << line << ": invalid base58check address: "  << vstr[0] << "\n";
+        std::stringstream ss(": invalid base58check address: ");
+        ss << vstr[0];
+        appendOutStream(line, ss.str());
         return false;
     }
 
     std::vector<unsigned char> pubKeyData(ParseHex(vstr[1]));
     CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
     if(!pubKey.IsFullyValid()){
-        _decryptedStream << line << ": invalid public key\n";
+        appendOutStream(line, ": invalid public key");
        return false;
     }
 
@@ -191,46 +206,48 @@ bool CKYCFile::parsePubkeyPair(const std::vector<std::string> vstr, const std::s
     if(address.GetKeyID(addressKeyId)){
         if(!Params().ContractInTx()){
             if(!Consensus::CheckValidTweakedAddress(addressKeyId, pubKey)){
-                _decryptedStream << line << ": invalid key tweaking\n";
+                appendOutStream(line, ": invalid key tweaking");
                 return false;
             }
         }
     }
     else{
-        _decryptedStream << line << ": invalid keyid\n";
+        appendOutStream(line, ": invalid keyid");
         return false;
     }
 
 
     //Addresses valid, write to map
     _addressKeys.push_back(pubKey);
-    _decryptedStream << line << "\n";
+    appendOutStream(line);
     return true;
 }
 
-void CKYCFile::parseMultisig(const std::vector<std::string> vstr, const std::string line){
+bool CKYCFile::parseMultisig(const std::vector<std::string> vstr, const std::string line){
     if(vstr[0].length() == 0){
-        _decryptedStream << line << ": invalid nmultisig\n";
-        return;
+        appendOutStream(line, ": invalid nmultisig");
+        return false;
     }
 
      uint8_t nMultisig = 0;
     try{
         nMultisig = std::stoi(vstr[0]);
     } catch (const std::exception& e){
-        _decryptedStream << line << ": invalid nmultisig size\n";
-        return;
+        appendOutStream(line, ": invalid nmultisig size");
+        return false;
     }
 
     if(nMultisig < 1 || nMultisig > MAX_P2SH_SIGOPS){
-        _decryptedStream << line << ": invalid nmultisig size\n";
-        return;
+        appendOutStream(line, ": invalid nmultisig size");
+        return false;
     }
     
     CBitcoinAddress address;
     if (!address.SetString(vstr[1])) {
-        _decryptedStream << line << ": invalid base58check address: "  << vstr[1] << "\n";
-        return;
+        std::stringstream ss(": invalid base58check address: ");
+        ss << vstr[1];
+        appendOutStream(line, ss.str());
+        return false;
     }
 
     std::vector<CPubKey> pubKeys;
@@ -238,8 +255,8 @@ void CKYCFile::parseMultisig(const std::vector<std::string> vstr, const std::str
         std::vector<unsigned char> pubKeyData(ParseHex(vstr[i]));
         CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
         if(!pubKey.IsFullyValid()){
-            _decryptedStream << line << ": invalid public key\n";
-            return;
+            appendOutStream(line, ": invalid public key");
+            return false;
         }
         pubKeys.push_back(pubKey);
     }
@@ -251,20 +268,21 @@ void CKYCFile::parseMultisig(const std::vector<std::string> vstr, const std::str
     if (!(multiKeyId.which() == ((CTxDestination)CNoDestination()).which())) {
         if(!Params().ContractInTx()){
             if(!Consensus::CheckValidTweakedAddress(multiKeyId, pubKeys, nMultisig)){
-                _decryptedStream << line << ": invalid key tweaking\n";
-                return;
+                appendOutStream(line, ": invalid key tweaking");
+                return false;
             }
         }
     }
     else{
-        _decryptedStream << line << ": invalid keyid\n";
-        return;
+        appendOutStream(line, ": invalid keyid");
+        return false;
     }
 
 
     //Multi Address is valid, write to map
     _multisigData.push_back(OnboardMultisig(nMultisig, multiKeyId, pubKeys));
-    _decryptedStream << line << "\n";
+    appendOutStream(line);
+    return true;
 }
 
 bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
@@ -277,6 +295,13 @@ bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
         if(!_fContractHash) 
             throw std::invalid_argument(std::string(std::string(__func__) +  
                 ": contract hash incorrect in kycfile"));
+    }
+
+    if(!_fAddressesValid) {
+        std::stringstream ss(std::string(std::string(__func__)));
+        ss << ": error - invalid addresses in KYC file: " << std::endl;
+        ss << _errorStream.str();
+        throw std::invalid_argument(ss.str());
     }
 
     COnboardingScript obScript;
