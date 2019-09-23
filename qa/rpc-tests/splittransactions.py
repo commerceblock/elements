@@ -44,7 +44,7 @@ class SplitTxTest (BitcoinTestFramework):
 
     def run_test (self):
         # Issue 500 assets
-        numOutputs = 500;
+        numOutputs = 600;
         values = [0.1, 1.9, 0.5, 1.5, 0.7, 1.3, 0.9, 1.1, 0.8, 1.2]
         for i in range(numOutputs):
             self.nodes[2].issueasset(values[i%10],'0', False)
@@ -53,7 +53,7 @@ class SplitTxTest (BitcoinTestFramework):
                 self.sync_all()
 
         self.nodes[2].sendtoaddress(self.nodes[3].getnewaddress(), self.nodes[2].getbalance()["CBT"], "", "", True, "CBT")
-        self.nodes[2].generate(1)
+        self.nodes[2].generate(6)
         self.sync_all()
 
         # Also issue 50 assets with reissuance
@@ -78,12 +78,12 @@ class SplitTxTest (BitcoinTestFramework):
             self.sync_all()
 
         self.nodes[3].sendtoaddress(self.nodes[1].getnewaddress(), self.nodes[3].getbalance()["CBT"], "", "", True, "CBT")
-        self.nodes[3].generate(1)
+        self.nodes[3].generate(6)
         self.sync_all()
 
         # Send almost all the balance from node 2, requiring transaction splitting
         addr1 = self.nodes[0].getnewaddress();
-        txids = self.nodes[2].sendanytoaddress(addr1, 499.5, "", "", True, True, 1)
+        txids = self.nodes[2].sendanytoaddress(addr1, 580, "", "", True, True, 1)
         assert(len(txids) == 2)
 
         valPaid = 0
@@ -94,12 +94,12 @@ class SplitTxTest (BitcoinTestFramework):
                 if 'addresses' in scriptPub and addr1 in scriptPub['addresses']:
                     valPaid += vout['value']
 
-        assert(valPaid == 499.5)
+        assert(valPaid == 580)
         self.sync_all()
         newblock = self.nodes[0].generate(1)
         self.sync_all()
         assert(len(self.nodes[2].getblock(newblock[0], True)['tx']) == 3)
-        assert(self.get_balance_sum(self.nodes[0].getbalance()) == 499.5)
+        assert(self.get_balance_sum(self.nodes[0].getbalance()) == 580)
 
         # Send almost all the balance from node 3, requiring transaction splitting
         addr2 = self.nodes[0].getnewaddress();
@@ -119,7 +119,7 @@ class SplitTxTest (BitcoinTestFramework):
         newblock = self.nodes[0].generate(1)
         self.sync_all()
         assert(len(self.nodes[3].getblock(newblock[0], True)['tx']) == 3)
-        assert(self.get_balance_sum(self.nodes[0].getbalance()) == 1899.5)
+        assert(self.get_balance_sum(self.nodes[0].getbalance()) == 1980)
 
 
 if __name__ == '__main__':
