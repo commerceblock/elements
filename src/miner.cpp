@@ -375,7 +375,7 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
     nBlockWeight += iter->GetTxWeight();
     ++nBlockTx;
     nBlockSigOpsCost += iter->GetSigOpCost();
-    int assetFee = iter->GetFee();
+    CAmount assetFee = iter->GetFee();
     if (assetFee > 0)
         nFees[iter->GetFeeAsset()] += assetFee;
     inBlock.insert(iter);

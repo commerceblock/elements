@@ -112,7 +112,7 @@ class RawIssuance (BitcoinTestFramework):
         partial_signed = self.nodes[0].signrawtransaction(issuance_tx["rawtx"],[{"txid":pa_txid,"vout":vout,"scriptPubKey":script_pk,"redeemScript":multisig["redeemScript"]}],[privkey_node1])
         assert(not partial_signed["complete"])
 
-        #node1 partially sign transaction
+        #node2 partially sign transaction
         signed_tx = self.nodes[1].signrawtransaction(partial_signed["hex"],[{"txid":pa_txid,"vout":vout,"scriptPubKey":script_pk,"redeemScript":multisig["redeemScript"]}],[privkey_node2])
 
         assert(signed_tx["complete"])
@@ -125,8 +125,13 @@ class RawIssuance (BitcoinTestFramework):
         #confirm transaction accepted by mempool
         mempool_tx = self.nodes[1].getrawmempool()
         assert_equal(mempool_tx[0],submit)
-        self.nodes[1].generate(1)
+        block_hash = self.nodes[1].generate(1)[0]
         self.sync_all()
+
+        #confirm block does not include 0 fee coinbase output for asset issuance
+        block = self.nodes[1].getblock(block_hash,True)
+        coinbase_tx = block["tx"][0]
+        assert(len(self.nodes[1].getrawtransaction(coinbase_tx, True)["vout"]) == 2)
 
         #confirm asset can be spent by node2 wallet
         asset_addr2 = self.nodes[2].getnewaddress()
@@ -192,6 +197,11 @@ class RawIssuance (BitcoinTestFramework):
         assert_equal(mempool_tx[0],submit3)
         self.nodes[2].generate(1)
         self.sync_all()
+
+        #confirm block does not include 0 fee coinbase output for asset reissuance
+        block = self.nodes[2].getblock(block_hash,True)
+        coinbase_tx = block["tx"][0]
+        assert(len(self.nodes[2].getrawtransaction(coinbase_tx, True)["vout"]) == 2)
 
         # Now test a raw issuance with whitelisting enabled
         issuance_addr = self.nodes[1].getnewaddress()
