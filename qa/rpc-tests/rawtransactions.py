@@ -194,5 +194,45 @@ class RawTransactionsTest(BitcoinTestFramework):
         
         '''
 
+        # test createrawtxoutputs RPC
+        addr1 = self.nodes[2].getnewaddress()
+        addr2 = self.nodes[2].getnewaddress()
+        issue1 = self.nodes[2].issueasset(10.0,0,False)
+        issue2 = self.nodes[2].issueasset(10.0,0,False)
+        self.sync_all()
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+        rawissue1 = self.nodes[2].getrawtransaction(issue1["txid"],True)
+        for vout in rawissue1["vout"]:
+            if vout["asset"] == issue1["asset"]: vout1 = vout["n"]
+        rawissue2 = self.nodes[2].getrawtransaction(issue2["txid"],True)
+        for vout in rawissue2["vout"]:
+            if vout["asset"] == issue2["asset"]: vout2 = vout["n"]
+       
+        inputs = []
+        outputs = []
+        inputs.append({"txid":issue1["txid"],"vout":vout1})
+        inputs.append({"txid":issue2["txid"],"vout":vout2})
+        outputs.append({"address":addr1,"amount":10.0,"asset":issue1["asset"]})
+        outputs.append({"address":addr1,"amount":5.0,"asset":issue2["asset"]})
+        outputs.append({"address":addr2,"amount":4.99,"asset":issue2["asset"]})
+        outputs.append({"address":"fee","amount":0.01,"asset":issue2["asset"]})
+        outputs.append({"data":"deadbeef","amount":0.0,"asset":issue2["asset"]})
+
+        # create a transaction with same address outputs
+        rawtx = self.nodes[2].createrawtxoutputs(inputs,outputs)
+        signtx = self.nodes[2].signrawtransaction(rawtx)
+        sendtx = self.nodes[2].sendrawtransaction(signtx["hex"])
+
+        self.sync_all()
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+        txdec = self.nodes[2].getrawtransaction(sendtx,True)
+
+        assert(txdec["confirmations"] == 1)
+        assert(len(txdec["vout"]) == 5)
+
 if __name__ == '__main__':
     RawTransactionsTest().main()
