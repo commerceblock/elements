@@ -265,13 +265,13 @@ bool CKYCFile::parseMultisig(const std::vector<std::string> vstr, const std::str
     //Will throw an error if address is not a valid derived address.
     CTxDestination multiKeyId;
     multiKeyId = address.Get();
-    if (!(multiKeyId.which() == ((CTxDestination)CNoDestination()).which())) {
+    if (!(multiKeyId.which() == ((CTxDestination)CNoDestination()).which())) {      
         if(!Params().ContractInTx()){
             if(!Consensus::CheckValidTweakedAddress(multiKeyId, pubKeys, nMultisig)){
                 appendOutStream(line, ": invalid key tweaking");
                 return false;
             }
-        }
+        } 
     }
     else{
         appendOutStream(line, ": invalid keyid");
@@ -290,16 +290,16 @@ bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
     if(!contract.IsNull() && Params().ContractInKYCFile()){
         if(!_fContractHash_parsed) 
             throw std::invalid_argument(std::string(std::string(__func__) +  
-                ": no contract hash in kycfile"));
+                "no contract hash in kycfile"));
     
         if(!_fContractHash) 
             throw std::invalid_argument(std::string(std::string(__func__) +  
-                ": contract hash incorrect in kycfile"));
+                "contract hash incorrect in kycfile"));
     }
 
     if(!_fAddressesValid) {
         std::stringstream ss(std::string(std::string(__func__)));
-        ss << ": error - invalid addresses in KYC file: " << std::endl;
+        ss << "invalid addresses in kycfile: " << std::endl;
         ss << _errorStream.str();
         throw std::invalid_argument(ss.str());
     }

@@ -14,7 +14,7 @@ class OnboardTest (BitcoinTestFramework):
         super().__init__()
         self.setup_clean_chain = True
         self.num_nodes = 4
-        self.extra_args = [['-txindex'] for i in range(3)]
+        self.extra_args = [['-txindex'] for i in range(self.num_nodes)]
         self.extra_args[0].append("-keypool=100")
         self.extra_args[0].append("-freezelist=1")
         self.extra_args[0].append("-burnlist=1")
@@ -80,10 +80,11 @@ class OnboardTest (BitcoinTestFramework):
 
     def setup_network(self, split=False):
         #Start nodes
-        self.nodes = start_nodes(3, self.options.tmpdir, self.extra_args[:3])
+        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, self.extra_args[:self.num_nodes])
         connect_nodes_bi(self.nodes,0,1)
         connect_nodes_bi(self.nodes,1,2)
         connect_nodes_bi(self.nodes,0,2)
+        connect_nodes_bi(self.nodes,0,3)
         self.is_network_split=split
         self.sync_all()
 
@@ -118,6 +119,16 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[0].importprivkey("cQRC9YB11Li3QHqyxMPff3uznfRggMUYdixctbyNdWdnNWr3koZy")
         #Issuance
         self.nodes[0].importprivkey("cSdWz4JStWKgVMQrdQ8TCqzmhAt7jprCPxvrZMpzy4s6WcBuW9NW")
+
+        # import the policy keys into node 3
+        self.nodes[3].importprivkey("cS29UJMQrpnee7UaUHo6NqJVpGr35TEqUDkKXStTnxSZCGUWavgE")
+        self.nodes[3].importprivkey("cND4nfH6g2SopoLk5isQ8qGqqZ5LmbK6YwJ1QnyoyMVBTs8bVNNd")
+        self.nodes[3].importprivkey("cTnxkovLhGbp7VRhMhGThYt8WDwviXgaVAD8DjaVa5G5DApwC6tF")
+        self.nodes[3].importprivkey("cNCQhCnpnzyeYh48NszsTJC2G4HPoFMZguUnUgBpJ5X9Vf2KaPYx")
+        #Initial free coins
+        self.nodes[3].importprivkey("cQRC9YB11Li3QHqyxMPff3uznfRggMUYdixctbyNdWdnNWr3koZy")
+        #Issuance
+        self.nodes[3].importprivkey("cSdWz4JStWKgVMQrdQ8TCqzmhAt7jprCPxvrZMpzy4s6WcBuW9NW")
 
         self.nodes[0].generate(101)
         self.sync_all()
@@ -279,34 +290,17 @@ class OnboardTest (BitcoinTestFramework):
                         print(e.error['message'])
                         assert(False)
 
-        #Onboard node3
-        kycfile3=self.initfile(os.path.join(self.options.tmpdir,"kycfile3.dat"))
-        self.nodes[3].dumpkycfile(kycfile3)
-        kycfile3_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile3_plain.dat"))
-        self.nodes[0].readkycfile(kycfile3, kycfile3_plain)        
-
-        self.nodes[0].generate(101)
-        self.sync_all()
-
-        self.nodes[0].onboarduser(kycfile3)
-        self.nodes[0].generate(101)
-        self.sync_all()
+        #Import the node0 into node3 to get the kyc private keys 
+        wallet0=self.initfile(os.path.join(self.options.tmpdir,"wallet0.dat"))
+        self.nodes[0].dumpwallet(wallet0)
+        self.nodes[3].importwallet(wallet0)
+        #Onboard using node3 (which has option contractintx=0)
+        try:
+            self.nodes[3].onboarduser(kycfile)
+        except JSONRPCException as e:
+            assert("invalid addresses in kycfile" in e.error['message'])
+            assert("invalid key tweaking" in e.error['message'])
         
-        with open(kycfile3_plain) as fp:
-            nline=0
-            for nline, line in enumerate(fp):
-                x=line.split()
-                if nline > 6 and len(x) > 1 and len(x[0]) > 1  and x[0][0] != '#':
-                    try:
-                        validate=self.nodes[3].validateaddress(x[0])
-                        assert_equal(validate['isvalid'],True)
-                        ismine=validate['ismine']
-                        assert_equal(ismine, True)
-                    except JSONRPCException as e:
-                        print(e.error['message'])
-                        assert(False)
-        
-
         balance_2=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         #Make sure the onboard transaction fee was zero
         assert((balance_1-balance_2) == 0)
