@@ -92,20 +92,15 @@ bool CWhiteList::Load(CCoinsView *view)
 
   sync_whitelist_wallet();
 
-  //Enable another whitelist wallet sync (e.g. via CWhiteList::Update())
-  _fWhitelistWallet=true;
-
   return true;
 }
 
 //Modifies a vector of the kyc public keys whose private keys were not found in the wallet.
-void CWhiteList::sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound, bool bForce){
+void CWhiteList::sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
-  if(!_fWhitelistWallet &! bForce) return;
   #ifndef ENABLE_WALLET
     return false;
   #endif
-  bool bFoundAKey=false;
   LOCK2(cs_main, pwalletMain->cs_wallet);
   EnsureWalletIsUnlocked();
   keysNotFound.clear();
@@ -126,15 +121,11 @@ void CWhiteList::sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound, bool 
       }
     }
     //Reset the gap if a key was found.
-    if(bKeyFound) {
-      nTries=std::min(nTries, nKeys);
-      bFoundAKey = true;
-    }
+    if(bKeyFound) nTries=std::min(nTries, nKeys);
   }
-  _fWhitelistWallet = bFoundAKey;
 }
 
-void CWhiteList::sync_whitelist_wallet(bool bForce){
+void CWhiteList::sync_whitelist_wallet(){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
   std::vector<CPubKey> keysNotFound;
   sync_whitelist_wallet(keysNotFound);
@@ -629,7 +620,6 @@ void CWhiteList::add_unassigned_kyc(const CPubKey& kycPubKey, const COutPoint& o
     CKeyID kycKey=kycPubKey.GetID();    
     _kycPubkeyOutPointMap[kycKey]=outPoint;
     _kycUnassignedSet.insert(kycPubKey);
-    sync_whitelist_wallet();
 }
 
 bool CWhiteList::remove_unassigned_kyc(const CPubKey& id){

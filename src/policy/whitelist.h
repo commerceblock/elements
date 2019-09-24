@@ -109,9 +109,9 @@ public:
  		;
  	}
 
-	void sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound, bool bForce = false);
+	void sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound);
 
-	void sync_whitelist_wallet(bool  bForce = false);
+	void sync_whitelist_wallet();
 
 
 protected:
@@ -138,6 +138,4 @@ protected:
 
 private:
 	void add_unassigned_kyc(const CPubKey& pubKey, const COutPoint& outPoint);
-
-	bool _fWhitelistWallet = true;
 };
