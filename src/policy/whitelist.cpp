@@ -98,9 +98,7 @@ bool CWhiteList::Load(CCoinsView *view)
 //Modifies a vector of the kyc public keys whose private keys were not found in the wallet.
 void CWhiteList::sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
-  #ifndef ENABLE_WALLET
-    return false;
-  #endif
+  #ifdef ENABLE_WALLET
   LOCK2(cs_main, pwalletMain->cs_wallet);
   EnsureWalletIsUnlocked();
   keysNotFound.clear();
@@ -123,6 +121,7 @@ void CWhiteList::sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound){
     //Reset the gap if a key was found.
     if(bKeyFound) nTries=std::min(nTries, nKeys);
   }
+  #endif //#ifdef ENABLE_WALLET
 }
 
 void CWhiteList::sync_whitelist_wallet(){
@@ -640,13 +639,16 @@ void CWhiteList::dump_unassigned_kyc(std::ofstream& fStream){
         fStream << " ";
         fStream << std::string(HexStr(pubKey.begin(), pubKey.end()));
         fStream << " ";
+        bool bMine = false;
+        #ifdef ENABLE_WALLET
         isminetype mine = pwalletMain ? IsMine(*pwalletMain, keyid) : ISMINE_NO;
         if (mine != ISMINE_NO && address.IsBlinded() && address.GetBlindingKey() 
             != pwalletMain->GetBlindingPubKey(GetScriptForDestination(keyid))) {
             // Note: this will fail to return ismine for deprecated static blinded addresses.
             mine = ISMINE_NO;
         }
-        bool bMine =  (mine & ISMINE_SPENDABLE) ? true : false;
+        bMine =  (mine & ISMINE_SPENDABLE) ? true : false;
+        #endif //#ifdef ENABLE_WALLET
         fStream << bMine;
         fStream << std::endl;
     }

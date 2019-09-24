@@ -502,9 +502,11 @@ bool CWhiteListEncrypted::RegisterDecryptedAddresses(const std::vector<unsigned 
               break;
             }
             try{
+                #ifdef ENABLE_WALLET
                 if(bOnboard){
                     pwalletMain->SetKYCPubKeyIfMine(addrNew, *kycPubKey);
                 }
+                #endif 
                 add_derived(addrNew, pubKeyNew, kycPubKey);
                 ++pairsAdded;
             } catch (std::invalid_argument e){
@@ -571,9 +573,11 @@ bool CWhiteListEncrypted::RegisterDecryptedAddresses(const std::vector<unsigned 
       }
 
       try{
+        #ifdef ENABLE_WALLET
         if(bOnboard){
             pwalletMain->SetKYCPubKeyIfMine(addrMultiNew, *kycPubKey);
         }
+        #endif
         add_multisig_whitelist(addrMultiNew, vPubKeys, kycPubKey, mMultisig);
       } catch (std::invalid_argument e){
         LogPrintf(std::string(e.what()) + "\n");
