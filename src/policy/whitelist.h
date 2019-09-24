@@ -9,6 +9,7 @@
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
+#include "chain.h"
 #include <queue>
 
 class CWhiteList : public CPolicyList{
