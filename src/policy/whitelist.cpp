@@ -145,26 +145,46 @@ void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubK
     add_derived(address, pubKey);
 }
 
-void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubKey){
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  if (!pubKey.IsFullyValid()) 
-    throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": invalid public key"));
+//NEW
+void CWhiteList::add_derived(const CBitcoinAddress& address,  const CPubKey& pubKey){
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+
+    CTxDestination keyId = validateP2PKHForWhitelist(address, pubKey);
+    add_sorted(keyId);
+}
+
+//NEW
+CTxDestination CWhiteList::validateP2PKHForWhitelist(const CBitcoinAddress& address, const CPubKey& pubKey, 
+    const std::unique_ptr<CPubKey>& kycPubKey) {
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+
+    if (!pubKey.IsFullyValid()) 
+        throw std::invalid_argument(std::string(std::string(__func__) + 
+        ": invalid public key"));
 
     //Will throw an error if address is not a valid derived address.
-  CTxDestination keyId;
-  keyId = address.Get();
-  
-  if (keyId.which() == ((CTxDestination)CNoDestination()).which())
-      throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": invalid key id"));
+    CTxDestination keyId;
+    keyId = address.Get();
+    if (keyId.which() == ((CTxDestination)CNoDestination()).which())
+        throw std::invalid_argument(std::string(std::string(__func__) + 
+        ": invalid key id"));
 
-  if(!Params().ContractInTx() && !Consensus::CheckValidTweakedAddress(keyId, pubKey))
-     throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": address does not derive from public key when tweaked with contract hash"));
+    if(!Params().ContractInTx() && !Consensus::CheckValidTweakedAddress(keyId, pubKey))
+        throw std::invalid_argument(std::string(std::string(__func__) + 
+        ": address does not derive from public key when tweaked with contract hash"));
 
- //insert new address into sorted CWhiteList vector
-  add_sorted(keyId);
+    if(kycPubKey){
+        if (!kycPubKey->IsFullyValid()) 
+            throw std::invalid_argument(std::string(std::string(__func__) + 
+            ": invalid KYC public key"));
+    }
+
+    return keyId;
+}
+
+CTxDestination CWhiteList::validateP2PKHForWhitelist(const CBitcoinAddress& address, const CPubKey& pubKey) {
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+    return validateP2PKHForWhitelist(address, pubKey, nullptr);
 }
 
 void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPubKey, 
@@ -182,47 +202,63 @@ void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPu
   std::vector<unsigned char> pubKeyData(ParseHex(sPubKey));
   CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
 
-  std::unique_ptr<CPubKey> kycPubKey(new CPubKey());
   add_derived(address, pubKey);
 }
 
 void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys, 
-        const std::unique_ptr<CPubKey>& kycPubKey, const uint8_t nMultisig){
-    add_multisig_whitelist(address, pubKeys, nMultisig);
+        const std::unique_ptr<CPubKey>& kycPubKey, const uint8_t mMultisig){
+    add_multisig_whitelist(address, pubKeys, mMultisig);
 }
 
 void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys, 
-  const uint8_t nMultisig){
+  const uint8_t mMultisig){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
 
-  for(unsigned int i = 0; i < pubKeys.size(); ++i) {
-    if (!pubKeys[i].IsFullyValid()) 
-      throw std::invalid_argument(std::string(std::string(__func__) + 
-        ": invalid public key"));
-  }
-  
-  //Will throw an error if address is not a valid derived address.
-  CTxDestination keyId;
-  keyId = address.Get();
-  if (keyId.which() == ((CTxDestination)CNoDestination()).which())
-      throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": invalid key id"));
-   
-  if(!Params().ContractInTx() && !Consensus::CheckValidTweakedAddress(keyId, pubKeys, nMultisig))
-     throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": address does not derive from public keys when tweaked with contract hash"));
+  CTxDestination keyId = validateMultisigForWhitelist(address, pubKeys, nullptr, mMultisig);
 
   //insert new address into sorted CWhiteList vector
   add_sorted(keyId);
 }
 
+//NEW
+CTxDestination CWhiteList::validateMultisigForWhitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys,
+  const std::unique_ptr<CPubKey>& kycPubKey, const uint8_t mMultisig) {
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+
+    for(int i = 0; i < pubKeys.size(); ++i) {
+        if (!pubKeys[i].IsFullyValid()) 
+            throw std::invalid_argument(std::string(std::string(__func__) + 
+            ": invalid public key"));
+    }
+    
+    //Will throw an error if address is not a valid derived address.
+    CTxDestination keyId;
+    keyId = address.Get();
+    if (keyId.which() == ((CTxDestination)CNoDestination()).which())
+        throw std::invalid_argument(std::string(std::string(__func__) + 
+        ": invalid key id"));
+
+    if(!Params().ContractInTx() && !Consensus::CheckValidTweakedAddress(keyId, pubKeys, mMultisig))
+        throw std::invalid_argument(std::string(std::string(__func__) + 
+        ": address does not derive from public keys when tweaked with contract hash"));
+
+    if(kycPubKey){
+        if (!kycPubKey->IsFullyValid()) 
+            throw std::invalid_argument(std::string(std::string(__func__) + 
+            ": invalid KYC public key"));
+    }
+    return keyId;
+}
+
+
+
 void CWhiteList::add_multisig_whitelist(const std::string& addressIn, const UniValue& keys, 
-        const std::string& sKYCAddress, const uint8_t nMultisig){
-    add_multisig_whitelist(addressIn, keys, nMultisig);
+        const std::string& sKYCAddress, const uint8_t mMultisig){
+    add_multisig_whitelist(addressIn, keys, mMultisig);
 }
 
 void CWhiteList::add_multisig_whitelist(const std::string& sAddress, const UniValue& sPubKeys, 
-  const uint8_t nMultisig){
+  const uint8_t mMultisig){
 
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
   CBitcoinAddress address;
@@ -333,6 +369,8 @@ bool CWhiteList::RegisterDecryptedAddresses(const std::vector<unsigned char>& da
   std::vector<unsigned char>::const_iterator itData1 = itData2;
 
   std::vector<unsigned char>::const_iterator pend = data.end();
+
+std::vector<CWhitelistCandidate> candidates;
 
   bool bEnd=false;
   bool bSuccess=false;
