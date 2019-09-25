@@ -241,30 +241,21 @@ class FixedFee (BitcoinTestFramework):
         inputs = []
         inputs.append({"txid":txid,"vout":us_vout})
         inputs.append({"txid":txid2,"vout":0})
+       
+        outputs = []
+        outputs.append({"address":new_add1,"amount":2.499,"asset":issuance_tx["asset"]})
+        outputs.append({"address":new_add1,"amount":2.499,"asset":issuance_tx["asset"]})
+        outputs.append({"address":new_add2,"amount":5.5,"asset":asset})
+        outputs.append({"address":new_add2,"amount":5.5,"asset":asset})
+        outputs.append({"address":"fee","amount":0.001,"asset":issuance_tx["asset"]})
 
-        outputs = {}
-        outputs[new_add1] = 2.499
-        outputs[new_add1] = 2.499
-        outputs[new_add2] = 5.5
-        outputs[new_add2] = 5.5
-        outputs["fee"] = 0.001
-
-        asset_ids = {}
-        asset_ids[new_add1] = issuance_tx["asset"]
-        asset_ids["fee"] = issuance_tx["asset"]
-        asset_ids[new_add2] = asset
-
-        raw_tx = self.nodes[2].createrawtransaction(inputs,outputs,0,asset_ids)
-
-        #createrawtransaction will not allow you to create a transaction sending more than one output to the same address
-        #so add the doubled outputs manually by splitting up the hex
-        doubled_outputs_tx = raw_tx[0:176] + '05' + raw_tx[178:316] + raw_tx[178:316] + raw_tx[316:454] + raw_tx[316:454] + raw_tx[454:]
-
-        signed_tx = self.nodes[2].signrawtransaction(doubled_outputs_tx)
+        # create a transaction with same address outputs
+        rawtx = self.nodes[2].createrawtxoutputs(inputs,outputs)
+        signtx = self.nodes[2].signrawtransaction(rawtx)
 
         #submit signed transaction to network
         try:
-            txid3 = self.nodes[2].sendrawtransaction(signed_tx["hex"])
+            txid3 = self.nodes[2].sendrawtransaction(signtx["hex"])
         except JSONRPCException as exp:
             assert_equal(exp.error['code'], -26) # blocked tx spam-split outputs
         else:
