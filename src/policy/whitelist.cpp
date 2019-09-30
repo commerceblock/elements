@@ -370,7 +370,7 @@ bool CWhiteList::RegisterDecryptedAddresses(const std::vector<unsigned char>& da
 
   std::vector<unsigned char>::const_iterator pend = data.end();
 
-std::vector<CWhitelistCandidate> candidates;
+  std::vector<CWhitelistCandidate> candidates;
 
   bool bEnd=false;
   bool bSuccess=false;
@@ -395,6 +395,7 @@ std::vector<CWhitelistCandidate> candidates;
           CBitcoinAddress addrNew;
           std::vector<unsigned char> addrChars(itData1,itData2);
           CTxDestination addr = CKeyID(uint160(addrChars));
+          addrNew.Set(addr);
           itData1 = itData2;
           for(unsigned int i=0; i<CPubKey::COMPRESSED_PUBLIC_KEY_SIZE; ++i){
             if(itData2++ == pend){
@@ -403,31 +404,31 @@ std::vector<CWhitelistCandidate> candidates;
               break;
             }
           }
+          if(!fEnd){
+            CPubKey pubKeyNew = CPubKey(itData1,itData2);
+            itData1=itData2;
+            if(!pubKeyNew.IsFullyValid())
+            {
+              itData1 = itStart;
+              itData2 = itStart;
+              if(pairsAdded == 0)
+                bEnd = true;
+              break;
+            }
             try{
-                CPubKey pubKeyNew = CPubKey(itData1,itData2);
-                itData1=itData2;
-                if(bBlacklist){
-                    remove(addr);
-                } else {
-                    if(!pubKeyNew.IsFullyValid())
-                    {
-                        itData1 = itStart;
-                        itData2 = itStart;
-                        if(pairsAdded == 0)
-                        bEnd = true;
-                        break;
-                    }
-                    add_derived(CBitcoinAddress(addr), pubKeyNew);
-                }
-                ++pairsAdded;
+              CTxDestination keyId = validateP2PKHForWhitelist(addrNew, pubKeyNew);
+              std::vector<CPubKey> pubKeyVec {pubKeyNew};
+              candidates.push_back(CWhitelistCandidate(keyId, pubKeyVec));
+              ++pairsAdded;
             } catch (std::invalid_argument e){
               LogPrintf(std::string(e.what()) + "\n");
-              return bSuccess;
+              return false;
             } 
-            bSuccess = true;
+          }
         }
       }
     }
+
     //REGISTERADDRESS for MULTISIG
     else{
 
@@ -482,20 +483,30 @@ std::vector<CWhitelistCandidate> candidates;
           vPubKeys.push_back(pubKeyNew);
         }
       }
-      if(bBlacklist){
-        remove(addrMultiNew.Get());
-      } else {
-            try{
-            add_multisig_whitelist(addrMultiNew, vPubKeys, mMultisig);
-            } catch (std::invalid_argument e){
-            LogPrintf(std::string(e.what()) + "\n");
-            return bSuccess;
-        }
-      }
 
-      bSuccess = true;
+      try{
+        CTxDestination keyId = validateMultisigForWhitelist(addrMultiNew, vPubKeys, kycPubKey, mMultisig);
+        candidates.push_back(CWhitelistCandidate(keyId, vPubKeys, kycPubKey));
+      } catch (std::invalid_argument e){
+        LogPrintf(std::string(e.what()) + "\n");
+        return false;
+      }
     }
   }
+ 
+  if (candidates.size() > 0) {
+        if(bBlacklist){
+          for (int i = 0; i < candidates.size(); ++i){ 
+            remove(candidates[i]);
+          }
+        } else {
+          for (int i = 0; i < candidates.size(); ++i){
+            unsafe_add_to_whitelist(candidates[i]);
+          }
+        }
+    bSuccess = true;
+  }
+
   return bSuccess;
 }
 
