@@ -3146,7 +3146,8 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
 
                         // Never create dust outputs; if we would, just
                         // add the dust to the fee.
-                        if (newTxOut.IsDust(dustRelayFee) && it->first == feeAsset)
+                        // Skip this in the fixed fee case as it would create invalid fee outputs
+                        if (newTxOut.IsDust(dustRelayFee) && it->first == feeAsset && fixedTxFee == 0)
                         {
                             nChangePosInOut = -1;
                             nFeeRet += it->second;
