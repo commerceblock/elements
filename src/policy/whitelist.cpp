@@ -149,7 +149,7 @@ void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubK
 void CWhiteList::add_derived(const CBitcoinAddress& address,  const CPubKey& pubKey){
     boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
 
-    CTxDestination keyId = validateP2PKHForWhitelist(address, pubKey);
+    CTxDestination keyId = validateP2PKHForWhitelist(address, pubKeyo);
     add_sorted(keyId);
 }
 

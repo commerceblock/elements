@@ -139,4 +139,12 @@ protected:
 
 private:
 	void add_unassigned_kyc(const CPubKey& pubKey, const COutPoint& outPoint);
+
+	CTxDestination validateP2PKHForWhitelist(const CBitcoinAddress& address, const CPubKey& pubKey, 
+		const std::unique_ptr<CPubKey>& kycPubKey);
+
+	CTxDestination validateP2PKHForWhitelist(const CBitcoinAddress& address, const CPubKey& pubKey);
+
+	CTxDestination validateMultisigForWhitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys,
+	  const std::unique_ptr<CPubKey>& kycPubKey, const uint8_t mMultisig);
 };
