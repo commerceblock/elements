@@ -3662,10 +3662,10 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                 int dummyPosLeft = -1;
                 int dummyPosRight = -1;
                 std::vector<CWalletTx> leftRes = CreateTransaction(leftRecipients, dummyLeft, vChangeKeysLeft,
-                    feeLeft, dummyPosLeft, strFailReason, coinControl, true, NULL, true, NULL, NULL, NULL,
+                    feeLeft, dummyPosLeft, strFailReason, coinControl, sign, NULL, true, NULL, NULL, NULL,
                     CAsset(), fIgnoreBlindFail, fSplitTransactions, leftInputs, fFindFeeAsset, mAvailableInputs);
                 std::vector<CWalletTx> rightRes = CreateTransaction(rightRecipients, dummyRight, vChangeKeysRight,
-                    feeRight, dummyPosRight, strFailReason, coinControl, true, NULL, true, NULL, NULL, NULL,
+                    feeRight, dummyPosRight, strFailReason, coinControl, sign, NULL, true, NULL, NULL, NULL,
                     CAsset(), fIgnoreBlindFail, fSplitTransactions, rightInputs, fFindFeeAsset, mAvailableInputs);
                 if (leftRes.size() > 0 && rightRes.size() > 0) {
                     leftRes.insert( leftRes.end(), rightRes.begin(), rightRes.end() );
