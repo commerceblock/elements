@@ -2759,21 +2759,29 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
     CAmountMap mapValue;
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
+    nFeeRet = 0;
     for (const auto& recipient : vecSend)
     {
         // Skip over issuance outputs, no need to select those coins
         if (recipient.asset == CAsset(uint256S("1")) || recipient.asset == CAsset(uint256S("2"))) {
             // In issuance/reissuance cases pay fees in policyAsset
             feeAsset = policyAsset;
+            // Start with tiny non-zero fee for issuance entropy only
+            nFeeRet = 1;
             continue;
         }
 
         // TODO - should also do this for the case where bytes are appended to OP_RETURN?
         // Just like issuance/re-issuance, when destroying assets pay policyAsset fees
-        if (recipient.scriptPubKey == CScript(OP_RETURN) ||
-            recipient.scriptPubKey == CScript(OP_REGISTERADDRESS) ||
-            recipient.scriptPubKey == CScript(OP_DEREGISTERADDRESS))
+        if (recipient.scriptPubKey == CScript(OP_RETURN))
+        {
             feeAsset =  policyAsset;
+        }
+
+        if (recipient.scriptPubKey[0] == OP_REGISTERADDRESS ||
+            recipient.scriptPubKey[0] == OP_DEREGISTERADDRESS) {
+            nFeeRet = 1;
+        }
 
         if (mapValue[recipient.asset] < 0 || recipient.nAmount < 0 || recipient.asset.IsNull())
         {
@@ -2853,6 +2861,9 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
         feeAsset = newFeeAsset;
     }
 
+    if (IsPolicy(feeAsset))
+        nFeeRet = 0;
+
     wtxNew.fTimeReceivedIsTxTime = true;
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
@@ -2913,9 +2924,6 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                 vAvailableCoins = vInputPool;
             else
                 AvailableCoins(vAvailableCoins, true, coinControl);
-    	    nFeeRet = 1;
-            if (IsPolicy(feeAsset))
-                nFeeRet = 0;
             // Start with tiny non-zero or zero fee for issuance entropy and loop until there is enough fee
             while (true)
             {
@@ -3208,8 +3216,12 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                 //
                 // Note how the sequence number is set to non-maxint so that
                 // the nLockTime set above actually works.
+                bool fSpendsCoinbase = false;
                 for (const auto& coin : setCoins) {
                     txNew.vin.push_back(CTxIn(coin.first->GetHash(),coin.second,CScript(), std::numeric_limits<unsigned int>::max() - 1));
+                    if (coin.first->IsCoinBase()) {
+                        fSpendsCoinbase = true;
+                    }
                     if (reissuanceToken &&
                         coin.first->GetOutputAsset(coin.second) == *reissuanceToken) {
                         reissuanceIndex = txNew.vin.size()-1;
@@ -3434,7 +3446,7 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
 
                 CAmount nFeeNeeded;
 
-                if(!IsPolicy(feeAsset)){
+                if (!IsPolicy(feeAsset) && !fSpendsCoinbase) {
                     nFeeNeeded = GetMinimumFee(nBytes, currentConfirmationTarget, mempool);
                     if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
                         nFeeNeeded = coinControl->nMinimumTotalFee;
@@ -3450,11 +3462,11 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                             return std::vector<CWalletTx>();
                         }
                     }
+
+                    if(fixedTxFee > 0) nFeeNeeded = fixedTxFee;
                 } else {
                     nFeeNeeded = 0;
                 }
-
-                if(fixedTxFee > 0 && !IsPolicy(feeAsset)) nFeeNeeded = fixedTxFee;
 
                 if (nFeeRet >= nFeeNeeded) {
                     /* TODO Push actual blinding outside of loop and reactivate this logic

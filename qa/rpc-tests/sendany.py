@@ -60,8 +60,13 @@ class SendAnyTest (BitcoinTestFramework):
         self.nodes[2].sendtoaddress(self.nodes[1].getnewaddress(), self.nodes[2].getbalance()["CBT"], "", "", True, "CBT")
         assert_equal(self.nodes[1].getbalance("", 0, False, "CBT"), 20790000.00000000)
         assert_equal(self.nodes[2].getbalance("", 0, False, "CBT"), 0)
+        self.nodes[2].generate(2)
+        self.sync_all()
+        # Get completely rid off CBT by sending also the coinbase fee of the previous tx
+        tx = self.nodes[2].sendtoaddress(self.nodes[1].getnewaddress(), self.nodes[2].getbalance()["CBT"], "", "", True, "CBT")
         self.nodes[2].generate(1)
         self.sync_all()
+        assert_equal(self.nodes[2].getbalance("", 0, False, "CBT"), 0)
 
         addr1 = self.nodes[1].getnewaddress();
 
