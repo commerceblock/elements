@@ -2776,6 +2776,7 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
         if (recipient.scriptPubKey == CScript(OP_RETURN))
         {
             feeAsset =  policyAsset;
+            nFeeRet = 1;
         }
 
         if (recipient.scriptPubKey[0] == OP_REGISTERADDRESS ||
@@ -2861,9 +2862,6 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
         feeAsset = newFeeAsset;
     }
 
-    if (IsPolicy(feeAsset))
-        nFeeRet = 0;
-
     wtxNew.fTimeReceivedIsTxTime = true;
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
@@ -2924,6 +2922,8 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                 vAvailableCoins = vInputPool;
             else
                 AvailableCoins(vAvailableCoins, true, coinControl);
+            if (IsPolicy(feeAsset))
+                nFeeRet = 0;
             // Start with tiny non-zero or zero fee for issuance entropy and loop until there is enough fee
             while (true)
             {
