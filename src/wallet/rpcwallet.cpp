@@ -1182,7 +1182,7 @@ UniValue RemoveKYCPubKey(const CPubKey& kycPubKey){
     if (!pwalletMain->IsLocked())
             pwalletMain->TopUpKeyPool();
     if (!changeKey.GetReservedKey(vchPubKey))
-        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypool refill first");
 
     rawTx.vout.push_back(
             CTxOut(
@@ -5913,6 +5913,7 @@ extern UniValue dumpderivedkeys(const JSONRPCRequest& request);
 extern UniValue dumpkycfile(const JSONRPCRequest& request);
 extern UniValue createkycfile(const JSONRPCRequest& request);
 extern UniValue readkycfile(const JSONRPCRequest& request);
+extern UniValue validatekycfile(const JSONRPCRequest& request);
 extern UniValue getderivedkeys(const JSONRPCRequest& request);
 extern UniValue validatederivedkeys(const JSONRPCRequest& request);
 extern UniValue importwallet(const JSONRPCRequest& request);
@@ -5942,6 +5943,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "dumpderivedkeys",          &dumpderivedkeys,           true,   {"filename"} },
     { "wallet",             "dumpkycfile",              &dumpkycfile,               true,   {"filename"} },
     { "wallet",             "readkycfile",              &readkycfile,               true,   {"filename", "outfilename", "onboardpubkey"} },
+    { "wallet",             "validatekycfile",          &validatekycfile,           true,   {"filename"} },
     { "wallet",             "onboarduser",              &onboarduser,               false,  {"filename"} },
     { "wallet",             "blacklistuser",            &blacklistuser,             false,  {"filename"} },
     { "wallet",             "topupkycpubkeys",          &topupkycpubkeys,           false,  {"nkeys"} },

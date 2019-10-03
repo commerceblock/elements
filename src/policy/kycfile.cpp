@@ -350,3 +350,15 @@ std::ostream& operator<<(std::ostream& os, const CKYCFile& fl){
 }
 
 
+bool CKYCFile::is_whitelisted(){
+    bool fOk = true;
+    for(auto k : _addressKeys){
+        if(addressWhitelist->is_whitelisted(k.GetID())){
+            fOk = false;
+            break;
+        }
+    }
+    return fOk;
+}
+
+
