@@ -43,8 +43,6 @@ class CKYCFile{
 
 	 	bool getOnboardingScript(CScript& script, bool fBlacklist=false);
 
-	 	bool is_valid();
-
 	 	bool is_whitelisted();
 
 	private:
