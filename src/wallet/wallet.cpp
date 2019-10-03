@@ -2817,6 +2817,9 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                 }
             } else {
                 balanceMap = pwalletMain->GetBalance();
+                if (coinControl != NULL && coinControl->fAllowWatchOnly) {
+                    balanceMap += pwalletMain->GetWatchOnlyBalance();
+                }
             }
             int newFeeRecipient = 0;
             for (unsigned int i = 1; i < vecSend.size(); ++i) {
@@ -3015,6 +3018,9 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                         CAmount amountMissing = amountNeeded - amountHave;
                         if (amountMissing > 0) {
                             CAmountMap balanceMap = pwalletMain->GetBalance();
+                            if (coinControl != NULL && coinControl->fAllowWatchOnly) {
+                                balanceMap += pwalletMain->GetWatchOnlyBalance();
+                            }
                             // Fee in send any is based on the largest balance.
                             // If its bigger than the largest balance then this transaction is invalid.
                             if (balanceMap[feeAsset] < nFeeRet) {

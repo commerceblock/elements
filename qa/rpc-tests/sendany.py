@@ -8,12 +8,6 @@ from test_framework.util import *
 
 class SendAnyTest (BitcoinTestFramework):
 
-    def check_fee_amount(self, curr_balance, balance_with_fee, fee_per_byte, tx_size):
-        """Return curr_balance after asserting the fee was in range"""
-        fee = balance_with_fee - curr_balance
-        assert_fee_amount(fee, tx_size, fee_per_byte * 1000)
-        return curr_balance
-
     def __init__(self):
         super().__init__()
         self.setup_clean_chain = True
@@ -22,12 +16,16 @@ class SendAnyTest (BitcoinTestFramework):
         self.extra_args[0].append("-txindex")
         self.extra_args[1].append("-txindex")
         self.extra_args[2].append("-txindex")
+        self.extra_args[3].append("-txindex")
 
     def setup_network(self, split=False):
-        self.nodes = start_nodes(3, self.options.tmpdir, self.extra_args[:3])
+        self.nodes = start_nodes(4, self.options.tmpdir, self.extra_args[:4])
         connect_nodes_bi(self.nodes,0,1)
         connect_nodes_bi(self.nodes,1,2)
         connect_nodes_bi(self.nodes,0,2)
+        connect_nodes_bi(self.nodes,3,0)
+        connect_nodes_bi(self.nodes,3,1)
+        connect_nodes_bi(self.nodes,3,2)
         self.is_network_split=False
         self.sync_all()
 
@@ -74,7 +72,11 @@ class SendAnyTest (BitcoinTestFramework):
         self.sync_all()
 
         # Descending asset balances for sendany selection
-        tx = self.nodes[2].sendanytoaddress(addr1, 5.5, "", "", True, False, 1)
+        # createany -> sign -> send should be equivalent to sendany
+        txraw = self.nodes[2].createanytoaddress(addr1, 5.5, True, False, 1, False)
+        txrawsigned = self.nodes[2].signrawtransaction(txraw[0])
+        assert(txrawsigned['complete'])
+        tx = self.nodes[2].sendrawtransaction(txrawsigned['hex'])
         assert(tx in self.nodes[2].getrawmempool())
         self.nodes[2].generate(1)
         self.sync_all()
@@ -94,7 +96,7 @@ class SendAnyTest (BitcoinTestFramework):
         self.nodes[2].generate(1)
         self.sync_all()
 
-        # Issue some assets and send them to node 0
+        # Issue some assets and send them to node 0 and 3
         issue = self.nodes[1].issueasset('10.0','0', False)
         self.nodes[1].generate(1)
         self.nodes[1].sendtoaddress(self.nodes[0].getnewaddress(), 9, "", "", False, issue["asset"])
@@ -106,10 +108,47 @@ class SendAnyTest (BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
 
+        address_node1 = self.nodes[3].getnewaddress()
+        val_addr_node1 = self.nodes[3].validateaddress(address_node1)
+        privkey_node1 = self.nodes[3].dumpprivkey(address_node1)
+        address_node2 =self.nodes[2].getnewaddress()
+        val_addr_node2 = self.nodes[2].validateaddress(address_node2)
+        privkey_node2 =self.nodes[2].dumpprivkey(address_node2)
+        multisig = self.nodes[3].createmultisig(1,[val_addr_node1["pubkey"],val_addr_node2["pubkey"]])
+
+        issue = self.nodes[1].issueasset('10.0','0', False)
+        self.nodes[1].generate(1)
+        self.nodes[1].sendtoaddress(multisig['address'], 9, "", "", False, issue["asset"])
+        self.nodes[1].generate(1)
+
+        issue = self.nodes[1].issueasset('10.0','0', False)
+        self.nodes[1].generate(1)
+        self.nodes[1].sendtoaddress(multisig['address'], 9, "", "", False, issue["asset"])
+        self.nodes[1].generate(10)
+        self.sync_all()
+
         # Two balances of 9; send 9
         tx = self.nodes[0].sendanytoaddress(addr1, 9, "", "", True, False)
         assert(tx in self.nodes[0].getrawmempool())
         self.nodes[0].generate(1)
+        self.sync_all()
+
+        # Test watch only createanytoaddress
+        try:
+            txraw = self.nodes[3].createanytoaddress(addr1, 9, True, False, 1, True)
+        except JSONRPCException as exp:
+            assert("Insufficient funds for sendany" in exp.error['message'])
+        else:
+            assert(False)
+
+        self.nodes[3].importaddress(multisig['redeemScript'], "", True, True)
+        txraw = self.nodes[3].createanytoaddress(addr1, 9, True, True, 2, True)
+        txraw = self.nodes[3].createanytoaddress(addr1, 9, True, True, 1, True)
+        txrawsigned = self.nodes[3].signrawtransaction(txraw[0])
+        assert(txrawsigned['complete'])
+        tx = self.nodes[3].sendrawtransaction(txrawsigned['hex'])
+        assert(tx in self.nodes[3].getrawmempool())
+        self.nodes[3].generate(1)
         self.sync_all()
 
 if __name__ == '__main__':

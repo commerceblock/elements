@@ -605,6 +605,11 @@ static vector<CWalletTx> SendAnyMoney(const CScript& scriptPubKey, CAmount nValu
     std::vector<std::pair<CAsset, CAmount>> vecBalanceMap =
         std::vector<std::pair<CAsset, CAmount>>(balanceMap.begin(), balanceMap.end());
 
+    if (coinControl != NULL && coinControl->fAllowWatchOnly) {
+        CAmountMap watchOnlyBalanceMap = pwalletMain->GetWatchOnlyBalance();
+        vecBalanceMap.insert(vecBalanceMap.end(), watchOnlyBalanceMap.begin(), watchOnlyBalanceMap.end());
+    }
+
     // Default 0 unsorted, 1 descending, 2 ascending
     typedef std::function<bool(std::pair<CAsset, CAmount>, std::pair<CAsset, CAmount>)> Comparator;
     if (nSortingMethod == 1) {
@@ -1773,7 +1778,7 @@ UniValue createanytoaddress(const JSONRPCRequest& request)
     // Similar to fundrawtransaction
     CCoinControl coinControl;
     //coinControl.destChange = destChange;
-    //coinControl.fAllowOtherInputs = true;
+    coinControl.fAllowOtherInputs = true;
     coinControl.fAllowWatchOnly = fAllowWatchOnly;
     //coinControl.fOverrideFeeRate = overrideEstimatedFeeRate;
     //coinControl.nFeeRate = specificFeeRate;
