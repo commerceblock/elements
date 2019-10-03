@@ -12,6 +12,19 @@
 #include "chain.h"
 #include <queue>
 
+struct CWhitelistCandidate {
+    const CTxDestination keyId;
+    const std::vector<CPubKey> pubKeys;
+    const std::unique_ptr<CPubKey>& kycPubKey;
+   
+    CWhitelistCandidate(const CTxDestination& _keyId, const std::vector<CPubKey>& _pubKeys,
+        const std::unique_ptr<CPubKey>& _kycPubKey) :
+        keyId(_keyId),
+        pubKeys(_pubKeys),
+        kycPubKey(_kycPubKey)
+    {}
+};
+
 class CWhiteList : public CPolicyList{
 public:
 	CWhiteList();
@@ -135,11 +148,6 @@ protected:
 
     std::map<CKeyID, COutPoint> _kycPubkeyOutPointMap;
 
-
-
-private:
-	void add_unassigned_kyc(const CPubKey& pubKey, const COutPoint& outPoint);
-
 	CTxDestination validateP2PKHForWhitelist(const CBitcoinAddress& address, const CPubKey& pubKey, 
 		const std::unique_ptr<CPubKey>& kycPubKey);
 
@@ -147,4 +155,22 @@ private:
 
 	CTxDestination validateMultisigForWhitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys,
 	  const std::unique_ptr<CPubKey>& kycPubKey, const uint8_t mMultisig);
+
+	void unsafe_add_to_whitelist(const CTxDestination keyId, const std::unique_ptr<std::vector<CPubKey> >& pubKeys);
+
+	void unsafe_add_to_whitelist(const CTxDestination keyId, const std::unique_ptr<std::vector<CPubKey> >& pubKeys,
+		const std::unique_ptr<CPubKey>& kycPubKey); 
+
+	void unsafe_add_to_whitelist(const CTxDestination keyId);
+
+	void unsafe_add_to_whitelist(const CWhitelistCandidate candidate);
+
+	void unsafe_remove_from_whitelist(const CTxDestination keyId, const std::unique_ptr<std::vector<CPubKey> >& pubKeys,
+		const std::unique_ptr<CPubKey>& kycPubKey); 
+
+	void unsafe_remove_from_whitelist(const CWhitelistCandidate candidate);
+
+private:
+	void add_unassigned_kyc(const CPubKey& pubKey, const COutPoint& outPoint);
+
 };

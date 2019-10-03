@@ -145,15 +145,12 @@ void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubK
     add_derived(address, pubKey);
 }
 
-//NEW
 void CWhiteList::add_derived(const CBitcoinAddress& address,  const CPubKey& pubKey){
     boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-
-    CTxDestination keyId = validateP2PKHForWhitelist(address, pubKeyo);
+    CTxDestination keyId = validateP2PKHForWhitelist(address, pubKey);
     add_sorted(keyId);
 }
 
-//NEW
 CTxDestination CWhiteList::validateP2PKHForWhitelist(const CBitcoinAddress& address, const CPubKey& pubKey, 
     const std::unique_ptr<CPubKey>& kycPubKey) {
     boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
@@ -220,7 +217,6 @@ void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const st
   add_sorted(keyId);
 }
 
-//NEW
 CTxDestination CWhiteList::validateMultisigForWhitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys,
   const std::unique_ptr<CPubKey>& kycPubKey, const uint8_t mMultisig) {
     boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
@@ -274,7 +270,7 @@ void CWhiteList::add_multisig_whitelist(const std::string& sAddress, const UniVa
     pubKeyVec.push_back(pubKey);
    }
 
-   add_multisig_whitelist(address, pubKeyVec, nMultisig);
+   add_multisig_whitelist(address, pubKeyVec, mMultisig);
 }
 
 bool CWhiteList::RegisterAddress(const CTransaction& tx, const CBlockIndex* pindex){
@@ -418,7 +414,7 @@ bool CWhiteList::RegisterDecryptedAddresses(const std::vector<unsigned char>& da
             try{
               CTxDestination keyId = validateP2PKHForWhitelist(addrNew, pubKeyNew);
               std::vector<CPubKey> pubKeyVec {pubKeyNew};
-              candidates.push_back(CWhitelistCandidate(keyId, pubKeyVec));
+              candidates.push_back(CWhitelistCandidate(keyId, pubKeyVec, nullptr));
               ++pairsAdded;
             } catch (std::invalid_argument e){
               LogPrintf(std::string(e.what()) + "\n");
@@ -485,8 +481,8 @@ bool CWhiteList::RegisterDecryptedAddresses(const std::vector<unsigned char>& da
       }
 
       try{
-        CTxDestination keyId = validateMultisigForWhitelist(addrMultiNew, vPubKeys, kycPubKey, mMultisig);
-        candidates.push_back(CWhitelistCandidate(keyId, vPubKeys, kycPubKey));
+        CTxDestination keyId = validateMultisigForWhitelist(addrMultiNew, vPubKeys, nullptr, mMultisig);
+        candidates.push_back(CWhitelistCandidate(keyId, vPubKeys, nullptr));
       } catch (std::invalid_argument e){
         LogPrintf(std::string(e.what()) + "\n");
         return false;
@@ -497,11 +493,11 @@ bool CWhiteList::RegisterDecryptedAddresses(const std::vector<unsigned char>& da
   if (candidates.size() > 0) {
         if(bBlacklist){
           for (int i = 0; i < candidates.size(); ++i){ 
-            remove(candidates[i]);
+            remove(candidates[i].keyId);
           }
         } else {
           for (int i = 0; i < candidates.size(); ++i){
-            unsafe_add_to_whitelist(candidates[i]);
+            add_sorted(candidates[i].keyId);
           }
         }
     bSuccess = true;
@@ -747,6 +743,7 @@ bool CWhiteList::get_kycpubkey_outpoint(const CPubKey& pubKey, COutPoint& outPoi
     return false;
   return get_kycpubkey_outpoint(pubKey.GetID(), outPoint);
 }
+
 
 
 
