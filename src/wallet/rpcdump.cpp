@@ -1037,7 +1037,7 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
 
 UniValue validatekycfile(const JSONRPCRequest& request)
 {
-  if (request.fHelp || request.params.size() != 2)
+  if (request.fHelp || request.params.size() != 1)
     throw runtime_error(
             "validatekycfile \"filename\"\n"
             "Return information about a kycfile.\n"

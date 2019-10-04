@@ -15,6 +15,7 @@ CKYCFile::~CKYCFile(){
 
 void CKYCFile::clear(){
     _addressKeys.clear();
+    _addressKeyIds.clear();
     _decryptedStream.clear();
     _errorStream.clear();
     delete _onboardPubKey;
@@ -219,6 +220,7 @@ bool CKYCFile::parsePubkeyPair(const std::vector<std::string> vstr, const std::s
 
     //Addresses valid, write to map
     _addressKeys.push_back(pubKey);
+    _addressKeyIds.push_back(addressKeyId);
     appendOutStream(line);
     return true;
 }
@@ -352,8 +354,8 @@ std::ostream& operator<<(std::ostream& os, const CKYCFile& fl){
 
 bool CKYCFile::is_whitelisted(){
     bool fOk = true;
-    for(auto k : _addressKeys){
-        if(addressWhitelist->is_whitelisted(k.GetID())){
+    for(auto k : _addressKeyIds){
+        if(!addressWhitelist->is_whitelisted(k)){
             fOk = false;
             break;
         }
