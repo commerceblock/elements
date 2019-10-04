@@ -1035,19 +1035,47 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
     return result;
 }
 
+UniValue validatekycfile(const JSONRPCRequest& request)
+{
+  if (request.fHelp || request.params.size() != 1)
+    throw runtime_error(
+            "validatekycfile \"filename\"\n"
+            "Return information about a kycfile.\n"
+            "\nArguments:\n"
+            "1. \"filename\"    (string, required) The kyc file name\n"
+            "\nExamples:\n"
+            + HelpExampleCli("validatekycfile", "\"kycfile\"")
+            + HelpExampleRpc("validatekycfile", "\"kycfile\"")
+            );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    CKYCFile file;
+    file.read(request.params[0].get_str().c_str());
+
+    bool fWhitelisted = file.is_whitelisted();
+
+    UniValue ret(UniValue::VOBJ);
+
+    ret.push_back(Pair("iswhitelisted", fWhitelisted));
+
+    return ret;
+}
+
 UniValue readkycfile(const JSONRPCRequest& request)
 {
   if (request.fHelp || request.params.size() != 2)
     throw runtime_error(
             "readkycfile \"filename\"\n"
-            "Read in derived keys and tweaked addresses from key dump file (see dumpderivedkeys) into the address whitelist.\n"
+            "Decrypt a kycfile.\n"
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The kyc file name\n"
             "2. \"outfilename\" (string, required) The output file name\n"
             "\nExamples:\n"
-            "\nDump the keys\n"
-            + HelpExampleCli("readkycfile", "\"test\", \"testout\", \"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
-            + HelpExampleRpc("readkycfile", "\"test\", \"testout\", \"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
+            + HelpExampleCli("readkycfile", "\"test\", \"testout\"")
+            + HelpExampleRpc("readkycfile", "\"test\", \"testout\"")
             );
 
     

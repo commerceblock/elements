@@ -43,6 +43,8 @@ class CKYCFile{
 
 	 	bool getOnboardingScript(CScript& script, bool fBlacklist=false);
 
+	 	bool is_whitelisted();
+
 	private:
 		std::ifstream _file;
 		CECIES* _encryptor = nullptr;
@@ -53,6 +55,7 @@ class CKYCFile{
 
     	// The user address keys to be whitelisted
     	std::vector<CPubKey> _addressKeys; 
+    	std::vector<CKeyID> _addressKeyIds; 
 
     	std::vector<OnboardMultisig> _multisigData;
 
