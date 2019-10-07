@@ -525,7 +525,7 @@ bool GetRequestBid(const vector<CTxOut> &outs, uint256 hash, uint32_t nConfirmed
     txnouttype whichType;
     vector<vector<unsigned char>> vSolutions;
     for (const auto &out : outs) {
-        if (out.nAsset.IsExplicit() && !IsPolicy(out.nAsset.GetAsset())
+        if (out.nAsset.IsExplicit() && out.nAsset.GetAsset() == domainAsset
         && Solver(out.scriptPubKey, whichType, vSolutions) && whichType == TX_LOCKED_MULTISIG) {
             bid = CBid::FromSolutions(vSolutions, out.nValue.GetAmount(), nConfirmedHeight);
             bid.SetBidHash(hash);
