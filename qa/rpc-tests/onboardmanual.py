@@ -149,6 +149,41 @@ class OnboardManualTest (BitcoinTestFramework):
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
+
+        #Test the createkycfile output to the terminal
+        try:
+            kycstring=self.nodes[1].createkycfile("", [{"address":onboardAddress1['address'],"pubkey":onboardAddress1['derivedpubkey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpubkey']}], [{"nmultisig":2,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}])['kycfile'];
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        kycfile_plain="kycfile_plain.dat"
+        self.nodes[0].readkycfile(kycfile,kycfile_plain)
+
+        kycfile_fromstr="kycfile_fromstr.dat"
+        kycfile_fromstr_plain="kycfile_fromstr_plain.dat"
+
+        with open(kycfile_fromstr, "w") as f:
+            f.write(kycstring)
+
+        self.nodes[0].readkycfile(kycfile_fromstr,kycfile_fromstr_plain)
+
+        with open(kycfile_plain) as f1:
+            with open(kycfile_fromstr_plain) as f2:
+                different = set(f1).difference(f2)
+
+        discard=set()
+        for line in different:
+            if line[0] == '#':
+                discard.add(line)
+
+        different=different.difference(discard)
+                
+        print(different)
+
+        for1372
+
+        assert(len(different) == 0)
         
         self.nodes[0].generate(101)
         self.sync_all()
