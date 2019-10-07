@@ -2677,8 +2677,8 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
         vChangeKey.push_back(CReserveKey(this));
     }
 
-    // Always add policyAsset, as fees via policyAsset may create change
-    if (setAssets.count(policyAsset) == 0) {
+    // Always add domainAsset, as fees via domainAsset may create change
+    if (setAssets.count(domainAsset) == 0) {
         vChangeKey.push_back(CReserveKey(this));
     }
     vChangeKeys.push_back(vChangeKey);
@@ -2763,17 +2763,17 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
     {
         // Skip over issuance outputs, no need to select those coins
         if (recipient.asset == CAsset(uint256S("1")) || recipient.asset == CAsset(uint256S("2"))) {
-            // In issuance/reissuance cases pay fees in policyAsset
-            feeAsset = policyAsset;
+            // In issuance/reissuance cases pay fees in domainAsset
+            feeAsset = domainAsset;
             continue;
         }
 
         // TODO - should also do this for the case where bytes are appended to OP_RETURN?
-        // Just like issuance/re-issuance, when destroying assets pay policyAsset fees
+        // Just like issuance/re-issuance, when destroying assets pay domainAsset fees
         if (recipient.scriptPubKey == CScript(OP_RETURN) ||
             recipient.scriptPubKey == CScript(OP_REGISTERADDRESS) ||
             recipient.scriptPubKey == CScript(OP_DEREGISTERADDRESS))
-            feeAsset =  policyAsset;
+            feeAsset =  domainAsset;
 
         if (mapValue[recipient.asset] < 0 || recipient.nAmount < 0 || recipient.asset.IsNull())
         {

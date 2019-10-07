@@ -1051,7 +1051,7 @@ bool AppInitParameterInteraction()
     if (nConnectTimeout <= 0)
         nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
 
-    policyAsset = CAsset(uint256S(GetArg("-feeasset", chainparams.GetConsensus().pegged_asset.GetHex())));
+    domainAsset = CAsset(uint256S(GetArg("-feeasset", chainparams.GetConsensus().pegged_asset.GetHex())));
 
     if(GetArg("-freezelistcoinsdestination", "").size() > 0) {
         freezelistAsset = CAsset(uint256S(chainparams.GetConsensus().freezelist_asset.GetHex()));

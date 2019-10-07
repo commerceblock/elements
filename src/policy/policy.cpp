@@ -12,7 +12,7 @@
 
 using namespace std;
 
-CAsset policyAsset;
+CAsset domainAsset;
 CAsset freezelistAsset;
 CAsset burnlistAsset;
 CAsset whitelistAsset;

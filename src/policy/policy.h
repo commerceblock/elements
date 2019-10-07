@@ -19,7 +19,7 @@ class CCoinsViewCache;
 class CCoinsView;
 
 /** The sha256 of Bitcoin genesis block, for easy reference **/
-extern CAsset policyAsset;
+extern CAsset domainAsset;
 
 /** the asset for freezelist policy **/
 extern CAsset freezelistAsset;

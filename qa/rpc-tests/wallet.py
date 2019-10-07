@@ -180,7 +180,7 @@ class WalletTest (BitcoinTestFramework):
 
         #create 2 of 3 multisig P2SH script and address
         multisig = self.nodes[0].createmultisig(2,[val_addr_node1["pubkey"],val_addr_node2["pubkey"],val_addr_node3["pubkey"]])
-        #send some policyasset to the P2SH address
+        #send some domainAsset to the P2SH address
         pa_txid = self.nodes[2].sendtoaddress(multisig["address"],1,"","",False,asasset)
         self.nodes[1].generate(1)
         self.sync_all()

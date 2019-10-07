@@ -875,8 +875,8 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
     set<CBitcoinAddress> setAddress;
     vector<string> addrList = sendTo.getKeys();
     for (string const &name_ : addrList) {
-        // Defaults to policyAsset
-        CAsset asset(policyAsset);
+        // Defaults to domainAsset
+        CAsset asset(domainAsset);
         if (!assets.isNull())
             if (!find_value(assets, name_).isNull())
                 asset = CAsset(ParseHashO(assets, name_));
