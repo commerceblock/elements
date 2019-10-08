@@ -149,6 +149,10 @@ class OnboardManualTest (BitcoinTestFramework):
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
         
         self.nodes[0].generate(101)
         self.sync_all()
@@ -160,11 +164,15 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        os.remove(kycfile)
-
         self.nodes[0].generate(101)
         self.sync_all()
 
+        valkyc=self.nodes[0].validatekycfile(kycfile)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        os.remove(kycfile)
+        
         balance_2=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         #Make sure the onboard transaction fee was zero
         assert((balance_1-balance_2) == 0)
