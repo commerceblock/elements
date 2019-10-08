@@ -7,6 +7,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 import filecmp
 import time
+import string
 
 class OnboardManualTest (BitcoinTestFramework):
 
@@ -156,7 +157,10 @@ class OnboardManualTest (BitcoinTestFramework):
         
         #Test the createkycfile output to the terminal
         try:
-            kycstring=self.nodes[1].createkycfile("", [{"address":onboardAddress1['address'],"pubkey":onboardAddress1['derivedpubkey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpubkey']}], [{"nmultisig":2,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}])['kycfile'];
+            result=self.nodes[1].createkycfile("", [{"address":onboardAddress1['address'],"pubkey":onboardAddress1['derivedpubkey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpubkey']}], [{"nmultisig":2,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}])
+            kycstring=result['kycfile']
+            okey=result['onboardpubkey']
+            oukey=result['onboarduserpubkey']
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
@@ -182,10 +186,18 @@ class OnboardManualTest (BitcoinTestFramework):
                 discard.add(line)
 
         different=different.difference(discard)
-                
-        print(different)
 
-        for1372
+        discard=set()
+        for line in different:
+            sline=line.split(line)
+            if len(sline) == 3 and sline[0] == okey and sline[1] == oukey:
+                discard.add(line)
+                
+        different=different.difference(discard)
+
+        print(okey)
+        print(oukey)
+        print(different)
 
         assert(len(different) == 0)
         
