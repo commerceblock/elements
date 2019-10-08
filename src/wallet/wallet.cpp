@@ -3018,7 +3018,7 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                             // Fee in send any is based on the largest balance.
                             // If its bigger than the largest balance then this transaction is invalid.
                             if (balanceMap[feeAsset] < nFeeRet) {
-                                strFailReason = _("Required fee is larger than the owned non-policy asset with the biggest balance.");
+                                strFailReason = _("Required fee is larger than the owned non-domain asset with the biggest balance.");
                                 return std::vector<CWalletTx>();
                             }
                             bool alternativeFound = false;

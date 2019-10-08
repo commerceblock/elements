@@ -31,8 +31,8 @@ class RequestAuctionTest(BitcoinTestFramework):
         addr = self.nodes[node_id].getnewaddress()
         pubkey = self.nodes[node_id].validateaddress(addr)["pubkey"]
         pubkeyFee = self.nodes[node_id].validateaddress(self.nodes[node_id].getnewaddress())["pubkey"]
-        unspent = self.nodes[node_id].listunspent(1, 9999999, [], True, self.asset_hash)[0]
-        inputs = [{"txid": unspent["txid"], "vout": unspent["vout"], "asset": self.asset_hash}]
+        unspent = self.nodes[node_id].listunspent(1, 9999999, [], True, 'CBT')[0]
+        inputs = [{"txid": unspent["txid"], "vout": unspent["vout"]}]
         fee = Decimal('0.0001')
         outputs = {"endBlockHeight": height - 5, "requestTxid": request_txid, "feePubkey": pubkeyFee,
             "pubkey": pubkey, "fee": fee, "value": price + 1,
@@ -47,8 +47,8 @@ class RequestAuctionTest(BitcoinTestFramework):
         addr = self.nodes[node_id].getnewaddress()
         pubkey = self.nodes[node_id].validateaddress(addr)["pubkey"]
         pubkeyFee = self.nodes[node_id].validateaddress(self.nodes[node_id].getnewaddress())["pubkey"]
-        unspent = self.nodes[node_id].listunspent(1, 9999999, [], True, self.asset_hash)[0]
-        inputs = [{"txid": unspent["txid"], "vout": unspent["vout"], "asset": self.asset_hash}]
+        unspent = self.nodes[node_id].listunspent(1, 9999999, [], True, 'CBT')[0]
+        inputs = [{"txid": unspent["txid"], "vout": unspent["vout"]}]
         fee = Decimal('0.0001')
         outputs = {"endBlockHeight": height, "requestTxid": request_txid, "feePubkey": pubkeyFee,
             "pubkey": pubkey, "fee": fee, "value": price - 1,
@@ -63,8 +63,8 @@ class RequestAuctionTest(BitcoinTestFramework):
         addr = self.nodes[node_id].getnewaddress()
         pubkey = self.nodes[node_id].validateaddress(addr)["pubkey"]
         pubkeyFee = self.nodes[node_id].validateaddress(self.nodes[node_id].getnewaddress())["pubkey"]
-        unspent = self.nodes[node_id].listunspent(1, 9999999, [], True, self.asset_hash)[0]
-        inputs = [{"txid": unspent["txid"], "vout": unspent["vout"], "asset": self.asset_hash}]
+        unspent = self.nodes[node_id].listunspent(1, 9999999, [], True, 'CBT')[0]
+        inputs = [{"txid": unspent["txid"], "vout": unspent["vout"]}]
         fee = Decimal('0.0001')
         outputs = {"endBlockHeight": height, "requestTxid": request_txid, "feePubkey": pubkeyFee,
             "pubkey": pubkey, "fee": fee, "value": price,
@@ -79,11 +79,9 @@ class RequestAuctionTest(BitcoinTestFramework):
         self.nodes[0].generate(101)
         self.sync_all()
 
-        asset = self.nodes[0].issueasset(500, 0)
-        self.asset_hash = asset['asset']
-        self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 100, "", "", False, self.asset_hash)
-        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 100, "", "", False, self.asset_hash)
-        self.nodes[0].sendtoaddress(self.nodes[3].getnewaddress(), 100, "", "", False, self.asset_hash)
+        self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 100, "", "", False)
+        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 100, "", "", False)
+        self.nodes[0].sendtoaddress(self.nodes[3].getnewaddress(), 100, "", "", False)
         self.nodes[0].generate(1) # 102
         self.sync_all()
 

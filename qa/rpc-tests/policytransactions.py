@@ -74,7 +74,7 @@ class PolicyTransactionTest (BitcoinTestFramework):
                     patxid = txid
                     pavalue = rawtx["vout"][0]["value"]
 
-        #issue some non-policy asset
+        #issue some non-domain asset
         assaddr = self.nodes[0].getnewaddress()
         tokaddr = self.nodes[0].getnewaddress()
         cngaddr = self.nodes[0].getnewaddress()

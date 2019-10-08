@@ -72,7 +72,7 @@ class OnboardTest (BitcoinTestFramework):
         wlwalletpath=os.path.join(self.options.tmpdir,wlwalletname)
         time.sleep(5)
         self.nodes[0].backupwallet(wlwalletpath)
-        
+
         #Stop the nodes
         stop_nodes(self.nodes)
         time.sleep(5)
@@ -90,7 +90,7 @@ class OnboardTest (BitcoinTestFramework):
 
         shutil.copyfile(wlwalletpath,dest0)
         shutil.copyfile(wlwalletpath,dest2)
-        
+
         time.sleep(5)
 
         #Start the nodes again with a different wallet path argument
@@ -148,7 +148,7 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[0].generate(101)
         self.sync_all()
 
-        # issue some new asset (that is not the policy asset)
+        # issue some new asset (that is not the domain asset)
         issue = self.nodes[0].issueasset('100.0','0', False)
         self.nodes[0].generate(101)
         self.sync_all()
@@ -186,7 +186,7 @@ class OnboardTest (BitcoinTestFramework):
         wb0_0=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         coin=float(1e8)
         assert_equal(wb0_0*coin,float(50000000000000))
-                    
+
         #No kycpubkeys available
         kycfile="kycfile.dat"
         try:
@@ -195,7 +195,7 @@ class OnboardTest (BitcoinTestFramework):
             assert("No unassigned KYC public keys available" in e.error['message'])
 
         nkyckeys=100
-            
+
         #Register a KYC public key
         self.nodes[0].topupkycpubkeys(nkyckeys)
         self.nodes[0].generate(101)
@@ -315,7 +315,7 @@ class OnboardTest (BitcoinTestFramework):
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         #Test that the onboard transaction does not spend and whitelist asset
         assert_equal(wb0_1*coin, wb0_2*coin)
-        
+
         try:
             iswl=self.nodes[0].querywhitelist(multiAddress2['address'])
         except JSONRPCException as e:
@@ -358,7 +358,7 @@ class OnboardTest (BitcoinTestFramework):
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         #Test that the onboard transaction does not spend and whitelist asset
         assert_equal(wb0_1*coin, wb0_2*coin)
-        
+
         self.nodes[1].dumpwhitelist(wl1file)
 
         kycpubkey=self.nodes[0].getkycpubkey(self.nodes[1].getnewaddress())
@@ -436,7 +436,7 @@ class OnboardTest (BitcoinTestFramework):
         else:
             raise AssertionError("P2SH multisig with n=0 has been validated and accepted to the whitelist.")
 
-        # issue some new asset (that is not the policy asset)
+        # issue some new asset (that is not the domain asset)
         issue = self.nodes[0].issueasset('100.0','0')
         self.nodes[1].generate(1)
 
@@ -458,7 +458,7 @@ class OnboardTest (BitcoinTestFramework):
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         #Test that the onboard transaction does not spend and whitelist asset
         assert_equal(wb0_1, wb0_2)
-        
+
         # Send 12 issued asset from 0 to 1 using sendtoaddress. Will fail to create mempool transaction because recipient addresses not whitelisted.
         txidm = self.nodes[0].sendtoaddress(multiAddr['address'], 12,"","",False,issue["asset"])
         self.nodes[1].generate(101)
@@ -484,7 +484,7 @@ class OnboardTest (BitcoinTestFramework):
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         #Test that the onboard transaction does not spend and whitelist asset
         assert_equal(wb0_1, wb0_2)
-        
+
         #Blacklist node1 wallet
         self.nodes[0].blacklistkycpubkey(kycpub1)
 
@@ -495,11 +495,11 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[1].dumpwhitelist(wl1_bl_file)
 
         satoshi=0.00000001
-        
+
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         #Test that the onboard transaction does not spend and whitelist asset
         assert_equal(wb0_1, wb0_2-satoshi)
-        
+
         #The whitelist should now be empty
         nlines=self.linecount(wl1_file)
         nlines_bl=self.linecount(wl1_bl_file)
@@ -520,7 +520,7 @@ class OnboardTest (BitcoinTestFramework):
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         #Test that the onboard transaction does not spend and whitelist asset
         assert_equal(wb0_1, wb0_2)
-        
+
         maxpercall=100
         #Whitelist more kycpubkeys
         while len(kycpubkeyarr) < maxpercall:
@@ -534,7 +534,7 @@ class OnboardTest (BitcoinTestFramework):
         #Test that the onboard transaction does not spend and whitelist asset
         assert_equal(wb0_1, wb0_2+maxpercall*satoshi)
 
-        
+
         #Test limit of nkeys per call
         kycpubkeyarr.append(kycpub1)
 
@@ -546,7 +546,7 @@ class OnboardTest (BitcoinTestFramework):
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         #Test that the onboard transaction does not spend and whitelist asset
         assert_equal(wb0_1, wb0_2+maxpercall*satoshi)
-        
+
 
         #assert whitelist file are the same for the two nodes
         wl0file=self.initfile(os.path.join(self.options.tmpdir,"wl0.dat"))
@@ -589,9 +589,8 @@ class OnboardTest (BitcoinTestFramework):
 
 
 
-    
+
 if __name__ == '__main__':
  OnboardTest().main()
 
 #  LocalWords:  ac
-

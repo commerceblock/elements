@@ -120,17 +120,14 @@ BOOST_FIXTURE_TEST_CASE(valid_requestbid_test, TestChain100Setup)
     CRequestList list;
     list.add(someHash, &request);
 
-    auto someAsset = "fa821b0be5e1387adbcb69dbb3ad33edb5e470831c7c938c4e7b344edbe8bb11";
-    const CAsset exampleAsset = CAsset(uint256S(someAsset));
-
     // Test adding bid to the request list
-    CTxOut out(exampleAsset, 1, s);
+    CTxOut out(domainAsset, 1, s);
     auto outHash = uint256S("0xaa749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
     vector<CTxOut> vOut{out};
     BOOST_CHECK_EQUAL(true, GetRequestBid(vOut, outHash, 30, bid));
     BOOST_CHECK_EQUAL(false, IsValidRequestBid(request, bid));
     BOOST_CHECK_EQUAL(false, list.LoadBid(vOut, outHash, 30));
-    out = CTxOut(exampleAsset, 39, s);
+    out = CTxOut(domainAsset, 39, s);
     vOut[0] = out;
     BOOST_CHECK_EQUAL(true, GetRequestBid(vOut, outHash, 30, bid));
     BOOST_CHECK_EQUAL(true, IsValidRequestBid(request, bid));
@@ -138,7 +135,7 @@ BOOST_FIXTURE_TEST_CASE(valid_requestbid_test, TestChain100Setup)
 
     // Test adding a second bid to the request list
     auto outHash2 = uint256S("0xbb749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
-    out = CTxOut(exampleAsset, 39, s);
+    out = CTxOut(domainAsset, 39, s);
     vOut[0] = out;
     BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash2, 29));
 
@@ -159,7 +156,7 @@ BOOST_FIXTURE_TEST_CASE(valid_requestbid_test, TestChain100Setup)
     BOOST_CHECK_EQUAL(false, list.LoadBid(vOut, outHash3, 28));
 
     // Test adding a bid on height 29 with highest bid replaces the previous bid
-    out = CTxOut(exampleAsset, 45, s);
+    out = CTxOut(domainAsset, 45, s);
     vOut[0] = out;
     auto outHash4 = uint256S("0xdd749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
     BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash4, 29));
@@ -174,7 +171,7 @@ BOOST_FIXTURE_TEST_CASE(valid_requestbid_test, TestChain100Setup)
 
     // Test a bid with larger height is rejected
     // Test a bid with lower bid is rejected
-    out = CTxOut(exampleAsset, 39, s);
+    out = CTxOut(domainAsset, 39, s);
     vOut[0] = out;
     auto outHash5 = uint256S("0xdd749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff61");
     BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash5, 45));
@@ -187,7 +184,7 @@ BOOST_FIXTURE_TEST_CASE(valid_requestbid_test, TestChain100Setup)
         BOOST_CHECK(bid.hashBid == outHash4 || bid.hashBid == outHash3);
     }
 
-    out = CTxOut(exampleAsset, 38, s);
+    out = CTxOut(domainAsset, 38, s);
     vOut[0] = out;
     auto outHash6 = uint256S("0xdd749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff62");
     BOOST_CHECK_EQUAL(true, list.LoadBid(vOut, outHash6, 29));
@@ -202,7 +199,7 @@ BOOST_FIXTURE_TEST_CASE(valid_requestbid_test, TestChain100Setup)
 
     // Test adding a bid on height 29 with same bid and smaller hash replaces the previous bid
     // while a larger hash fails with the same price and height is removed from the list
-    out = CTxOut(exampleAsset, 45, s);
+    out = CTxOut(domainAsset, 45, s);
     vOut[0] = out;
     auto outHash7 = uint256S("0x11749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
     auto outHash8 = uint256S("0x33749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");

@@ -126,7 +126,7 @@ class SignContractTest (BitcoinTestFramework):
                 continue
             assert_equal(self.nodes[i].getbalance("", 0, False, "CBT"), 0)
 
-        # issue some new asset (that is not the policy asset)
+        # issue some new asset (that is not the domain asset)
         issue = self.nodes[0].issueasset('100.0','0')
         self.nodes[1].generate(1)
 

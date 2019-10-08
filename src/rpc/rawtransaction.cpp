@@ -669,7 +669,6 @@ Arguments:
   {
     "txid": xxxx,             (string, required) The transaction id.
     "vout": n,                (numeric, required) The output number.
-    "asset": "string"         (string, required) The asset of the input, as a tag string or a hex value"
   },
 ]
 
@@ -682,7 +681,7 @@ Arguments:
   "fee": n,                 (numeric, required) Fee value of transaction
   "endBlockHeight": n,      (numeric, required) Service end height
   "requestTxid": xxxx,      (string, required) Request txid for providing services
-  "feePubkey": xxxx,        (string, required) Pubkey to pay fees in the client service chain
+  "feePubkey": xxxx,        (string, required) Pubkey to pay fees on client chain
 }
 
 Result:
@@ -703,8 +702,6 @@ static inline void createrawbidtx_input(CMutableTransaction &rawTx,
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
         if (vout.get_int() < 0)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
-        if(ParseHashO(inputObj, "asset").ToString().compare(domainAsset.GetHex())!=0)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, input asset must be domain asset");
         rawTx.vin.push_back(CTxIn(COutPoint(txid, (uint32_t)vout.get_int()), CScript(), UINT_MAX - 1));
     }
 }
@@ -766,7 +763,7 @@ UniValue createrawbidtx(JSONRPCRequest const &request) {
     rawTx.nLockTime = chainActive.Height();
     createrawbidtx_input(rawTx, inputs);
 
-    CAsset asset = CAsset(ParseHashO(inputs[0].get_obj(), "asset"));
+    CAsset asset = domainAsset;
     UniValue output = request.params[1].get_obj();
     createrawbidtx_output(rawTx, asset, output);
 
