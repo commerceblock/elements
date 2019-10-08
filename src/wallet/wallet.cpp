@@ -2759,21 +2759,30 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
     CAmountMap mapValue;
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
+    nFeeRet = 0;
     for (const auto& recipient : vecSend)
     {
         // Skip over issuance outputs, no need to select those coins
         if (recipient.asset == CAsset(uint256S("1")) || recipient.asset == CAsset(uint256S("2"))) {
             // In issuance/reissuance cases pay fees in domainAsset
             feeAsset = domainAsset;
+            // Start with tiny non-zero fee for issuance entropy only
+            nFeeRet = 1;
             continue;
         }
 
         // TODO - should also do this for the case where bytes are appended to OP_RETURN?
-        // Just like issuance/re-issuance, when destroying assets pay domainAsset fees
-        if (recipient.scriptPubKey == CScript(OP_RETURN) ||
-            recipient.scriptPubKey == CScript(OP_REGISTERADDRESS) ||
-            recipient.scriptPubKey == CScript(OP_DEREGISTERADDRESS))
+        // Just like issuance/re-issuance, when destroying assets pay policyAsset fees
+        if (recipient.scriptPubKey == CScript(OP_RETURN))
+        {
             feeAsset =  domainAsset;
+            nFeeRet = 1;
+        }
+
+        if (recipient.scriptPubKey[0] == OP_REGISTERADDRESS ||
+            recipient.scriptPubKey[0] == OP_DEREGISTERADDRESS) {
+            nFeeRet = 1;
+        }
 
         if (mapValue[recipient.asset] < 0 || recipient.nAmount < 0 || recipient.asset.IsNull())
         {
@@ -2817,6 +2826,9 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                 }
             } else {
                 balanceMap = pwalletMain->GetBalance();
+                if (coinControl != NULL && coinControl->fAllowWatchOnly) {
+                    balanceMap += pwalletMain->GetWatchOnlyBalance();
+                }
             }
             int newFeeRecipient = 0;
             for (unsigned int i = 1; i < vecSend.size(); ++i) {
@@ -2910,7 +2922,6 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                 vAvailableCoins = vInputPool;
             else
                 AvailableCoins(vAvailableCoins, true, coinControl);
-    	    nFeeRet = 1;
             if (IsPolicy(feeAsset))
                 nFeeRet = 0;
             // Start with tiny non-zero or zero fee for issuance entropy and loop until there is enough fee
@@ -3015,6 +3026,9 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                         CAmount amountMissing = amountNeeded - amountHave;
                         if (amountMissing > 0) {
                             CAmountMap balanceMap = pwalletMain->GetBalance();
+                            if (coinControl != NULL && coinControl->fAllowWatchOnly) {
+                                balanceMap += pwalletMain->GetWatchOnlyBalance();
+                            }
                             // Fee in send any is based on the largest balance.
                             // If its bigger than the largest balance then this transaction is invalid.
                             if (balanceMap[feeAsset] < nFeeRet) {
@@ -3146,7 +3160,8 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
 
                         // Never create dust outputs; if we would, just
                         // add the dust to the fee.
-                        if (newTxOut.IsDust(dustRelayFee) && it->first == feeAsset)
+                        // Skip this in the fixed fee case as it would create invalid fee outputs
+                        if (newTxOut.IsDust(dustRelayFee) && it->first == feeAsset && fixedTxFee == 0)
                         {
                             nChangePosInOut = -1;
                             nFeeRet += it->second;
@@ -3201,8 +3216,12 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                 //
                 // Note how the sequence number is set to non-maxint so that
                 // the nLockTime set above actually works.
+                bool fSpendsCoinbase = false;
                 for (const auto& coin : setCoins) {
                     txNew.vin.push_back(CTxIn(coin.first->GetHash(),coin.second,CScript(), std::numeric_limits<unsigned int>::max() - 1));
+                    if (coin.first->IsCoinBase()) {
+                        fSpendsCoinbase = true;
+                    }
                     if (reissuanceToken &&
                         coin.first->GetOutputAsset(coin.second) == *reissuanceToken) {
                         reissuanceIndex = txNew.vin.size()-1;
@@ -3427,7 +3446,7 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
 
                 CAmount nFeeNeeded;
 
-                if(!IsPolicy(feeAsset)){
+                if (!IsPolicy(feeAsset) && !fSpendsCoinbase) {
                     nFeeNeeded = GetMinimumFee(nBytes, currentConfirmationTarget, mempool);
                     if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
                         nFeeNeeded = coinControl->nMinimumTotalFee;
@@ -3443,11 +3462,11 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                             return std::vector<CWalletTx>();
                         }
                     }
+
+                    if(fixedTxFee > 0) nFeeNeeded = fixedTxFee;
                 } else {
                     nFeeNeeded = 0;
                 }
-
-                if(fixedTxFee > 0 && !IsPolicy(feeAsset)) nFeeNeeded = fixedTxFee;
 
                 if (nFeeRet >= nFeeNeeded) {
                     /* TODO Push actual blinding outside of loop and reactivate this logic
@@ -3661,10 +3680,10 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                 int dummyPosLeft = -1;
                 int dummyPosRight = -1;
                 std::vector<CWalletTx> leftRes = CreateTransaction(leftRecipients, dummyLeft, vChangeKeysLeft,
-                    feeLeft, dummyPosLeft, strFailReason, coinControl, true, NULL, true, NULL, NULL, NULL,
+                    feeLeft, dummyPosLeft, strFailReason, coinControl, sign, NULL, true, NULL, NULL, NULL,
                     CAsset(), fIgnoreBlindFail, fSplitTransactions, leftInputs, fFindFeeAsset, mAvailableInputs);
                 std::vector<CWalletTx> rightRes = CreateTransaction(rightRecipients, dummyRight, vChangeKeysRight,
-                    feeRight, dummyPosRight, strFailReason, coinControl, true, NULL, true, NULL, NULL, NULL,
+                    feeRight, dummyPosRight, strFailReason, coinControl, sign, NULL, true, NULL, NULL, NULL,
                     CAsset(), fIgnoreBlindFail, fSplitTransactions, rightInputs, fFindFeeAsset, mAvailableInputs);
                 if (leftRes.size() > 0 && rightRes.size() > 0) {
                     leftRes.insert( leftRes.end(), rightRes.begin(), rightRes.end() );

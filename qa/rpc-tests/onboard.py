@@ -196,6 +196,9 @@ class OnboardTest (BitcoinTestFramework):
 
         #Onboard node1
         userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
+        valkyc=self.nodes[0].validatekycfile(kycfile)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
         kycfile_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile_plain.dat"))
         self.nodes[0].readkycfile(kycfile, kycfile_plain)
 
@@ -210,6 +213,8 @@ class OnboardTest (BitcoinTestFramework):
         self.sync_all()
         time.sleep(5)
 
+        assert(self.nodes[0].validatekycfile(kycfile)["iswhitelisted"] == True)
+        
         balance_2=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         #Make sure the onboard transaction fee was zero
         assert((balance_1-balance_2) == 0)
