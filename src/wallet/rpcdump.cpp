@@ -754,10 +754,10 @@ UniValue createkycfile(const JSONRPCRequest& request)
     ssFile << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
     ssFile << "\n";
 
-    // add the onboarding public key 
+    // add the onboarding public key
     CPubKey onboardUserPubKey = pwalletMain->GenerateNewKey(true);
     pwalletMain->SetOnboardUserPubKey(onboardUserPubKey);
-    CKey onboardUserKey; 
+    CKey onboardUserKey;
     pwalletMain->GetKey(onboardUserPubKey.GetID(), onboardUserKey);
     std::stringstream ss;
 
@@ -803,7 +803,7 @@ UniValue createkycfile(const JSONRPCRequest& request)
     }
 
     uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
-    
+
     // add the base58check encoded tweaked script id, untweaked pubkey hex list and n of Multisig to a stringstream
     for(unsigned int i = 0; i < multisigList.size(); ++i) {
         UniValue multiObj = multisigList[i];
@@ -814,7 +814,7 @@ UniValue createkycfile(const JSONRPCRequest& request)
         UniValue const &nMultiObj = find_value(multiObj, "nmultisig");
         if (!nMultiObj.isNum())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
-        int nMultisig = nMultiObj.get_int();
+        unsigned nMultisig = nMultiObj.get_int();
 
         if (nMultisig > MAX_P2SH_SIGOPS || nMultisig == 0)
             continue;
@@ -868,11 +868,11 @@ UniValue createkycfile(const JSONRPCRequest& request)
             if (j+1 == pubKeyVec.size())
                 ss << "\n";
         }
-    }    
+    }
 
     //Encrypt the above string
     CECIES encryptor;
-    
+
     std::string encrypted;
     //Remove new line character from end of string
 
@@ -882,7 +882,7 @@ UniValue createkycfile(const JSONRPCRequest& request)
 
     if(!encryptor.Encrypt(vEnc, vRaw, onboardPubKey, onboardUserKey))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Encryption failed.");
-    
+
 
     std::string sEnc(vEnc.begin(), vEnc.end());
 
@@ -972,10 +972,10 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
     file << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
     file << "\n";
 
-    // add the onboarding public key 
+    // add the onboarding public key
     CPubKey onboardUserPubKey = pwalletMain->GenerateNewKey(true);
     pwalletMain->SetOnboardUserPubKey(onboardUserPubKey);
-    CKey onboardUserKey; 
+    CKey onboardUserKey;
     pwalletMain->GetKey(onboardUserPubKey.GetID(), onboardUserKey);
     std::stringstream ss;
 
@@ -1018,7 +1018,7 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
 
     if(!firstKeyID)
          throw JSONRPCError(RPC_WALLET_ERROR, "Key pool empty.");
-    
+
     std::string encrypted;
 
     std::string sRaw=ss.str();
@@ -1029,13 +1029,13 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
     CECIES encryptor;
     if(!encryptor.Encrypt(vEnc, vRaw, onboardPubKey, onboardUserKey))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Encryption failed.");
-    
+
 
     std::string sEnc(vEnc.begin(), vEnc.end());
 
     //Append the initialization vector and encrypted keys
     std::string sOnboardUserPubKey = HexStr(onboardUserPubKey.begin(), onboardUserPubKey.end());
-    file << strprintf("%s %s %d\n", HexStr(onboardPubKey.begin(), onboardPubKey.end()), 
+    file << strprintf("%s %s %d\n", HexStr(onboardPubKey.begin(), onboardPubKey.end()),
         sOnboardUserPubKey, sEnc.size());
 
     file << sEnc << "\n";
@@ -1060,6 +1060,15 @@ UniValue validatekycfile(const JSONRPCRequest& request)
             "Return information about a kycfile.\n"
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The kyc file name\n"
+            "\nReturn:\n"
+            "{                    (json object)\n"
+            "   \"iswhitelisted\": \"iswhitelisted\",    (bool) Wether all the addresses in the kycfile are whitelisted\n"
+            "    \"addresses\":        (array) An array of the addresses in the kyccfile\n"
+            "    [\n"
+            "    \"address\"           (string) base58check address\n"
+            "    ,...\n"
+            "    ]\n"
+            "}\n"
             "\nExamples:\n"
             + HelpExampleCli("validatekycfile", "\"kycfile\"")
             + HelpExampleRpc("validatekycfile", "\"kycfile\"")
@@ -1078,6 +1087,16 @@ UniValue validatekycfile(const JSONRPCRequest& request)
 
     ret.push_back(Pair("iswhitelisted", fWhitelisted));
 
+
+
+    std::vector<CKeyID> addressKeyIds = file.getAddressKeyIds();
+    UniValue addresses(UniValue::VARR);
+    for(auto k: addressKeyIds){
+        CBitcoinAddress addr=CBitcoinAddress(k);
+        addresses.push_back(addr.ToString());
+    }
+
+    ret.push_back(Pair("addresses",addresses));
     return ret;
 }
 
@@ -1095,7 +1114,7 @@ UniValue readkycfile(const JSONRPCRequest& request)
             + HelpExampleRpc("readkycfile", "\"test\", \"testout\"")
             );
 
-    
+
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
