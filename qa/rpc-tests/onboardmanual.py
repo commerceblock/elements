@@ -189,15 +189,11 @@ class OnboardManualTest (BitcoinTestFramework):
 
         discard=set()
         for line in different:
-            sline=line.split(line)
-            if len(sline) == 3 and sline[0] == okey and sline[1] == oukey:
+            sline=line.split(' ')
+            if len(sline) == 3 and sline[0] == okey:
                 discard.add(line)
                 
         different=different.difference(discard)
-
-        print(okey)
-        print(oukey)
-        print(different)
 
         assert(len(different) == 0)
         
