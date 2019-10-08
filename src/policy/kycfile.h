@@ -32,6 +32,8 @@ class CKYCFile{
 		bool initEncryptor();
 
 		std::vector<CPubKey> getAddressKeys() const {return _addressKeys;}
+		std::vector<CKeyID> getAddressKeyIds() const {return _addressKeyIds;}
+
 		const CPubKey* getOnboardPubKey() const {return _onboardPubKey;}
 		const CPubKey* getOnboardUserPubKey() const {return _onboardUserPubKey;}
 
