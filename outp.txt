@@ -1,0 +1,12 @@
+vSolutions.size():6
+keys size: 4
+HaveKeys(keys, keystore): 1
+got here
+vSolutions.size():6
+keys size: 4
+HaveKeys(keys, keystore): 1
+got here
+vSolutions.size():6
+keys size: 4
+HaveKeys(keys, keystore): 1
+got here

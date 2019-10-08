@@ -100,10 +100,13 @@ class RequestsTest(BitcoinTestFramework):
     signedtx2 = self.nodes[1].signrawtransaction(tx2)
     txid2 = self.nodes[1]. sendrawtransaction(signedtx2["hex"])
     self.sync_all()
+    numUnspendablesBefore=sum(x.get("spendable") == False for x in self.nodes[1].listunspent())
     self.nodes[0].generate(1)
     self.sync_all()
     assert(txid in self.nodes[0].getblock(self.nodes[0].getblockhash(self.nodes[0].getblockcount()))["tx"])
     assert(txid2 in self.nodes[0].getblock(self.nodes[0].getblockhash(self.nodes[0].getblockcount()))["tx"])
+    # Check transaction added to unspent list
+    assert(numUnspendablesBefore+2 == sum(x.get("spendable") == False for x in self.nodes[1].listunspent()))
 
     # test get request method with/without genesis hash parameter
     requests = self.nodes[0].getrequests()
