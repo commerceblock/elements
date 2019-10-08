@@ -219,7 +219,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         {
             coinbaseTx.vout[nCount].scriptPubKey = fee.second ? scriptPubKeyIn : CScript() << OP_RETURN;
             coinbaseTx.vout[nCount].nValue = fee.second;
-            coinbaseTx.vout[nCount].nAsset = fee.second ? fee.first : policyAsset;
+            coinbaseTx.vout[nCount].nAsset = fee.second ? fee.first : domainAsset;
             nFeeSum += fee.second;
             nCount++;
         }
@@ -228,7 +228,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     {
         coinbaseTx.vout[0].scriptPubKey = CScript() << OP_RETURN;
         coinbaseTx.vout[0].nValue = 0;
-        coinbaseTx.vout[0].nAsset = policyAsset;
+        coinbaseTx.vout[0].nAsset = domainAsset;
     }
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());

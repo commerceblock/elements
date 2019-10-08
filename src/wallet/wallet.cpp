@@ -2677,8 +2677,8 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
         vChangeKey.push_back(CReserveKey(this));
     }
 
-    // Always add policyAsset, as fees via policyAsset may create change
-    if (setAssets.count(policyAsset) == 0) {
+    // Always add domainAsset, as fees via domainAsset may create change
+    if (setAssets.count(domainAsset) == 0) {
         vChangeKey.push_back(CReserveKey(this));
     }
     vChangeKeys.push_back(vChangeKey);
@@ -2764,8 +2764,8 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
     {
         // Skip over issuance outputs, no need to select those coins
         if (recipient.asset == CAsset(uint256S("1")) || recipient.asset == CAsset(uint256S("2"))) {
-            // In issuance/reissuance cases pay fees in policyAsset
-            feeAsset = policyAsset;
+            // In issuance/reissuance cases pay fees in domainAsset
+            feeAsset = domainAsset;
             // Start with tiny non-zero fee for issuance entropy only
             nFeeRet = 1;
             continue;
@@ -2775,7 +2775,7 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
         // Just like issuance/re-issuance, when destroying assets pay policyAsset fees
         if (recipient.scriptPubKey == CScript(OP_RETURN))
         {
-            feeAsset =  policyAsset;
+            feeAsset =  domainAsset;
             nFeeRet = 1;
         }
 
@@ -3032,7 +3032,7 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
                             // Fee in send any is based on the largest balance.
                             // If its bigger than the largest balance then this transaction is invalid.
                             if (balanceMap[feeAsset] < nFeeRet) {
-                                strFailReason = _("Required fee is larger than the owned non-policy asset with the biggest balance.");
+                                strFailReason = _("Required fee is larger than the owned domain asset with the biggest balance.");
                                 return std::vector<CWalletTx>();
                             }
                             bool alternativeFound = false;

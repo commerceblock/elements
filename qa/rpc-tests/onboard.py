@@ -104,7 +104,7 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[0].generate(101)
         self.sync_all()
 
-        # issue some new asset (that is not the policy asset)
+        # issue some new asset (that is not the domain asset)
         issue = self.nodes[0].issueasset('100.0','0', False)
         self.nodes[0].generate(101)
         self.sync_all()
@@ -449,7 +449,7 @@ class OnboardTest (BitcoinTestFramework):
         else:
             raise AssertionError("P2SH multisig with n=0 has been validated and accepted to the whitelist.")
 
-        # issue some new asset (that is not the policy asset)
+        # issue some new asset (that is not the domain asset)
         issue = self.nodes[0].issueasset('100.0','0')
         self.nodes[1].generate(1)
 

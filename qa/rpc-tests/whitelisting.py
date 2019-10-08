@@ -13,7 +13,7 @@ class WhitelistingTest (BitcoinTestFramework):
         self.setup_clean_chain = True
         self.num_nodes = 4
         self.extra_args = [['-usehd={:d}'.format(i%2==0), '-keypool=100', '-txindex'] for i in range(self.num_nodes)]
-#Node 1 is a whitelist node. 
+#Node 1 is a whitelist node.
         self.extra_args[0].append("-pkhwhitelist=1")
         self.extra_args[0].append("-reindex-chainstate=1")
         self.extra_args[1].append("-pkhwhitelist=1")
@@ -33,7 +33,7 @@ class WhitelistingTest (BitcoinTestFramework):
         dumpfile_name=self.options.tmpdir + filename
         from_node.dumpderivedkeys(dumpfile_name)
         whitelist_node.readwhitelist(dumpfile_name)
-     
+
     def setup_network(self, split=False):
         self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, self.extra_args[:self.num_nodes])
         #Block signing node -- whitelist node -- client node
@@ -48,7 +48,7 @@ class WhitelistingTest (BitcoinTestFramework):
         for node in self.nodes:
             node.clearwhitelist()
 
-    #Count number of lines in file, removing commented and blank lines 
+    #Count number of lines in file, removing commented and blank lines
     def num_keys_in_file(self, fname):
         num_keys=0
         for line in open(fname):
@@ -70,11 +70,11 @@ class WhitelistingTest (BitcoinTestFramework):
         self.nodes[1].dumpwhitelist(fname)
         num_keys=self.num_keys_in_file(fname)
         assert_equal(num_keys,100)
-        #dumo derived keys to file and validate 
+        #dumo derived keys to file and validate
         fname = self.options.tmpdir + 'node1derived'
         self.nodes[1].dumpderivedkeys(fname)
         self.nodes[1].validatederivedkeys(fname)
-        #add in invalid key/addesss pair to the file and validate again 
+        #add in invalid key/addesss pair to the file and validate again
         a_key='11caPoYB9NbtcG6cMAk5j3dPF2eFaD483'
         a_key_address_invalid='03c8847ab88a1a207ea74356a53f858535ebd3f3f5499f7da1ec5dad00d2adbcbe'
         with open(fname, 'a') as myfile:
@@ -84,7 +84,7 @@ class WhitelistingTest (BitcoinTestFramework):
             self.nodes[1].validatederivedkeys(fname)
         except JSONRPCException as e:
             assert("Invalid key id" in e.error['message'])
-          
+
         # Check that there's 100 UTXOs on each of the nodes
         assert_equal(len(self.nodes[0].listunspent()), 100)
         assert_equal(len(self.nodes[1].listunspent()), 100)
@@ -116,8 +116,8 @@ class WhitelistingTest (BitcoinTestFramework):
             if(i==0):
                 continue
             assert_equal(self.nodes[i].getbalance("", 0, False, "CBT"), 0)
-       
-        # issue some new asset (that is not the policy asset)
+
+        # issue some new asset (that is not the domain asset)
         issue = self.nodes[0].issueasset('100.0','0')
         self.nodes[1].generate(1)
 
@@ -154,7 +154,7 @@ class WhitelistingTest (BitcoinTestFramework):
 
         #query whitelist
         node2_test_address = self.nodes[2].getnewaddress()
-        
+
         assert_equal(self.nodes[0].querywhitelist(node2_test_address), False)
         #add node2 to whitelist
         self.add_keys_to_whitelist(self.nodes[2], self.nodes[0])
@@ -169,7 +169,7 @@ class WhitelistingTest (BitcoinTestFramework):
         assert_equal(self.nodes[0].querywhitelist(node2_test_address), False)
         #next available address still in whitelist
         assert_equal(self.nodes[0].querywhitelist(self.nodes[2].getnewaddress()), True)
-        
+
         # Send 21 BTC from 0 to 2 using sendtoaddress
         print("Sending 21 issued asset from 0 to 2 using sendtoaddress")
         print(self.nodes[0].getwalletinfo())
@@ -208,7 +208,7 @@ class WhitelistingTest (BitcoinTestFramework):
         #expected N_keys is 199 because one key was removed using removekey
         assert_equal(num_keys, 199)
 
-        #clear whitelists and check number of keys in wl = 0 and that we cannot send to previously whitelisted address 
+        #clear whitelists and check number of keys in wl = 0 and that we cannot send to previously whitelisted address
         self.clear_whitelists()
         self.nodes[0].dumpwhitelist(fname)
         num_keys=num_keys=self.num_keys_in_file(fname)

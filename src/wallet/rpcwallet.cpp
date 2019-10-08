@@ -552,7 +552,7 @@ static vector<CWalletTx> SendMoney(const CScript& scriptPubKey, CAmount nValue, 
     std::vector<CReserveKey> vChangeKey;
     vChangeKey.reserve(2);
     vChangeKey.emplace_back(pwalletMain);
-    if (policyAsset != asset) {
+    if (domainAsset != asset) {
         vChangeKey.emplace_back(pwalletMain);
     }
     vChangeKeys.push_back(vChangeKey);
@@ -715,7 +715,7 @@ static void SendGenerationTransaction(const CScript& assetScriptPubKey, const CP
     std::vector<CReserveKey> vChangeKey;
     // Need to be careful to not copy CReserveKeys or bad things happen
     // We need 2 change outputs possibly for reissuance case:
-    // one for policyAsset, the other for reissuance token
+    // one for domainAsset, the other for reissuance token
     vChangeKey.reserve(2);
     vChangeKey.emplace_back(pwalletMain);
     if (!reissuanceAsset.IsNull()) {
@@ -2585,7 +2585,7 @@ UniValue sendmany(const JSONRPCRequest& request)
     // Send
     std::vector<CReserveKey> vChangeKey;
     std::set<CAsset> setAssets;
-    setAssets.insert(policyAsset);
+    setAssets.insert(domainAsset);
     for (auto recipient : vecSend) {
         setAssets.insert(recipient.asset);
     }
@@ -5441,17 +5441,17 @@ UniValue createrawissuance(const JSONRPCRequest& request)
   if (request.fHelp || request.params.size() !=9)
     throw runtime_error(
             "createrawissuance assetaddress assetamount tokenaddress tokenamount changeaddress feeamount inputtxid vout\n"
-            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a policyAsset outpoint as input.\n"
+            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a domainAsset outpoint as input.\n"
             "\nArguments:\n"
 	    "1. \"assetaddress\"          (string, required) Address to send issued asset to.\n"
             "2. \"assetamount\"           (numeric or string, required) Amount of asset to generate.\n"
 	    "3. \"tokenaddress\"          (string, required) Address to send reissuance token to.\n"
             "4. \"tokenamount\"           (numeric or string, required) Amount of reissuance tokens to generate. These will allow you to reissue the asset if in wallet using `reissueasset`. These tokens are not consumed during reissuance.\n"
-	    "5. \"changeaddress\"         (string, required) Address to return the policyAsset input.\n"
-	    "6. \"changeamount\"          (numeric or string, required) Return policyAsset amount.\n"
+	    "5. \"changeaddress\"         (string, required) Address to return the domainAsset input.\n"
+	    "6. \"changeamount\"          (numeric or string, required) Return domainAsset amount.\n"
 	    "7. \"changenum\"             (numeric or string, required) Number of change outputs to be generated\n"
-            "8. \"inputtxid\"             (string, required) policyAsset input TXID.\n"
-	    "9. \"vout\"                  (numeric or string, required) policyAsset TXID output index\n"
+            "8. \"inputtxid\"             (string, required) domainAsset input TXID.\n"
+	    "9. \"vout\"                  (numeric or string, required) domainAsset TXID output index\n"
             "\nResult:\n"
             "{                        (json object)\n"
             "  \"rawtx\":\"<rawtx>\",   (string) Hex encoded raw unsigned issuance transaction.\n"
@@ -5647,7 +5647,7 @@ UniValue createrawreissuance(const JSONRPCRequest& request)
         throw runtime_error(
 
             "createrawreissuance assetaddress assetamount tokenaddress tokenamount inputtxid vout entropy\n"
-            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a policyAsset outpoint as input.\n"
+            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a domainAsset outpoint as input.\n"
             "\nArguments:\n"
             "1. \"assetaddress\"          (string, required) Address to send re-issued asset to.\n"
             "2. \"assetamount\"           (numeric or string, required) Amount of re-issued asset to generate.\n"

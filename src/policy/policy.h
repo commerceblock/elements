@@ -19,7 +19,7 @@ class CCoinsViewCache;
 class CCoinsView;
 
 /** The sha256 of Bitcoin genesis block, for easy reference **/
-extern CAsset policyAsset;
+extern CAsset domainAsset;
 
 /** the asset for freezelist policy **/
 extern CAsset freezelistAsset;
@@ -133,7 +133,7 @@ bool IsSpam(const CTransaction& tx);
 bool IsPermissionAsset(CAsset const &asset);
 
 /**
- * Check if a transaction has outputs what are of a policy asset type
+ * Check if a transaction has outputs that are of a policy asset type
  */
 bool IsPolicy(const CTransaction& tx);
 
