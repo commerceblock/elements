@@ -529,7 +529,7 @@ UniValue verifytxoutproof(const JSONRPCRequest& request)
 // @brief
 // @return string
 static string createrawrequesttx_runtime_error(void) {
-  return R"(createrawrequesttx
+  return R"(createrawrequesttx creates a request transaction with a single input and two outputs.
 Arguments:
 
 1. "inputs"                 (object, required) A json array of json objects.
@@ -540,15 +540,15 @@ Arguments:
 
 2. "outputs"                (object, required) a json object with outputs.
 {
-  "pubkey": xxxx,           (string, required)
-  "decayConst": n,          (numeric, required)
-  "endBlockHeight": n,      (numeric, required)
-  "fee": n,                 (numeric, required)
-  "genesisBlockHash": xxxx, (string, required)
-  "startBlockHeight": n,    (numeric, required)
-  "startPrice": n,          (numeric, required)
-  "tickets": n,             (numeric, required)
-  "value": n.               (numeric, required)
+  "pubkey": xxxx,           (string, required) Target request public key
+  "decayConst": n,          (numeric, required) Auction price decay constant
+  "endBlockHeight": n,      (numeric, required) The service period end block height
+  "fee": n,                 (numeric, required) Fee value of transaction
+  "genesisBlockHash": xxxx, (string, required)  Client sidechaing genesis block hash
+  "startBlockHeight": n,    (numeric, required) The service period start block height
+  "startPrice": n,          (numeric, required) Starting price of ticket
+  "tickets": n,             (numeric, required) Number of tickets
+  "value": n.               (numeric, required) Value of request transaction
 }
 
 Result:
@@ -661,7 +661,7 @@ UniValue createrawrequesttx(JSONRPCRequest const &request) {
 // @brief
 // @return string
 static string createrawbidtx_runtime_error(void) {
-  return R"(createrawbidtx
+  return R"(createrawbidtx expects inputs to fund bid output. Bids must be in domain asset.
 Arguments:
 
 1. "inputs"                 (object, required) A json array of json objects.
