@@ -1043,6 +1043,15 @@ UniValue validatekycfile(const JSONRPCRequest& request)
             "Return information about a kycfile.\n"
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The kyc file name\n"
+            "\nReturn:\n"
+            "{                    (json object)\n"
+            "   \"iswhitelisted\": \"iswhitelisted\",    (bool) Wether all the addresses in the kycfile are whitelisted\n"
+            "    \"addresses\":        (array) An array of the addresses in the kyccfile\n"
+            "    [\n"
+            "    \"address\"           (string) base58check address\n"
+            "    ,...\n"
+            "    ]\n"
+            "}\n"
             "\nExamples:\n"
             + HelpExampleCli("validatekycfile", "\"kycfile\"")
             + HelpExampleRpc("validatekycfile", "\"kycfile\"")
@@ -1061,6 +1070,16 @@ UniValue validatekycfile(const JSONRPCRequest& request)
 
     ret.push_back(Pair("iswhitelisted", fWhitelisted));
 
+
+
+    std::vector<CKeyID> addressKeyIds = file.getAddressKeyIds();
+    UniValue addresses(UniValue::VARR);
+    for(auto k: addressKeyIds){
+        CBitcoinAddress addr=CBitcoinAddress(k);
+        addresses.push_back(addr.ToString());
+    }
+
+    ret.push_back(Pair("addresses",addresses));
     return ret;
 }
 
