@@ -138,9 +138,24 @@ class OnboardManualTest (BitcoinTestFramework):
         kycfile="kycfile.dat"
         kycfile_normal="kycfile_normal.dat"
         kycfile_multisig="kycfile_multisig.dat"
+        kycfile_empty="kycfile_empty.dat"
         #userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
 
+        #Create empty file and checck validity
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_empty,[], []);
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
 
+        try:
+            self.nodes[0].validatekycfile(kycfile_empty)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert('no address data in file' in e.error['message'])
+
+        os.remove(kycfile_empty)
+            
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         try:

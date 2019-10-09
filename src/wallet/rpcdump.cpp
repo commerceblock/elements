@@ -1081,6 +1081,10 @@ UniValue validatekycfile(const JSONRPCRequest& request)
     CKYCFile file;
     file.read(request.params[0].get_str().c_str());
 
+    if(!file.is_valid())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "kycfile is invalid");
+
+
     bool fWhitelisted = file.is_whitelisted();
 
     UniValue ret(UniValue::VOBJ);
@@ -1121,6 +1125,7 @@ UniValue readkycfile(const JSONRPCRequest& request)
 
     CKYCFile file;
     file.read(request.params[0].get_str().c_str());
+
 
     // parse file to extract bitcoin address - untweaked pubkey pairs and validate derivation
     std::ofstream outfile;

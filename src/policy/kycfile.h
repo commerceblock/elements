@@ -47,6 +47,10 @@ class CKYCFile{
 
 	 	bool is_whitelisted();
 
+	 	bool is_empty();
+
+	 	bool is_valid();
+
 	private:
 		std::ifstream _file;
 		CECIES* _encryptor = nullptr;
