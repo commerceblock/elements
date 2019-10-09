@@ -79,6 +79,12 @@ class RequestbidsTest(BitcoinTestFramework):
     self.sync_all()
     assert_equal(25, self.nodes[1].getbalance()[asset_hash])
 
+    # Test bid transaction added to wallets unspent list after importing redeem script
+    redeemScript = self.nodes[1].decoderawtransaction(tx)["vout"][0]["scriptPubKey"]["hex"]
+    numSpendables=len(self.nodes[1].listunspent())
+    self.nodes[1].importaddress(redeemScript)
+    assert(numSpendables+1 == len(self.nodes[1].listunspent()))
+
     request_bids = self.nodes[1].getrequestbids(requestTxid)
     assert(request_bids != {})
     assert_equal(request_bids, self.nodes[0].getrequestbids(requestTxid))
@@ -118,7 +124,7 @@ class RequestbidsTest(BitcoinTestFramework):
 
     # need to add another input to pay for fees
     unspent = self.nodes[1].listunspent()
-    inputFee = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"]}
+    inputFee = {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"]}
     addrChange = self.nodes[1].getnewaddress()
     txSpend = self.nodes[1].createrawtransaction([inputPrev, inputFee],
         {addr: 75 - fee, addrChange: 25 - fee, "fee": fee},

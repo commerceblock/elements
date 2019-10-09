@@ -78,8 +78,8 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey, bool& 
                 }
             }
         }
-        if (HaveKeys(keys, keystore) == 1)
-            return ISMINE_WATCH_SOLVABLE;
+        if (HaveKeys(keys, keystore) == keys.size())
+            return ISMINE_SPENDABLE;
         break;
     }
     case TX_PUBKEY:
