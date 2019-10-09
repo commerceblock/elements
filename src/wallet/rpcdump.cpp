@@ -686,7 +686,7 @@ UniValue createkycfile(const JSONRPCRequest& request)
             "createkycfile \"filename\" \"pubkeylist\" \"multisiglist\"\n"
             "\nDumps all tweaked public keys and multisig addresses that have been passed as parameters in an encrypted format.\n"
             "\nArguments:\n"
-            "1. \"filename\"    (string, required) The filename\n"
+            "1. \"filename\"    (string, required) The filename. If an empty string \"\", the file contents will not be written to file, and will instead be retured to the terminal.\n"
             "2. \"pubkeylist\"        (array, required) A json array of json objects\n"
             "     [\n"
             "       {\n"
@@ -707,8 +707,12 @@ UniValue createkycfile(const JSONRPCRequest& request)
             "       } \n"
             "       ,...\n"
             "     ]\n"
-            "4. \"onboardpubkey\"    (string, optional) The public key issued by the server for onboarding encryption.\n"
-            "return:\n"
+            "4. \"onboardpubkey\"    (string, optional) The public key issued by the server for kycfile encryption. If unspecified, one will be selected automatically.\n"
+            "\nReturn:\n"
+            "{                                  (json object)\n"
+            "   \"onboardpubkey\"               (string) The public key issued by the server for kycfile encryption"
+            "   \"onboarduserpubkey\"           (string) The public key issued by the user wallet for kycfile encryption"
+            "   \"kycfile\"                     (string) The contents of the kycfile"
             "User onboard public key."
             "\nExamples:\n"
             + HelpExampleCli("createkycfile", "\"test\" \"[{\\\"keyid\\\":\\\"Zzad77as76vc76v\\\",\\\"pubkey\\\":3uh7fa7Hgh7f7afabbfbnaha}]\" \"[{\\\"nmultisig\\\":\\\"1\\\",\\\"pubkeys\\\":[\\\"3uh7fa7Hgh7f7afabbfbnaha\\\", \\\"2uh7fa7Hgh7f7afabbfbnaha\\\"]}]\", \"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
@@ -731,11 +735,8 @@ UniValue createkycfile(const JSONRPCRequest& request)
     }
     pwalletMain->SetOnboardPubKey(onboardPubKey);
 
-
-    std::ofstream file;
-    file.open(request.params[0].get_str().c_str());
-    if (!file.is_open())
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open key dump file");
+    std::stringstream ssFile;
+    ssFile.str("");
 
     //std::set<CKeyID> setKeyPool;
     //pwalletMain->GetAllReserveKeys(setKeyPool);
@@ -747,11 +748,11 @@ UniValue createkycfile(const JSONRPCRequest& request)
     UniValue multisigList = request.params[2].get_array();
 
     // produce output
-    file << strprintf("# Created KYC file made by Bitcoin %s\n", CLIENT_BUILD);
-    file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()));
-    file << strprintf("# * Best block at time of backup was %i (%s),\n", chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString());
-    file << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
-    file << "\n";
+    ssFile << strprintf("# Created KYC file made by Bitcoin %s\n", CLIENT_BUILD);
+    ssFile << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()));
+    ssFile << strprintf("# * Best block at time of backup was %i (%s),\n", chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString());
+    ssFile << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
+    ssFile << "\n";
 
     // add the onboarding public key
     CPubKey onboardUserPubKey = pwalletMain->GenerateNewKey(true);
@@ -886,13 +887,12 @@ UniValue createkycfile(const JSONRPCRequest& request)
     std::string sEnc(vEnc.begin(), vEnc.end());
 
     //Append the initialization vector and encrypted keys
+    std::string sOnboardPubKey = HexStr(onboardPubKey.begin(), onboardPubKey.end());
     std::string sOnboardUserPubKey = HexStr(onboardUserPubKey.begin(), onboardUserPubKey.end());
-    file << strprintf("%s %s %d\n", HexStr(onboardPubKey.begin(), onboardPubKey.end()),
-        sOnboardUserPubKey, sEnc.size());
+    ssFile << strprintf("%s %s %d\n", sOnboardPubKey, sOnboardUserPubKey, sEnc.size());
 
-    file << sEnc << "\n";
-    file << "# End of dump\n";
-    file.close();
+    ssFile << sEnc << "\n";
+    ssFile << "# End of dump\n";
 
     if(request.params.size() == 4){
         AuditLogPrintf("%s : createkycfile %s %s\n", getUser(), request.params[0].get_str(), request.params[3].get_str());
@@ -900,7 +900,24 @@ UniValue createkycfile(const JSONRPCRequest& request)
         AuditLogPrintf("%s : createkycfile %s\n", getUser(), request.params[0].get_str());
     }
 
-    UniValue result = sOnboardUserPubKey;
+    UniValue result(UniValue::VOBJ);
+
+    result.push_back(Pair("onboardpubkey", sOnboardPubKey));
+    result.push_back(Pair("onboarduserpubkey", sOnboardUserPubKey));
+
+    std::string sFilename = request.params[0].get_str().c_str();
+    if(sFilename.length() > 0){
+        std::ofstream file;
+        file.open(sFilename);
+        if (!file.is_open())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open key dump file");
+        file << ssFile.str();
+        file.close();
+
+    } else {
+        result.push_back(Pair("kycfile", ssFile.str()));
+    }
+
     return result;
 }
 
