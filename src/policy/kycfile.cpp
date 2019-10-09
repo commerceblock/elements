@@ -18,6 +18,7 @@ void CKYCFile::clear(){
     _addressKeyIds.clear();
     _decryptedStream.clear();
     _errorStream.clear();
+    _multisigData.clear();
     delete _onboardPubKey;
     delete _onboardUserPubKey;
 }
@@ -287,6 +288,20 @@ bool CKYCFile::parseMultisig(const std::vector<std::string> vstr, const std::str
     return true;
 }
 
+bool CKYCFile::is_valid(){
+    CScript script;
+    if(is_empty())
+        throw std::invalid_argument(std::string(std::string(__func__) +  
+                "no address data in file"));
+    return getOnboardingScript(script);
+}
+
+bool CKYCFile::is_empty(){
+    if(_addressKeys.size() > 0) return false;
+    if(_addressKeyIds.size() > 0) return false;
+    if(_multisigData.size() > 0) return false;
+}
+
 bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
     uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
     if(!contract.IsNull() && Params().ContractInKYCFile()){
@@ -356,6 +371,12 @@ bool CKYCFile::is_whitelisted(){
     bool fOk = true;
     for(auto k : _addressKeyIds){
         if(!addressWhitelist->is_whitelisted(k)){
+            fOk = false;
+            break;
+        }
+    }
+    for(auto k : _multisigData){
+        if(!addressWhitelist->is_whitelisted(k.scriptID)){
             fOk = false;
             break;
         }
