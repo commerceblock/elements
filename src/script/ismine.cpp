@@ -66,8 +66,22 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey, bool& 
     case TX_DEREGISTERADDRESS:
     case TX_NULL_DATA:
     case TX_FEE:
-    case TX_LOCKED_MULTISIG:
         break;
+    case TX_LOCKED_MULTISIG:
+    {
+        vector<valtype> keys(vSolutions.begin()+1, vSolutions.begin()+vSolutions.size()-1);
+        if (sigversion != SIGVERSION_BASE) {
+            for (size_t i = 0; i < keys.size(); i++) {
+                if (keys[i].size() != 33) {
+                    isInvalid = true;
+                    return ISMINE_NO;
+                }
+            }
+        }
+        if (HaveKeys(keys, keystore) == keys.size())
+            return ISMINE_SPENDABLE;
+        break;
+    }
     case TX_PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();
         if (sigversion != SIGVERSION_BASE && vSolutions[0].size() != 33) {

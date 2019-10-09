@@ -105,6 +105,14 @@ class RequestsTest(BitcoinTestFramework):
     assert(txid in self.nodes[0].getblock(self.nodes[0].getblockhash(self.nodes[0].getblockcount()))["tx"])
     assert(txid2 in self.nodes[0].getblock(self.nodes[0].getblockhash(self.nodes[0].getblockcount()))["tx"])
 
+    # Check transactions added to wallets unspent list after importing redeem script
+    redeemScript = self.nodes[1].decoderawtransaction(tx)["vout"][0]["scriptPubKey"]["hex"]
+    redeemScript2 = self.nodes[1].decoderawtransaction(tx2)["vout"][0]["scriptPubKey"]["hex"]
+    numSpendables=len(self.nodes[1].listunspent())
+    self.nodes[1].importaddress(redeemScript)
+    self.nodes[1].importaddress(redeemScript2)
+    assert(numSpendables+2 == len(self.nodes[1].listunspent()))
+
     # test get request method with/without genesis hash parameter
     requests = self.nodes[0].getrequests()
     assert_equal(2, len(self.nodes[1].getrequests()))

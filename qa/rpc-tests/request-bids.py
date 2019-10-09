@@ -56,6 +56,12 @@ class RequestbidsTest(BitcoinTestFramework):
     assert_equal(genesis, request_bids['genesisBlock'])
     assert_equal([], request_bids['bids'])
 
+    # Test request transaction added to wallets unspent list after importing redeem script
+    redeemScript = self.nodes[1].decoderawtransaction(tx)["vout"][0]["scriptPubKey"]["hex"]
+    numSpendables=len(self.nodes[1].listunspent())
+    self.nodes[1].importaddress(redeemScript)
+    assert(numSpendables+1 == len(self.nodes[1].listunspent()))
+
     # test create raw bid transaction
     addr = self.nodes[1].getnewaddress()
     pubkey = self.nodes[1].validateaddress(addr)["pubkey"]
@@ -76,6 +82,12 @@ class RequestbidsTest(BitcoinTestFramework):
     self.nodes[0].generate(1)
     self.sync_all()
     assert_equal(25, self.nodes[1].getbalance()['CBT'])
+
+    # Test bid transaction added to wallets unspent list after importing redeem script
+    redeemScript = self.nodes[1].decoderawtransaction(tx)["vout"][0]["scriptPubKey"]["hex"]
+    numSpendables=len(self.nodes[1].listunspent())
+    self.nodes[1].importaddress(redeemScript)
+    assert(numSpendables+1 == len(self.nodes[1].listunspent()))
 
     request_bids = self.nodes[1].getrequestbids(requestTxid)
     assert(request_bids != {})
@@ -115,7 +127,7 @@ class RequestbidsTest(BitcoinTestFramework):
     self.sync_all()
 
     # need to add another input to pay for fees
-    unspent = self.nodes[1].listunspent()
+    unspent = [tx for tx in self.nodes[1].listunspent() if tx["spendable"] == True]
     inputFee = {"txid": unspent[0]["txid"], "vout": unspent[0]["vout"]}
     addrChange = self.nodes[1].getnewaddress()
     txSpend = self.nodes[1].createrawtransaction([inputPrev, inputFee],
