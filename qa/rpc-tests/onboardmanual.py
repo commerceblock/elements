@@ -135,8 +135,76 @@ class OnboardManualTest (BitcoinTestFramework):
 
         #Onboard node1
         kycfile="kycfile.dat"
+        kycfile_normal="kycfile_normal.dat"
+        kycfile_multisig="kycfile_multisig.dat"
         #userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
 
+
+        onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_normal, [{"address":onboardAddress1['address'],"pubkey":onboardAddress1['derivedpubkey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpubkey']}], []);
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_normal)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+        
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        balance_1=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
+        try:
+            self.nodes[0].onboarduser(kycfile_normal)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_normal)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        os.remove(kycfile_normal)
+
+
+        onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress4=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        untweakedPubkeys=[onboardAddress1['derivedpubkey'],onboardAddress2['derivedpubkey'],onboardAddress3['derivedpubkey']]
+        untweakedPubkeys2=[onboardAddress2['derivedpubkey'],onboardAddress3['derivedpubkey'],onboardAddress4['derivedpubkey']]
+        untweakedPubkeys3=[onboardAddress3['derivedpubkey'],onboardAddress4['derivedpubkey']]
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_multisig, [], [{"nmultisig":2,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}]);
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+
+
+        try:
+            self.nodes[0].onboarduser(kycfile_multisig)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        os.remove(kycfile_multisig)
+        
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
@@ -153,17 +221,14 @@ class OnboardManualTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
-        
-        self.nodes[0].generate(101)
-        self.sync_all()
 
-        balance_1=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
+
         try:
             self.nodes[0].onboarduser(kycfile)
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
-
+        
         self.nodes[0].generate(101)
         self.sync_all()
 
@@ -172,6 +237,7 @@ class OnboardManualTest (BitcoinTestFramework):
         assert(valkyc["iswhitelisted"] == True)
 
         os.remove(kycfile)
+
         
         balance_2=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         #Make sure the onboard transaction fee was zero

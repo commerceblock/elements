@@ -360,6 +360,12 @@ bool CKYCFile::is_whitelisted(){
             break;
         }
     }
+    for(auto k : _multisigData){
+        if(!addressWhitelist->is_whitelisted(k.scriptID)){
+            fOk = false;
+            break;
+        }
+    }
     return fOk;
 }
 
