@@ -29,13 +29,11 @@ class RequestbidsTest(BitcoinTestFramework):
     self.nodes[0].generate(101)
     self.sync_all()
 
-    asset = self.nodes[0].issueasset(500, 0)
-    asset_hash = asset['asset']
-    self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 50, "", "", False, asset_hash)
-    self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 50, "", "", False, asset_hash)
+    self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 50, "", "", False)
+    self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 50, "", "", False)
     self.nodes[0].generate(1)
     self.sync_all()
-    assert_equal(100, self.nodes[1].getbalance()[asset_hash])
+    assert_equal(100, self.nodes[1].getbalance()['CBT'])
 
     # create request
     addr = self.nodes[0].getnewaddress()
@@ -62,9 +60,9 @@ class RequestbidsTest(BitcoinTestFramework):
     addr = self.nodes[1].getnewaddress()
     pubkey = self.nodes[1].validateaddress(addr)["pubkey"]
     pubkeyFee = self.nodes[1].validateaddress(self.nodes[1].getnewaddress())["pubkey"]
-    unspent = self.nodes[1].listunspent(1, 9999999, [], True, asset_hash)
-    inputs = [{"txid": unspent[0]["txid"], "vout": unspent[0]["vout"], "asset": asset_hash},
-            {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"], "asset": asset_hash}]
+    unspent = self.nodes[1].listunspent(1, 9999999, [], True, 'CBT')
+    inputs = [{"txid": unspent[0]["txid"], "vout": unspent[0]["vout"]},
+            {"txid": unspent[1]["txid"], "vout": unspent[1]["vout"]}]
     fee = Decimal('0.0001')
     outputs = {"endBlockHeight": 110, "requestTxid": requestTxid, "feePubkey": pubkeyFee,
         "pubkey": pubkey, "fee": fee, "value": 75 - fee,
@@ -77,7 +75,7 @@ class RequestbidsTest(BitcoinTestFramework):
     self.sync_all()
     self.nodes[0].generate(1)
     self.sync_all()
-    assert_equal(25, self.nodes[1].getbalance()[asset_hash])
+    assert_equal(25, self.nodes[1].getbalance()['CBT'])
 
     request_bids = self.nodes[1].getrequestbids(requestTxid)
     assert(request_bids != {})
@@ -108,7 +106,7 @@ class RequestbidsTest(BitcoinTestFramework):
     # try send spend transaction
     inputPrev = {"txid": txid, "vout": 0, "sequence": 4294967294}
     addr = self.nodes[1].getnewaddress()
-    txSpend = self.nodes[1].createrawtransaction([inputPrev], {addr: unspent[0]["amount"]}, self.nodes[1].getblockcount(), {addr: asset_hash})
+    txSpend = self.nodes[1].createrawtransaction([inputPrev], {addr: unspent[0]["amount"]}, self.nodes[1].getblockcount())
     signedTxSpend = self.nodes[1].signrawtransaction(txSpend)
     assert_equal(signedTxSpend["errors"][0]["error"], "Locktime requirement not satisfied")
 
@@ -122,15 +120,14 @@ class RequestbidsTest(BitcoinTestFramework):
     addrChange = self.nodes[1].getnewaddress()
     txSpend = self.nodes[1].createrawtransaction([inputPrev, inputFee],
         {addr: 75 - fee, addrChange: 25 - fee, "fee": fee},
-        self.nodes[1].getblockcount(),
-        {addr: asset_hash, addrChange: asset_hash, "fee": asset_hash})
+        self.nodes[1].getblockcount())
     signedTxSpend = self.nodes[1].signrawtransaction(txSpend)
     txidSpend = self.nodes[1].sendrawtransaction(signedTxSpend["hex"])
 
     self.sync_all()
     self.nodes[0].generate(1)
     self.sync_all()
-    assert_equal(Decimal('99.99980000'), self.nodes[1].getbalance()[asset_hash])
+    assert_equal(Decimal('99.99980000'), self.nodes[1].getbalance()['CBT'])
 
     try:
         request_bids = self.nodes[1].getrequestbids(requestTxid)

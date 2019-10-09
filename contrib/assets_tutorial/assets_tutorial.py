@@ -495,7 +495,7 @@ e2.gettransaction(txid)
 
 #### ADVANCED OPTIONS ####
 # rawblindrawtransaction : blind a raw transaction with no access to a wallet
-# -policyasset=<hex> : set network fee asset type to something other than BTC 
+# -domainAsset=<hex> : set network fee asset type to something other than BTC 
 
 bitcoin.stop()
 e1.stop()

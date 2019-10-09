@@ -133,7 +133,7 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[0].generate(101)
         self.sync_all()
 
-        # issue some new asset (that is not the policy asset)
+        # issue some new asset (that is not the domain asset)
         issue = self.nodes[0].issueasset('100.0','0', False)
         self.nodes[0].generate(101)
         self.sync_all()
@@ -172,7 +172,7 @@ class OnboardTest (BitcoinTestFramework):
         wb0_0=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         coin=float(1e8)
         assert_equal(wb0_0*coin,float(50000000000000))
-                    
+
         #No kycpubkeys available
         kycfile=self.initfile(os.path.join(self.options.tmpdir,"kycfile.dat"))
         try:
@@ -184,7 +184,7 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[0].dumpkycpubkeys(kycpkfile)
         nlines=self.linecount(kycpkfile)
         assert_equal(nlines,2)
-            
+
         #Register a KYC public key
         nkyckeys=50
         self.nodes[0].topupkycpubkeys(nkyckeys)
@@ -200,12 +200,12 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[0].topupkycpubkeys(nkyckeys)
         self.nodes[0].generate(101)
         self.sync_all()
-        
+
         self.nodes[0].dumpkycpubkeys(kycpkfile)
         nlines=self.linecount(kycpkfile)
         assert_equal(nlines,2+nkyckeys)
 
-        
+
         #Remove all kycpubkeys
         with open(kycpkfile) as fp:
             for line in fp:
@@ -224,7 +224,7 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[0].dumpkycpubkeys(kycpkfile)
         nlines=self.linecount(kycpkfile)
         assert_equal(nlines,2)
-            
+
         #Register a KYC public key
         self.nodes[0].topupkycpubkeys(1)
         self.nodes[0].generate(101)
@@ -236,7 +236,7 @@ class OnboardTest (BitcoinTestFramework):
 
         wb0_1=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         assert_equal(wb0_1*coin,float(50000000000000-1))
-        
+
         #Dump empty whitelist
         wl1file_empty=self.initfile(os.path.join(self.options.tmpdir,"wl1_empty.dat"))
         self.nodes[1].dumpwhitelist(wl1file_empty)
@@ -249,14 +249,14 @@ class OnboardTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
         assert_equal(iswl, False)
-        
+
         #Onboard node0
         kycfile0=self.initfile(os.path.join(self.options.tmpdir,"kycfile0.dat"))
         userOnboardPubKey=self.nodes[0].dumpkycfile(kycfile0)
         self.nodes[0].onboarduser(kycfile0)
         self.nodes[0].generate(101)
         self.sync_all()
-        
+
         wl1file=self.initfile(os.path.join(self.options.tmpdir,"wl1.dat"))
         self.nodes[1].dumpwhitelist(wl1file)
         nlines=self.linecount(wl1file)
@@ -266,7 +266,7 @@ class OnboardTest (BitcoinTestFramework):
         #Onboard node1
         userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
         kycfile_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile_plain.dat"))
-        self.nodes[0].readkycfile(kycfile, kycfile_plain)        
+        self.nodes[0].readkycfile(kycfile, kycfile_plain)
 
         self.nodes[0].generate(101)
         self.sync_all()
@@ -275,7 +275,7 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[0].onboarduser(kycfile)
         self.nodes[0].generate(101)
         self.sync_all()
-        
+
         with open(kycfile_plain) as fp:
             nline=0
             for nline, line in enumerate(fp):
@@ -290,7 +290,7 @@ class OnboardTest (BitcoinTestFramework):
                         print(e.error['message'])
                         assert(False)
 
-        #Import the node0 into node3 to get the kyc private keys 
+        #Import the node0 into node3 to get the kyc private keys
         wallet0=self.initfile(os.path.join(self.options.tmpdir,"wallet0.dat"))
         self.nodes[0].dumpwallet(wallet0)
         self.nodes[3].importwallet(wallet0)
@@ -300,7 +300,7 @@ class OnboardTest (BitcoinTestFramework):
         except JSONRPCException as e:
             assert("invalid addresses in kycfile" in e.error['message'])
             assert("invalid key tweaking" in e.error['message'])
-        
+
         balance_2=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         #Make sure the onboard transaction fee was zero
         assert((balance_1-balance_2) == 0)
@@ -318,7 +318,7 @@ class OnboardTest (BitcoinTestFramework):
         assert_equal(iswl, True)
 
         node2addr=self.nodes[2].getnewaddress()
-        
+
         try:
             iswl=self.nodes[0].querywhitelist(node2addr)
         except JSONRPCException as e:
@@ -326,7 +326,7 @@ class OnboardTest (BitcoinTestFramework):
             assert(False)
         assert_equal(iswl, False)
 
-        
+
         #Send some tokens to node 1
         ntosend=10.234
         self.nodes[0].sendtoaddress(node1addr, ntosend, "", "", False, "CBT")
@@ -369,12 +369,12 @@ class OnboardTest (BitcoinTestFramework):
 #        assert(filecmp.cmp(wl1file_rs1, wl1file_rs2))
 
         self.nodes[1].dumpwhitelist(wl1file)
-                
+
         #Node 1 registers additional addresses to whitelist
         nadd=100
         try:
             saveres=self.nodes[1].sendaddtowhitelisttx(nadd,"CBT")
-        except JSONRPCException as e:            
+        except JSONRPCException as e:
             assert("Not implemented for unencrypted whitelist" in e.error['message'])
 
 
@@ -386,14 +386,14 @@ class OnboardTest (BitcoinTestFramework):
         #Creating a p2sh address for whitelisting
         multiAddress2=self.nodes[1].createmultisig(2,[clientAddress2['pubkey'],clientAddress3['pubkey'],clientAddress4['pubkey']])
 
-                
+
         #Testing Multisig whitelisting registeraddress transaction
         try:
             multitx = self.nodes[1].sendaddmultitowhitelisttx(multiAddress2['address'],[clientAddress2['derivedpubkey'],clientAddress3['derivedpubkey'],clientAddress4['derivedpubkey']],2,"CBT")
         except JSONRPCException as e:
             assert("Not implemented for unencrypted whitelist" in e.error['message'])
 
-            
+
         self.nodes[0].generate(101)
         self.sync_all()
         wl1file_2=self.initfile(os.path.join(self.options.tmpdir,"wl1_2.dat"))
@@ -440,13 +440,13 @@ class OnboardTest (BitcoinTestFramework):
         except JSONRPCException as e:
             assert("kycaddress argument not implemented for unencrypted whitelist" in e.error['message'])
 
-            
+
         #Manual whitelisting - not via blockchain - manually added to all nodes.
         self.nodes[0].addmultitowhitelist(multiAddress1['address'],[clientAddress1['derivedpubkey'],clientAddress2['derivedpubkey'],clientAddress3['derivedpubkey']],2)
         self.nodes[1].addmultitowhitelist(multiAddress1['address'],[clientAddress1['derivedpubkey'],clientAddress2['derivedpubkey'],clientAddress3['derivedpubkey']],2)
         self.nodes[2].addmultitowhitelist(multiAddress1['address'],[clientAddress1['derivedpubkey'],clientAddress2['derivedpubkey'],clientAddress3['derivedpubkey']],2)
 
-        
+
         self.nodes[1].dumpwhitelist(wl1file_2)
         nlines1=self.linecount(wl1file)
         nlines2=self.linecount(wl1file_2)
@@ -459,7 +459,7 @@ class OnboardTest (BitcoinTestFramework):
             assert(False)
         assert(iswl)
 
-        
+
 #        self.nodes[0].removefromwhitelist(multiAddress1['address'])
 #        self.nodes[1].removefromwhitelist(multiAddress1['address'])
 #        self.nodes[2].removefromwhitelist(multiAddress1['address'])
@@ -468,7 +468,7 @@ class OnboardTest (BitcoinTestFramework):
 #        self.nodes[1].dumpwhitelist(wl1file_3)
 #        nlines3=self.linecount(wl1file_3)
 #        assert_equal(nlines1,nlines3)
-                
+
 #        try:
 #            iswl=self.nodes[1].querywhitelist(multiAddress1['address'])
 #        except JSONRPCException as e:
@@ -478,7 +478,7 @@ class OnboardTest (BitcoinTestFramework):
 
         if(clientAddress1['pubkey'] != clientAddress1['derivedpubkey']):
             raise AssertionError("Pubkey and derived pubkey are not the same for a new address. Something is being tweaked when it shouldn't be.")
-        
+
         try:
             multiAddress2=self.nodes[1].createmultisig(2,["asdasdasdasdasdas",clientAddress2['pubkey'],clientAddress4['pubkey']])
             self.nodes[1].addmultitowhitelist(multiAddress2['address'],[clientAddress1['derivedpubkey'],clientAddress2['derivedpubkey'],clientAddress3['derivedpubkey']],2)
@@ -510,7 +510,7 @@ class OnboardTest (BitcoinTestFramework):
         else:
             raise AssertionError("P2SH multisig with n=0 has been validated and accepted to the whitelist.")
 
-        # issue some new asset (that is not the policy asset)
+        # issue some new asset (that is not the domain asset)
         issue = self.nodes[0].issueasset('100.0','0')
         self.nodes[1].generate(1)
 
@@ -549,10 +549,10 @@ class OnboardTest (BitcoinTestFramework):
         #Test that the onboard transaction does not spend and whitelist asset
         assert_equal(wb0_1, wb0_2)
 
-        
+
         self.cleanup_files()
         return
-    
+
     def blacklist_test(self, kycfile, keypool, toprint=""):
         print(toprint)
         #Blacklist node1 wallet
@@ -619,7 +619,7 @@ class OnboardTest (BitcoinTestFramework):
             assert(lendiff2 == 0)
 
 
-    
+
 if __name__ == '__main__':
  OnboardTest().main()
 

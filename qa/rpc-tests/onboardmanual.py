@@ -7,6 +7,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 import filecmp
 import time
+import string
 
 class OnboardManualTest (BitcoinTestFramework):
 
@@ -188,6 +189,48 @@ class OnboardManualTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
+        
+        #Test the createkycfile output to the terminal
+        try:
+            result=self.nodes[1].createkycfile("", [{"address":onboardAddress1['address'],"pubkey":onboardAddress1['derivedpubkey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpubkey']}], [{"nmultisig":2,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}])
+            kycstring=result['kycfile']
+            okey=result['onboardpubkey']
+            oukey=result['onboarduserpubkey']
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        kycfile_plain="kycfile_plain.dat"
+        self.nodes[0].readkycfile(kycfile,kycfile_plain)
+
+        kycfile_fromstr="kycfile_fromstr.dat"
+        kycfile_fromstr_plain="kycfile_fromstr_plain.dat"
+
+        with open(kycfile_fromstr, "w") as f:
+            f.write(kycstring)
+
+        self.nodes[0].readkycfile(kycfile_fromstr,kycfile_fromstr_plain)
+
+        with open(kycfile_plain) as f1:
+            with open(kycfile_fromstr_plain) as f2:
+                different = set(f1).difference(f2)
+
+        discard=set()
+        for line in different:
+            if line[0] == '#':
+                discard.add(line)
+
+        different=different.difference(discard)
+
+        discard=set()
+        for line in different:
+            sline=line.split(' ')
+            if len(sline) == 3 and sline[0] == okey:
+                discard.add(line)
+                
+        different=different.difference(discard)
+
+        assert(len(different) == 0)
 
 
         try:

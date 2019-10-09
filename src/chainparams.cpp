@@ -79,7 +79,7 @@ static CBlock CreateGenesisBlock(const Consensus::Params& params, const std::str
 }
 
 /** Add an issuance transaction to the genesis block. Typically used to pre-issue
- * the policyAsset of a blockchain. The genesis block is not actually validated,
+ * the domainAsset of a blockchain. The genesis block is not actually validated,
  * so this transaction simply has to match issuance structure. */
 static void AppendInitialIssuance(CBlock& genesis_block, const COutPoint& prevout, const uint256& contract, const int64_t asset_outputs,
     const int64_t asset_values, const int64_t reissuance_outputs, const int64_t reissuance_values, const CScript& issuance_destination) {
@@ -90,7 +90,7 @@ static void AppendInitialIssuance(CBlock& genesis_block, const COutPoint& prevou
     CAsset asset;
     CalculateAsset(asset, entropy);
 
-    // Re-issuance of policyAsset is always unblinded
+    // Re-issuance of domainAsset is always unblinded
     CAsset reissuance;
     CalculateReissuanceToken(reissuance, entropy, false);
 

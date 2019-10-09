@@ -552,7 +552,7 @@ static vector<CWalletTx> SendMoney(const CScript& scriptPubKey, CAmount nValue, 
     std::vector<CReserveKey> vChangeKey;
     vChangeKey.reserve(2);
     vChangeKey.emplace_back(pwalletMain);
-    if (policyAsset != asset) {
+    if (domainAsset != asset) {
         vChangeKey.emplace_back(pwalletMain);
     }
     vChangeKeys.push_back(vChangeKey);
@@ -590,8 +590,9 @@ static vector<CWalletTx> SendMoney(const CTxDestination &address, CAmount nValue
         fIgnoreBlindFail, fSplitTransactions, coinControl);
 }
 
-static vector<CWalletTx> SendAnyMoney(const CScript& scriptPubKey, CAmount nValue, const CPubKey &confidentiality_key, CWalletTx& wtxNew,
-    bool fIgnoreBlindFail, bool fSplitTransactions = false, int nSortingMethod = 1, CCoinControl* coinControl = NULL)
+static vector<CWalletTx> SendAnyMoney(const CScript& scriptPubKey, CAmount nValue, const CPubKey &confidentiality_key,
+    CWalletTx& wtxNew, bool fIgnoreBlindFail, bool fSplitTransactions = false, int nSortingMethod = 1,
+    CCoinControl* coinControl = NULL, bool fSign = true, bool fSend = true)
 {
     // Check amount
     if (nValue < 0)
@@ -603,6 +604,11 @@ static vector<CWalletTx> SendAnyMoney(const CScript& scriptPubKey, CAmount nValu
     CAmountMap balanceMap = pwalletMain->GetBalance();
     std::vector<std::pair<CAsset, CAmount>> vecBalanceMap =
         std::vector<std::pair<CAsset, CAmount>>(balanceMap.begin(), balanceMap.end());
+
+    if (coinControl != NULL && coinControl->fAllowWatchOnly) {
+        CAmountMap watchOnlyBalanceMap = pwalletMain->GetWatchOnlyBalance();
+        vecBalanceMap.insert(vecBalanceMap.end(), watchOnlyBalanceMap.begin(), watchOnlyBalanceMap.end());
+    }
 
     // Default 0 unsorted, 1 descending, 2 ascending
     typedef std::function<bool(std::pair<CAsset, CAmount>, std::pair<CAsset, CAmount>)> Comparator;
@@ -664,29 +670,35 @@ static vector<CWalletTx> SendAnyMoney(const CScript& scriptPubKey, CAmount nValu
     }
     vChangeKeys.push_back(vChangeKey);
 
-    std::vector<CWalletTx> vecRes = pwalletMain->CreateTransaction(vecSend, wtxNew, vChangeKeys, nFeeRequired, nChangePosRet,
-        strError, coinControl, true, NULL, true, NULL, NULL, NULL, CAsset(), fIgnoreBlindFail, fSplitTransactions, std::vector<COutput>(), true);
+    std::vector<CWalletTx> vecRes = pwalletMain->CreateTransaction(vecSend, wtxNew, vChangeKeys, nFeeRequired,
+        nChangePosRet, strError, coinControl, fSign, NULL, true, NULL, NULL, NULL, CAsset(), fIgnoreBlindFail,
+        fSplitTransactions, std::vector<COutput>(), true);
     if (!(vecRes.size() > 0)) {
         if (nValue + nFeeRequired > totalBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s",
+                FormatMoney(nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
     wtxNew = vecRes[0];
-    for (unsigned int i = 0; i < vecRes.size(); ++i) {
-        CValidationState state;
-        if (!pwalletMain->CommitTransaction(vecRes[i], vChangeKeys[i], g_connman.get(), state)) {
-            strError = strprintf("Error: The transaction was rejected! Reason given: %s %s", state.GetRejectReason(), state.GetDebugMessage());
-            throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    if (fSend) {
+       for (unsigned int i = 0; i < vecRes.size(); ++i) {
+            CValidationState state;
+            if (!pwalletMain->CommitTransaction(vecRes[i], vChangeKeys[i], g_connman.get(), state)) {
+                strError = strprintf("Error: The transaction was rejected! Reason given: %s %s",
+                    state.GetRejectReason(), state.GetDebugMessage());
+                throw JSONRPCError(RPC_WALLET_ERROR, strError);
+            }
         }
     }
     return vecRes;
 }
 
 static vector<CWalletTx> SendAnyMoney(const CTxDestination &address, CAmount nValue, const CPubKey &confidentiality_key,
-    CWalletTx& wtxNew, bool fIgnoreBlindFail, bool fSplitTransactions, int nSortingMethod, CCoinControl* coinControl = NULL)
+    CWalletTx& wtxNew, bool fIgnoreBlindFail, bool fSplitTransactions, int nSortingMethod,
+    CCoinControl* coinControl = NULL, bool fSign = true, bool fSend = true)
 {
     return SendAnyMoney(GetScriptForDestination(address), nValue, confidentiality_key, wtxNew, fIgnoreBlindFail,
-        fSplitTransactions, nSortingMethod, coinControl);
+        fSplitTransactions, nSortingMethod, coinControl, fSign, fSend);
 }
 
 static void SendGenerationTransaction(const CScript& assetScriptPubKey, const CPubKey &assetKey, const CScript& tokenScriptPubKey, const CPubKey &tokenKey, CAmount nAmountAsset, CAmount nTokens, bool fBlindIssuances, uint256& entropy, CAsset& reissuanceAsset, CAsset& reissuanceToken, CWalletTx& wtxNew)
@@ -703,7 +715,7 @@ static void SendGenerationTransaction(const CScript& assetScriptPubKey, const CP
     std::vector<CReserveKey> vChangeKey;
     // Need to be careful to not copy CReserveKeys or bad things happen
     // We need 2 change outputs possibly for reissuance case:
-    // one for policyAsset, the other for reissuance token
+    // one for domainAsset, the other for reissuance token
     vChangeKey.reserve(2);
     vChangeKey.emplace_back(pwalletMain);
     if (!reissuanceAsset.IsNull()) {
@@ -1699,6 +1711,89 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
     return arr;
 }
 
+UniValue createanytoaddress(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 6)
+        throw runtime_error(
+            "createanytoaddress \"bitcoinaddress\" amount (ignoreblindfail splitlargetxs balancesorttype allowwatchonly)\n"
+            "\nCreate a transaction that sends an amount to a given address with as many non-policy assets as needed.\n"
+            "\nWarning! Only use this RPC in ocean chains in which all non-policy assets are fungible!!\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"address\"             (string, required) The bitcoin address to send to.\n"
+            "2. \"amount\"              (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+            "3. \"ignoreblindfail\"\"   (bool, default=true) Return a transaction even when a blinding attempt fails due to number of blinded inputs/outputs.\n"
+            "4. \"splitlargetxs\"\"     (bool, default=false) Split a transaction that goes over the size limit into smaller transactions.\n"
+            "5. \"balancesorttype\"\"   (numeric, default=1) Choose which balances should be used first. 1 - descending, 2 - ascending\n"
+            "6. \"allowwatchonly\"\"    (bool, default=false) Allow the selection of watch only inputs similar to fundrawtransaction.\n"
+            "\nResult:\n"
+            "[                          (array of strings)\n"
+            "   \"transaction\"         (string) hex string of the transaction\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("createanytoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1")
+            + HelpExampleCli("createanytoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 true true 2")
+            + HelpExampleCli("createanytoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 true true 1 true")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CBitcoinAddress address(request.params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+
+    CAmount nAmount = AmountFromValue(request.params[1]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+    CPubKey confidentiality_pubkey;
+    if (address.IsBlinded()) {
+        confidentiality_pubkey = address.GetBlindingKey();
+    }
+
+    bool fIgnoreBlindFail = true;
+    if (request.params.size() > 2)
+        fIgnoreBlindFail = request.params[2].get_bool();
+
+    bool fSplitTransactions = false;
+    if (request.params.size() > 3)
+        fSplitTransactions = request.params[3].get_bool();
+
+    int fSortingType = 1;
+    if (request.params.size() > 4)
+        fSortingType = request.params[4].get_int();
+    if (!(fSortingType == 1 || fSortingType == 2)) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid sendany sorting type.");
+    }
+
+    bool fAllowWatchOnly = false;
+    if (request.params.size() > 5)
+        fAllowWatchOnly = request.params[5].get_bool();
+
+    EnsureWalletIsUnlocked();
+
+    // Similar to fundrawtransaction
+    CCoinControl coinControl;
+    //coinControl.destChange = destChange;
+    coinControl.fAllowOtherInputs = true;
+    coinControl.fAllowWatchOnly = fAllowWatchOnly;
+    //coinControl.fOverrideFeeRate = overrideEstimatedFeeRate;
+    //coinControl.nFeeRate = specificFeeRate;
+
+    CWalletTx wtx;
+    vector<CWalletTx> wtxs = SendAnyMoney(address.Get(), nAmount, confidentiality_pubkey,
+        wtx, fIgnoreBlindFail, fSplitTransactions, fSortingType, &coinControl, false, false);
+
+    UniValue arr(UniValue::VARR);
+    for (const auto &tx: wtxs) {
+        arr.push_back(EncodeHexTx(tx));
+    }
+    return arr;
+}
+
 UniValue sendanytoaddress(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
@@ -2490,7 +2585,7 @@ UniValue sendmany(const JSONRPCRequest& request)
     // Send
     std::vector<CReserveKey> vChangeKey;
     std::set<CAsset> setAssets;
-    setAssets.insert(policyAsset);
+    setAssets.insert(domainAsset);
     for (auto recipient : vecSend) {
         setAssets.insert(recipient.asset);
     }
@@ -5346,17 +5441,17 @@ UniValue createrawissuance(const JSONRPCRequest& request)
   if (request.fHelp || request.params.size() !=9)
     throw runtime_error(
             "createrawissuance assetaddress assetamount tokenaddress tokenamount changeaddress feeamount inputtxid vout\n"
-            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a policyAsset outpoint as input.\n"
+            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a domainAsset outpoint as input.\n"
             "\nArguments:\n"
 	    "1. \"assetaddress\"          (string, required) Address to send issued asset to.\n"
             "2. \"assetamount\"           (numeric or string, required) Amount of asset to generate.\n"
 	    "3. \"tokenaddress\"          (string, required) Address to send reissuance token to.\n"
             "4. \"tokenamount\"           (numeric or string, required) Amount of reissuance tokens to generate. These will allow you to reissue the asset if in wallet using `reissueasset`. These tokens are not consumed during reissuance.\n"
-	    "5. \"changeaddress\"         (string, required) Address to return the policyAsset input.\n"
-	    "6. \"changeamount\"          (numeric or string, required) Return policyAsset amount.\n"
+	    "5. \"changeaddress\"         (string, required) Address to return the domainAsset input.\n"
+	    "6. \"changeamount\"          (numeric or string, required) Return domainAsset amount.\n"
 	    "7. \"changenum\"             (numeric or string, required) Number of change outputs to be generated\n"
-            "8. \"inputtxid\"             (string, required) policyAsset input TXID.\n"
-	    "9. \"vout\"                  (numeric or string, required) policyAsset TXID output index\n"
+            "8. \"inputtxid\"             (string, required) domainAsset input TXID.\n"
+	    "9. \"vout\"                  (numeric or string, required) domainAsset TXID output index\n"
             "\nResult:\n"
             "{                        (json object)\n"
             "  \"rawtx\":\"<rawtx>\",   (string) Hex encoded raw unsigned issuance transaction.\n"
@@ -5552,7 +5647,7 @@ UniValue createrawreissuance(const JSONRPCRequest& request)
         throw runtime_error(
 
             "createrawreissuance assetaddress assetamount tokenaddress tokenamount inputtxid vout entropy\n"
-            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a policyAsset outpoint as input.\n"
+            "\nCreate a raw unsigned asset issuance transaction to specified addresses with a domainAsset outpoint as input.\n"
             "\nArguments:\n"
             "1. \"assetaddress\"          (string, required) Address to send re-issued asset to.\n"
             "2. \"assetamount\"           (numeric or string, required) Amount of re-issued asset to generate.\n"
@@ -5957,6 +6052,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "claimethpegin",            &claimethpegin,             true,   {"txid", "amount", "claim_pubkey"}},
     { "wallet",             "createrawethpegin",        &createrawethpegin,         true,   {"txid", "amount", "claim_pubkey"}},
     { "wallet",             "claimpegin",               &claimpegin,                false,  {"bitcoinT", "txoutproof", "claim_script"} },
+    { "wallet",             "createanytoaddress",       &createanytoaddress,        false,  {"address", "amount", "ignoreblindfail", "splitlargetxs", "balancesorttype"}},
     { "wallet",             "createrawpegin",           &createrawpegin,            false,  {"bitcoinT", "txoutproof", "claim_script"} },
     { "wallet",             "getaccountaddress",        &getaccountaddress,         true,   {"account"} },
     { "wallet",             "getaccount",               &getaccount,                true,   {"address"} },
