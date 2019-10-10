@@ -1093,7 +1093,7 @@ UniValue validatekycfile(const JSONRPCRequest& request)
 
 
 
-    std::vector<CKeyID> addressKeyIds = file.getAddressKeyIds();
+    std::vector<CTxDestination> addressKeyIds = file.getAddressKeyIds();
     UniValue addresses(UniValue::VARR);
     for(auto k: addressKeyIds){
         CBitcoinAddress addr=CBitcoinAddress(k);

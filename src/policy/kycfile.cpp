@@ -106,7 +106,9 @@ bool CKYCFile::read(){
             continue;
         }
 
-        //Read in encrypted data, decrypt and output to file
+	//Remove whitespace from line
+	line=trim(line);
+	//Read in encrypted data, decrypt and output to file
         ss << line;        
         unsigned long size = ss.str().size();
         if(size > nBytesTotal){
@@ -284,6 +286,7 @@ bool CKYCFile::parseMultisig(const std::vector<std::string> vstr, const std::str
 
     //Multi Address is valid, write to map
     _multisigData.push_back(OnboardMultisig(nMultisig, multiKeyId, pubKeys));
+    _addressKeyIds.push_back(multiKeyId);
     appendOutStream(line);
     return true;
 }
