@@ -1159,8 +1159,10 @@ UniValue getrequests(const JSONRPCRequest& request)
         for (auto it = requestList.begin(); it != requestList.end(); ++it) {
             if (!fGenesisCheck || (it->second.hashGenesis == hash)) {
                 auto item = requestToJSON(it->second);
-                const UniValue& endBlockHeight = find_value(item, "endBlockHeight");
-                if (!fIsActiveCheck || endBlockHeight.get_int() > (int)chainActive.Height()) {
+                if (!fIsActiveCheck || (
+                    find_value(item, "endBlockHeight").get_int() > (int)chainActive.Height() &&
+                    find_value(item, "startBlockHeight").get_int() <= (int)chainActive.Height()
+                )) {
                     item.push_back(Pair("txid", it->first.ToString()));
                     ret.push_back(item);
                 }
@@ -1182,7 +1184,10 @@ UniValue getrequests(const JSONRPCRequest& request)
                             if (!fGenesisCheck || (req.hashGenesis == hash)) {
                                 auto item = requestToJSON(req);
                                 const UniValue& endBlockHeight = find_value(item, "endBlockHeight");
-                                if (!fIsActiveCheck || endBlockHeight.get_int() > (int)chainActive.Height()) {
+                                if (!fIsActiveCheck || (
+                                    find_value(item, "endBlockHeight").get_int() > (int)chainActive.Height() &&
+                                    find_value(item, "startBlockHeight").get_int() <= (int)chainActive.Height()
+                                )) {
                                     item.push_back(Pair("txid", key.ToString()));
                                     ret.push_back(item);
                                 }
