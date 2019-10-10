@@ -284,6 +284,7 @@ bool CKYCFile::parseMultisig(const std::vector<std::string> vstr, const std::str
 
     //Multi Address is valid, write to map
     _multisigData.push_back(OnboardMultisig(nMultisig, multiKeyId, pubKeys));
+    _addressKeyIds.push_back(multiKeyId);
     appendOutStream(line);
     return true;
 }
@@ -300,6 +301,7 @@ bool CKYCFile::is_empty(){
     if(_addressKeys.size() > 0) return false;
     if(_addressKeyIds.size() > 0) return false;
     if(_multisigData.size() > 0) return false;
+    return true;
 }
 
 bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
