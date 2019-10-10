@@ -948,7 +948,7 @@ UniValue createrawtxoutputs(const JSONRPCRequest& request)
             "      \"asset\": \"assetid\"     (string, required) The value is the asset ID of the outputs\n"
             "    }\n"
             "       ,...\n"
-            "     ]\n"            
+            "     ]\n"
             "3. locktime                  (numeric, optional, default=0) Raw locktime. Non-0 value also locktime-activates inputs\n"
 
             "\nResult:\n"
@@ -998,7 +998,7 @@ UniValue createrawtxoutputs(const JSONRPCRequest& request)
         rawTx.vin.push_back(in);
     }
 
-    for (unsigned int idx = 0; idx < outputs.size(); idx++) {    
+    for (unsigned int idx = 0; idx < outputs.size(); idx++) {
         UniValue const &output = outputs[idx];
         UniValue const &o = output.get_obj();
         uint256 assetid = ParseHashO(o, "asset");

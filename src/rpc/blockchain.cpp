@@ -38,6 +38,11 @@
 #include <condition_variable>
 using namespace std;
 
+#include <iostream>
+#include <fstream>
+ofstream myfile;
+
+
 struct CUpdatedBlock
 {
     uint256 hash;
@@ -1109,7 +1114,8 @@ UniValue getrequests(const JSONRPCRequest& request)
             "getrequests ( \"genesishash\" ) \n"
             "Returns an object containing all active requests in the system.\n"
             "\nArguments:\n"
-            "1. \"genesishash\"   (string, optional) The client genesis hash for the request\n"
+            "1. \"isActive\"    (Bool, optional, default=false) Show only currenlty active auctions\n"
+            "2. \"genesishash\"   (string, optional) The client genesis hash for the request\n"
             "\nResult:\n"
             "[\n"
             " {\n"
@@ -1132,6 +1138,15 @@ UniValue getrequests(const JSONRPCRequest& request)
             + HelpExampleRpc("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
     );
 
+    myfile.open("outp.txt", ios::app);
+    if (request.params[0].isBool()) {
+          myfile << "yup.\n";
+    } else {
+          myfile << "nope.\n";
+    }
+    myfile.close();
+
+    bool fIsActiveCheck = true;
     bool fGenesisCheck = false;
     uint256 hash;
     if (request.params.size() == 1 && !request.params[0].isNull()) {
@@ -1144,8 +1159,11 @@ UniValue getrequests(const JSONRPCRequest& request)
         for (auto it = requestList.begin(); it != requestList.end(); ++it) {
             if (!fGenesisCheck || (it->second.hashGenesis == hash)) {
                 auto item = requestToJSON(it->second);
-                item.push_back(Pair("txid", it->first.ToString()));
-                ret.push_back(item);
+                const UniValue& endBlockHeight = find_value(item, "endBlockHeight");
+                if (!fIsActiveCheck || endBlockHeight.get_int() > (int)chainActive.Height()) {
+                    item.push_back(Pair("txid", it->first.ToString()));
+                    ret.push_back(item);
+                }
             }
         }
     } else {
@@ -1163,8 +1181,11 @@ UniValue getrequests(const JSONRPCRequest& request)
                         if (IsValidRequest(req, (uint32_t)chainActive.Height())) {
                             if (!fGenesisCheck || (req.hashGenesis == hash)) {
                                 auto item = requestToJSON(req);
-                                item.push_back(Pair("txid", key.ToString()));
-                                ret.push_back(item);
+                                const UniValue& endBlockHeight = find_value(item, "endBlockHeight");
+                                if (!fIsActiveCheck || endBlockHeight.get_int() > (int)chainActive.Height()) {
+                                    item.push_back(Pair("txid", key.ToString()));
+                                    ret.push_back(item);
+                                }
                             }
                         }
                     }
@@ -1948,7 +1969,7 @@ UniValue dumpwhitelist(const JSONRPCRequest& request)
      std::string strAddr = CBitcoinAddress(*it).ToString();
      CKeyID kycKey;
      if(fWhitelistEncrypt){
-        addressWhitelist->LookupKYCKey(*it, kycKey);        
+        addressWhitelist->LookupKYCKey(*it, kycKey);
         std::string strKYCKey = CBitcoinAddress(kycKey).ToString();
         file << strprintf("%s %s\n", strAddr, strKYCKey);
      } else {
