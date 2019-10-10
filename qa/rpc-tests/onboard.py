@@ -208,6 +208,10 @@ class OnboardTest (BitcoinTestFramework):
         self.nodes[0].generate(101)
         self.sync_all()
 
+        #And some whitespace to kycfile
+        with open(kycfile, 'a') as f:
+            f.write('\r\n\n\f\t\v ')
+        
         balance_1=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         self.nodes[0].onboarduser(kycfile)
         time.sleep(5)
