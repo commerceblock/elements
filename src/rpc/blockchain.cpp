@@ -38,7 +38,6 @@
 #include <condition_variable>
 using namespace std;
 
-
 struct CUpdatedBlock
 {
     uint256 hash;
