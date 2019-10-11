@@ -38,11 +38,6 @@
 #include <condition_variable>
 using namespace std;
 
-#include <iostream>
-#include <fstream>
-ofstream myfile;
-
-
 struct CUpdatedBlock
 {
     uint256 hash;
@@ -1109,12 +1104,12 @@ UniValue getrequestbids(const JSONRPCRequest& request)
 
 UniValue getrequests(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 1)
+    if (request.fHelp || request.params.size() > 2)
         throw runtime_error(
-            "getrequests ( \"genesishash\" ) \n"
+            "getrequests \"isActive\" ( \"genesishash\" ) \n"
             "Returns an object containing all active requests in the system.\n"
             "\nArguments:\n"
-            "1. \"isActive\"    (Bool, optional, default=false) Show only currenlty active auctions\n"
+            "1. \"isActive\"    (Bool) Show only currenlty active auctions\n"
             "2. \"genesishash\"   (string, optional) The client genesis hash for the request\n"
             "\nResult:\n"
             "[\n"
@@ -1137,23 +1132,24 @@ UniValue getrequests(const JSONRPCRequest& request)
             + HelpExampleRpc("getrequests", "")
             + HelpExampleRpc("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
     );
-
-    myfile.open("outp.txt", ios::app);
-    if (request.params[0].isBool()) {
-          myfile << "yup.\n";
-    } else {
-          myfile << "nope.\n";
-    }
-    myfile.close();
-
-    bool fIsActiveCheck = true;
+    bool fIsActiveCheck = false;
     bool fGenesisCheck = false;
     uint256 hash;
-    if (request.params.size() == 1 && !request.params[0].isNull()) {
-        fGenesisCheck = true;
-        hash.SetHex(request.params[0].get_str());
+    if (request.params.size() > 0) {
+        if (request.params[0].isBool() || request.params[0].isNum()) {
+            fIsActiveCheck = request.params[0].isTrue();
+        } else {
+           throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. isActive parameter must be boolean.");
+        }
+        if (request.params.size() > 1) {
+            if (request.params[1].isStr()) {
+                fGenesisCheck = true;
+                hash.SetHex(request.params[1].get_str());
+            } else {
+                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. genesisHash parameter must be string.");
+            }
+        }
     }
-
     UniValue ret(UniValue::VARR);
     if (fRequestList) {
         for (auto it = requestList.begin(); it != requestList.end(); ++it) {
@@ -1183,7 +1179,6 @@ UniValue getrequests(const JSONRPCRequest& request)
                         if (IsValidRequest(req, (uint32_t)chainActive.Height())) {
                             if (!fGenesisCheck || (req.hashGenesis == hash)) {
                                 auto item = requestToJSON(req);
-                                const UniValue& endBlockHeight = find_value(item, "endBlockHeight");
                                 if (!fIsActiveCheck || (
                                     find_value(item, "endBlockHeight").get_int() > (int)chainActive.Height() &&
                                     find_value(item, "startBlockHeight").get_int() <= (int)chainActive.Height()
