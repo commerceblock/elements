@@ -1128,9 +1128,9 @@ UniValue getrequests(const JSONRPCRequest& request)
             "]\n"
             "\nExamples:\n"
             + HelpExampleCli("getrequests", "")
-            + HelpExampleCli("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+            + HelpExampleCli("getrequests", "true 123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
             + HelpExampleRpc("getrequests", "")
-            + HelpExampleRpc("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+            + HelpExampleRpc("getrequests", "true 123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
     );
     bool fIsActiveCheck = false;
     bool fGenesisCheck = false;
