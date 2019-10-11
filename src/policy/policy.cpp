@@ -512,9 +512,9 @@ bool IsValidRequest(const CRequest &request, uint32_t nHeight)
     return request.nEndBlockHeight > nHeight;
 }
 
-bool IsActiveRequest(const CRequest &request, uint32_t nHeight)
+bool IsInAuctionRequest(const CRequest &request, uint32_t nHeight)
 {
-    return request.nStartBlockHeight <= nHeight && request.nEndBlockHeight > nHeight;
+    return request.nStartBlockHeight > nHeight;
 }
 
 bool UpdateRequestList(const CTransaction& tx, uint32_t nHeight)

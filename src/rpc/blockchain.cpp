@@ -1109,7 +1109,7 @@ UniValue getrequests(const JSONRPCRequest& request)
             "getrequests \"isActive\" ( \"genesishash\" ) \n"
             "Returns an object containing all active requests in the system.\n"
             "\nArguments:\n"
-            "1. \"isActive\"    (Bool) Show only currenlty active auctions\n"
+            "1. \"inAuction\"    (Bool) Show only currenlty active auctions\n"
             "2. \"genesishash\"   (string, optional) The client genesis hash for the request\n"
             "\nResult:\n"
             "[\n"
@@ -1139,7 +1139,7 @@ UniValue getrequests(const JSONRPCRequest& request)
         if (request.params[0].isBool() || request.params[0].isNum()) {
             fIsActiveCheck = request.params[0].isTrue();
         } else {
-           throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. isActive parameter must be boolean.");
+           throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. inAuction parameter must be boolean.");
         }
         if (request.params.size() > 1) {
             if (request.params[1].isStr()) {
@@ -1154,7 +1154,7 @@ UniValue getrequests(const JSONRPCRequest& request)
     if (fRequestList) {
         for (auto it = requestList.begin(); it != requestList.end(); ++it) {
             if (!fGenesisCheck || (it->second.hashGenesis == hash)) {
-                if (!fIsActiveCheck || IsActiveRequest(it->second, (uint32_t)chainActive.Height())) {
+                if (!fIsActiveCheck || IsInAuctionRequest(it->second, (uint32_t)chainActive.Height())) {
                     auto item = requestToJSON(it->second);
                     item.push_back(Pair("txid", it->first.ToString()));
                     ret.push_back(item);
@@ -1175,7 +1175,7 @@ UniValue getrequests(const JSONRPCRequest& request)
                     if (GetRequest(coins.vout[0], key, coins.nHeight, req)) {
                         if (IsValidRequest(req, (uint32_t)chainActive.Height())) {
                             if (!fGenesisCheck || (req.hashGenesis == hash)) {
-                                if (!fIsActiveCheck || IsActiveRequest(req, (uint32_t)chainActive.Height())) {
+                                if (!fIsActiveCheck || IsInAuctionRequest(req, (uint32_t)chainActive.Height())) {
                                     auto item = requestToJSON(req);
                                     item.push_back(Pair("txid", key.ToString()));
                                     ret.push_back(item);

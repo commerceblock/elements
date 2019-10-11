@@ -276,7 +276,7 @@ class RequestsTest(BitcoinTestFramework):
     self.sync_all()
     assert(self.nodes[1].getbalance()["PERMISSION"] == 3000)
 
-    # test getRequest with/without isActive parameter set to true
+    # test getRequest with/without inAuction parameter set to true
     # create new raw request transaction
     inputs = {"txid": unspent[3]["txid"], "vout": unspent[3]["vout"]}
     outputs = {"decayConst": 10, "endBlockHeight": 150, "fee": 1, "genesisBlockHash": genesis,
@@ -288,20 +288,20 @@ class RequestsTest(BitcoinTestFramework):
     self.nodes[0].generate(1)
     self.sync_all()
 
-    # test tx not included in getrequests(True)
+    # test request tx in auction phase
     assert_equal(2, len(self.nodes[0].getrequests(False)))
     assert_equal(2, len(self.nodes[1].getrequests(False)))
     assert_equal(1, len(self.nodes[0].getrequests(True)))
     assert_equal(1, len(self.nodes[1].getrequests(True)))
     self.sync_all()
-    self.nodes[0].generate(15) # move request into isActive period
+    self.nodes[0].generate(15) # move request into service period
     self.sync_all()
     assert_equal(2, len(self.nodes[0].getrequests(False)))
     assert_equal(2, len(self.nodes[1].getrequests(False)))
-    assert_equal(2, len(self.nodes[0].getrequests(True)))
-    assert_equal(2, len(self.nodes[1].getrequests(True)))
+    assert_equal(0, len(self.nodes[0].getrequests(True)))
+    assert_equal(0, len(self.nodes[1].getrequests(True)))
     self.sync_all()
-    self.nodes[0].generate(5) # move requests out of isActive period and out of valid period
+    self.nodes[0].generate(5) # move requests out of service period and out of valid period
     self.sync_all()
     assert_equal(0, len(self.nodes[0].getrequests(False)))
     assert_equal(0, len(self.nodes[1].getrequests(False)))
