@@ -192,11 +192,14 @@ bool UpdateBurnList(const CTransaction& tx, const CCoinsViewCache& mapInputs);
  */
 bool IsValidIssuance(const CTransaction &tx, const CCoinsViewCache &view, std::string &reason);
 
-/** Check if Request is valid */
+/** Check if Request is valid (endBlockHeigt < current block height)*/
 bool IsValidRequest(const CRequest &request, uint32_t nHeight);
 
 /** Check if Request Bid is valid */
 bool IsValidRequestBid(const CRequest &request, const CBid &bid);
+
+/** Check if Request is active (startBlockHeigt >= current block height)*/
+bool IsActiveRequest(const CRequest &request, uint32_t nHeight);
 
 /** Get Request from a transaction */
 bool GetRequest(const CTxOut &out, uint256 hash, uint32_t nConfirmedHeight, CRequest &request);

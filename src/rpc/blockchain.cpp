@@ -38,6 +38,7 @@
 #include <condition_variable>
 using namespace std;
 
+
 struct CUpdatedBlock
 {
     uint256 hash;
@@ -1154,11 +1155,8 @@ UniValue getrequests(const JSONRPCRequest& request)
     if (fRequestList) {
         for (auto it = requestList.begin(); it != requestList.end(); ++it) {
             if (!fGenesisCheck || (it->second.hashGenesis == hash)) {
-                auto item = requestToJSON(it->second);
-                if (!fIsActiveCheck || (
-                    find_value(item, "endBlockHeight").get_int() > (int)chainActive.Height() &&
-                    find_value(item, "startBlockHeight").get_int() <= (int)chainActive.Height()
-                )) {
+                if (!fIsActiveCheck || IsActiveRequest(it->second, (uint32_t)chainActive.Height())) {
+                    auto item = requestToJSON(it->second);
                     item.push_back(Pair("txid", it->first.ToString()));
                     ret.push_back(item);
                 }
@@ -1178,11 +1176,8 @@ UniValue getrequests(const JSONRPCRequest& request)
                     if (GetRequest(coins.vout[0], key, coins.nHeight, req)) {
                         if (IsValidRequest(req, (uint32_t)chainActive.Height())) {
                             if (!fGenesisCheck || (req.hashGenesis == hash)) {
-                                auto item = requestToJSON(req);
-                                if (!fIsActiveCheck || (
-                                    find_value(item, "endBlockHeight").get_int() > (int)chainActive.Height() &&
-                                    find_value(item, "startBlockHeight").get_int() <= (int)chainActive.Height()
-                                )) {
+                                if (!fIsActiveCheck || IsActiveRequest(req, (uint32_t)chainActive.Height())) {
+                                    auto item = requestToJSON(req);
                                     item.push_back(Pair("txid", key.ToString()));
                                     ret.push_back(item);
                                 }

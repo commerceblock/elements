@@ -33,10 +33,11 @@ class RequestsTest(BitcoinTestFramework):
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
+    self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "CBT")
     self.nodes[0].generate(1)
     self.sync_all()
-    assert(self.nodes[1].getbalance()["PERMISSION"] == 3000)
+    assert(self.nodes[1].getbalance()["PERMISSION"] == 4000)
 
     genhash = self.nodes[0].getblockhash(0)
     genblock = self.nodes[0].getblock(genhash)
@@ -124,8 +125,8 @@ class RequestsTest(BitcoinTestFramework):
             assert(True)
         else:
             assert(False)
-    requests = self.nodes[0].getrequests(genesis)
-    assert_equal(self.nodes[1].getrequests(genesis), requests)
+    requests = self.nodes[0].getrequests(False,genesis)
+    assert_equal(self.nodes[1].getrequests(False,genesis), requests)
     assert_equal(1, len(requests))
     for req in requests:
         if txid == req['txid']:
@@ -140,8 +141,8 @@ class RequestsTest(BitcoinTestFramework):
             assert(float(req['auctionPrice']) == 5)
         else:
             assert(False)
-    requests = self.nodes[0].getrequests(genesis2)
-    assert_equal(self.nodes[1].getrequests(genesis2), requests)
+    requests = self.nodes[0].getrequests(False,genesis2)
+    assert_equal(self.nodes[1].getrequests(False,genesis2), requests)
     assert_equal(1, len(requests))
     for req in requests:
         if txid2 == req['txid']:
@@ -179,8 +180,8 @@ class RequestsTest(BitcoinTestFramework):
         else:
             assert(False)
 
-    requests = self.nodes[0].getrequests("123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
-    assert_equal(self.nodes[1].getrequests("123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"), [])
+    requests = self.nodes[0].getrequests(False,"123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+    assert_equal(self.nodes[1].getrequests(False,"123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"), [])
     assert_equal(requests, [])
 
     # add another request that coincides with the first request
@@ -196,8 +197,8 @@ class RequestsTest(BitcoinTestFramework):
     self.stop_node(1)
     self.nodes[1] = start_node(1, self.options.tmpdir, self.extra_args[1])
     assert_equal(3, len(self.nodes[1].getrequests()))
-    assert_equal(self.nodes[1].getrequests(genesis), self.nodes[0].getrequests(genesis))
-    assert_equal(self.nodes[1].getrequests(genesis2), self.nodes[0].getrequests(genesis2))
+    assert_equal(self.nodes[1].getrequests(False,genesis), self.nodes[0].getrequests(False,genesis))
+    assert_equal(self.nodes[1].getrequests(False,genesis2), self.nodes[0].getrequests(False,genesis2))
     connect_nodes_bi(self.nodes, 0, 1)
     self.sync_all()
 
@@ -227,8 +228,8 @@ class RequestsTest(BitcoinTestFramework):
             assert_equal(req['confirmedBlockHeight'], 103)
             assert_equal(req['startPrice'], 5)
             assert(float(req['auctionPrice']) == 0.40394973)
-    requests = self.nodes[0].getrequests(genesis2)
-    assert_equal(self.nodes[1].getrequests(genesis2), requests)
+    requests = self.nodes[0].getrequests(False,genesis2)
+    assert_equal(self.nodes[1].getrequests(False,genesis2), requests)
     assert_equal(1, len(requests))
     for req in requests:
         if txid2 == req['txid']:
@@ -263,7 +264,7 @@ class RequestsTest(BitcoinTestFramework):
 
     assert_equal(1, len(self.nodes[0].getrequests()))
     assert_equal(1, len(self.nodes[1].getrequests()))
-    assert(self.nodes[1].getbalance()["PERMISSION"] == 1000)
+    assert(self.nodes[1].getbalance()["PERMISSION"] == 2000)
 
     # send second transaction
     txSpend2 = self.nodes[1].createrawtransaction([inputs2], outputs2, self.nodes[1].getblockcount(), assets2)
@@ -273,7 +274,39 @@ class RequestsTest(BitcoinTestFramework):
     self.sync_all()
     self.nodes[0].generate(1)
     self.sync_all()
-    assert(self.nodes[1].getbalance()["PERMISSION"] == 2000)
+    assert(self.nodes[1].getbalance()["PERMISSION"] == 3000)
+
+    # test getRequest with/without isActive parameter set to true
+    # create new raw request transaction
+    inputs = {"txid": unspent[3]["txid"], "vout": unspent[3]["vout"]}
+    outputs = {"decayConst": 10, "endBlockHeight": 150, "fee": 1, "genesisBlockHash": genesis,
+    "startBlockHeight": 140, "tickets": 10, "startPrice": 5, "value": unspent[3]["amount"], "pubkey": pubkey}
+    tx = self.nodes[1].createrawrequesttx(inputs, outputs)
+    signedtx = self.nodes[1].signrawtransaction(tx)
+    txid = self.nodes[1].sendrawtransaction(signedtx["hex"])
+    self.sync_all()
+    self.nodes[0].generate(1)
+    self.sync_all()
+
+    # test tx not included in getrequests(True)
+    assert_equal(2, len(self.nodes[0].getrequests(False)))
+    assert_equal(2, len(self.nodes[1].getrequests(False)))
+    assert_equal(1, len(self.nodes[0].getrequests(True)))
+    assert_equal(1, len(self.nodes[1].getrequests(True)))
+    self.sync_all()
+    self.nodes[0].generate(15) # move request into isActive period
+    self.sync_all()
+    assert_equal(2, len(self.nodes[0].getrequests(False)))
+    assert_equal(2, len(self.nodes[1].getrequests(False)))
+    assert_equal(2, len(self.nodes[0].getrequests(True)))
+    assert_equal(2, len(self.nodes[1].getrequests(True)))
+    self.sync_all()
+    self.nodes[0].generate(5) # move requests out of isActive period and out of valid period
+    self.sync_all()
+    assert_equal(0, len(self.nodes[0].getrequests(False)))
+    assert_equal(0, len(self.nodes[1].getrequests(False)))
+    assert_equal(0, len(self.nodes[0].getrequests(True)))
+    assert_equal(0, len(self.nodes[1].getrequests(True)))
 
     return
 
