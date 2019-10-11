@@ -10,6 +10,10 @@
 #include "validation.h"
 #include "ecies.h"
 #include <fstream>
+#include <algorithm> 
+#include <functional> 
+#include <cctype>
+#include <locale>
 #include "script/onboardingscript.h"
 
 using uc_vec=std::vector<unsigned char>;
@@ -32,7 +36,7 @@ class CKYCFile{
 		bool initEncryptor();
 
 		std::vector<CPubKey> getAddressKeys() const {return _addressKeys;}
-		std::vector<CKeyID> getAddressKeyIds() const {return _addressKeyIds;}
+		std::vector<CTxDestination> getAddressKeyIds() const {return _addressKeyIds;}
 
 		const CPubKey* getOnboardPubKey() const {return _onboardPubKey;}
 		const CPubKey* getOnboardUserPubKey() const {return _onboardUserPubKey;}
@@ -61,7 +65,7 @@ class CKYCFile{
 
     	// The user address keys to be whitelisted
     	std::vector<CPubKey> _addressKeys; 
-    	std::vector<CKeyID> _addressKeyIds; 
+    	std::vector<CTxDestination> _addressKeyIds; 
 
     	std::vector<OnboardMultisig> _multisigData;
 
@@ -78,6 +82,22 @@ class CKYCFile{
 
     	void appendOutStream(std::string line, std::string error);
     	void appendOutStream(std::string line);
+
+       static inline std::string &ltrim(std::string &s) {
+	 s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+					 std::not1(std::ptr_fun<int, int>(std::isspace))));
+	 return s;
+       }
+
+       static inline std::string &rtrim(std::string &s) {
+	 s.erase(std::find_if(s.rbegin(), s.rend(),
+			    std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+	 return s;
+       }
+
+       static inline std::string &trim(std::string &s) {
+	 return ltrim(rtrim(s));
+       }
 };
 
 std::ostream& operator<<(std::ostream& os, const CKYCFile& fl); 

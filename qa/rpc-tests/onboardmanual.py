@@ -167,6 +167,7 @@ class OnboardManualTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == 2)
         
         self.nodes[0].generate(101)
         self.sync_all()
@@ -204,6 +205,7 @@ class OnboardManualTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == 3)
         
         try:
             self.nodes[0].onboarduser(kycfile_multisig)
@@ -243,6 +245,7 @@ class OnboardManualTest (BitcoinTestFramework):
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
         print(valkyc)
+        assert(len(valkyc["addresses"]) == 5)
         assert(valkyc["iswhitelisted"] == False)
 
         kycfile_plain="kycfile_plain.dat"
