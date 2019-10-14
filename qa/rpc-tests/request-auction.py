@@ -103,7 +103,7 @@ class RequestAuctionTest(BitcoinTestFramework):
 
         self.nodes[0].generate(1) # 103
         self.sync_all()
-        request = self.nodes[0].getrequests(False,genesis)[0]
+        request = self.nodes[0].getrequests(genesis)[0]
         assert_equal(103, request['confirmedBlockHeight'])
         assert_equal(20.0, float(request['auctionPrice']))
 

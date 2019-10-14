@@ -1106,11 +1106,11 @@ UniValue getrequests(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() > 2)
         throw runtime_error(
-            "getrequests \"isActive\" ( \"genesishash\" ) \n"
+            "getrequests ( \"genesishash\" ) \"( inAuction )\"\n"
             "Returns an object containing all active requests in the system.\n"
             "\nArguments:\n"
-            "1. \"inAuction\"    (Bool) Show only currenlty active auctions\n"
-            "2. \"genesishash\"   (string, optional) The client genesis hash for the request\n"
+            "1. \"genesishash\"     (string, optional) The client genesis hash for the request\n"
+            "2. \"inAuction\"       (Bool) Show only currenlty active auctions\n"
             "\nResult:\n"
             "[\n"
             " {\n"
@@ -1128,25 +1128,30 @@ UniValue getrequests(const JSONRPCRequest& request)
             "]\n"
             "\nExamples:\n"
             + HelpExampleCli("getrequests", "")
-            + HelpExampleCli("getrequests", "true 123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+            + HelpExampleCli("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05 true")
+            + HelpExampleCli("getrequests", " \"\" true")
             + HelpExampleRpc("getrequests", "")
-            + HelpExampleRpc("getrequests", "true 123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+            + HelpExampleRpc("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05 true")
+            + HelpExampleRpc("getrequests", " \"\" true")
+
     );
     bool fIsActiveCheck = false;
     bool fGenesisCheck = false;
     uint256 hash;
     if (request.params.size() > 0) {
-        if (request.params[0].isBool() || request.params[0].isNum()) {
-            fIsActiveCheck = request.params[0].isTrue();
+        if (request.params[0].isStr()) {
+            if (request.params[0].get_str() != "") {
+                fGenesisCheck = true;
+                hash.SetHex(request.params[0].get_str());
+            }
         } else {
-           throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. inAuction parameter must be boolean.");
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. genesisHash parameter must be string.");
         }
         if (request.params.size() > 1) {
-            if (request.params[1].isStr()) {
-                fGenesisCheck = true;
-                hash.SetHex(request.params[1].get_str());
+            if (request.params[1].isBool() || request.params[1].isNum()) {
+                fIsActiveCheck = request.params[1].isTrue();
             } else {
-                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. genesisHash parameter must be string.");
+                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. inAuction parameter must be boolean.");
             }
         }
     }

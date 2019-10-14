@@ -198,7 +198,7 @@ bool IsValidRequest(const CRequest &request, uint32_t nHeight);
 /** Check if Request Bid is valid */
 bool IsValidRequestBid(const CRequest &request, const CBid &bid);
 
-/** Check if Request is active (startBlockHeigt >= current block height)*/
+/** Check if Request is active (startBlockHeigt > current block height)*/
 bool IsInAuctionRequest(const CRequest &request, uint32_t nHeight);
 
 /** Get Request from a transaction */

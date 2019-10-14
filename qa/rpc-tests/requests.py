@@ -125,8 +125,8 @@ class RequestsTest(BitcoinTestFramework):
             assert(True)
         else:
             assert(False)
-    requests = self.nodes[0].getrequests(False,genesis)
-    assert_equal(self.nodes[1].getrequests(False,genesis), requests)
+    requests = self.nodes[0].getrequests(genesis)
+    assert_equal(self.nodes[1].getrequests(genesis), requests)
     assert_equal(1, len(requests))
     for req in requests:
         if txid == req['txid']:
@@ -141,8 +141,8 @@ class RequestsTest(BitcoinTestFramework):
             assert(float(req['auctionPrice']) == 5)
         else:
             assert(False)
-    requests = self.nodes[0].getrequests(False,genesis2)
-    assert_equal(self.nodes[1].getrequests(False,genesis2), requests)
+    requests = self.nodes[0].getrequests(genesis2)
+    assert_equal(self.nodes[1].getrequests(genesis2), requests)
     assert_equal(1, len(requests))
     for req in requests:
         if txid2 == req['txid']:
@@ -180,8 +180,8 @@ class RequestsTest(BitcoinTestFramework):
         else:
             assert(False)
 
-    requests = self.nodes[0].getrequests(False,"123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
-    assert_equal(self.nodes[1].getrequests(False,"123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"), [])
+    requests = self.nodes[0].getrequests("123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+    assert_equal(self.nodes[1].getrequests("123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05"), [])
     assert_equal(requests, [])
 
     # add another request that coincides with the first request
@@ -197,8 +197,8 @@ class RequestsTest(BitcoinTestFramework):
     self.stop_node(1)
     self.nodes[1] = start_node(1, self.options.tmpdir, self.extra_args[1])
     assert_equal(3, len(self.nodes[1].getrequests()))
-    assert_equal(self.nodes[1].getrequests(False,genesis), self.nodes[0].getrequests(False,genesis))
-    assert_equal(self.nodes[1].getrequests(False,genesis2), self.nodes[0].getrequests(False,genesis2))
+    assert_equal(self.nodes[1].getrequests(genesis), self.nodes[0].getrequests(genesis))
+    assert_equal(self.nodes[1].getrequests(genesis2), self.nodes[0].getrequests(genesis2))
     connect_nodes_bi(self.nodes, 0, 1)
     self.sync_all()
 
@@ -228,8 +228,8 @@ class RequestsTest(BitcoinTestFramework):
             assert_equal(req['confirmedBlockHeight'], 103)
             assert_equal(req['startPrice'], 5)
             assert(float(req['auctionPrice']) == 0.40394973)
-    requests = self.nodes[0].getrequests(False,genesis2)
-    assert_equal(self.nodes[1].getrequests(False,genesis2), requests)
+    requests = self.nodes[0].getrequests(genesis2)
+    assert_equal(self.nodes[1].getrequests(genesis2), requests)
     assert_equal(1, len(requests))
     for req in requests:
         if txid2 == req['txid']:
@@ -289,24 +289,24 @@ class RequestsTest(BitcoinTestFramework):
     self.sync_all()
 
     # test request tx in auction phase
-    assert_equal(2, len(self.nodes[0].getrequests(False)))
-    assert_equal(2, len(self.nodes[1].getrequests(False)))
-    assert_equal(1, len(self.nodes[0].getrequests(True)))
-    assert_equal(1, len(self.nodes[1].getrequests(True)))
+    assert_equal(2, len(self.nodes[0].getrequests()))
+    assert_equal(2, len(self.nodes[1].getrequests()))
+    assert_equal(1, len(self.nodes[0].getrequests("",True)))
+    assert_equal(1, len(self.nodes[1].getrequests("",True)))
     self.sync_all()
     self.nodes[0].generate(15) # move request into service period
     self.sync_all()
-    assert_equal(2, len(self.nodes[0].getrequests(False)))
-    assert_equal(2, len(self.nodes[1].getrequests(False)))
-    assert_equal(0, len(self.nodes[0].getrequests(True)))
-    assert_equal(0, len(self.nodes[1].getrequests(True)))
+    assert_equal(2, len(self.nodes[0].getrequests()))
+    assert_equal(2, len(self.nodes[1].getrequests()))
+    assert_equal(0, len(self.nodes[0].getrequests("",True)))
+    assert_equal(0, len(self.nodes[1].getrequests("",True)))
     self.sync_all()
     self.nodes[0].generate(5) # move requests out of service period and out of valid period
     self.sync_all()
-    assert_equal(0, len(self.nodes[0].getrequests(False)))
-    assert_equal(0, len(self.nodes[1].getrequests(False)))
-    assert_equal(0, len(self.nodes[0].getrequests(True)))
-    assert_equal(0, len(self.nodes[1].getrequests(True)))
+    assert_equal(0, len(self.nodes[0].getrequests()))
+    assert_equal(0, len(self.nodes[1].getrequests()))
+    assert_equal(0, len(self.nodes[0].getrequests("",True)))
+    assert_equal(0, len(self.nodes[1].getrequests("",True)))
 
     return
 
