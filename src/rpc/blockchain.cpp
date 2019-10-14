@@ -1104,12 +1104,13 @@ UniValue getrequestbids(const JSONRPCRequest& request)
 
 UniValue getrequests(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 1)
+    if (request.fHelp || request.params.size() > 2)
         throw runtime_error(
-            "getrequests ( \"genesishash\" ) \n"
+            "getrequests ( \"genesishash\" ) \"( inAuction )\"\n"
             "Returns an object containing all active requests in the system.\n"
             "\nArguments:\n"
-            "1. \"genesishash\"   (string, optional) The client genesis hash for the request\n"
+            "1. \"genesishash\"     (string, optional) The client genesis hash for the request\n"
+            "2. \"inAuction\"       (Bool) Show only currenlty active auctions\n"
             "\nResult:\n"
             "[\n"
             " {\n"
@@ -1127,25 +1128,42 @@ UniValue getrequests(const JSONRPCRequest& request)
             "]\n"
             "\nExamples:\n"
             + HelpExampleCli("getrequests", "")
-            + HelpExampleCli("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
+            + HelpExampleCli("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05 true")
+            + HelpExampleCli("getrequests", " \"\" true")
             + HelpExampleRpc("getrequests", "")
-            + HelpExampleRpc("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05")
-    );
+            + HelpExampleRpc("getrequests", "123450e138b1014173844ee0e4d557ff8a2463b14fcaeab18f6a63aa7c7e1d05 true")
+            + HelpExampleRpc("getrequests", " \"\" true")
 
+    );
+    bool fIsActiveCheck = false;
     bool fGenesisCheck = false;
     uint256 hash;
-    if (request.params.size() == 1 && !request.params[0].isNull()) {
-        fGenesisCheck = true;
-        hash.SetHex(request.params[0].get_str());
+    if (request.params.size() > 0) {
+        if (request.params[0].isStr()) {
+            if (request.params[0].get_str() != "") {
+                fGenesisCheck = true;
+                hash.SetHex(request.params[0].get_str());
+            }
+        } else {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. genesisHash parameter must be string.");
+        }
+        if (request.params.size() > 1) {
+            if (request.params[1].isBool() || request.params[1].isNum()) {
+                fIsActiveCheck = request.params[1].isTrue();
+            } else {
+                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. inAuction parameter must be boolean.");
+            }
+        }
     }
-
     UniValue ret(UniValue::VARR);
     if (fRequestList) {
         for (auto it = requestList.begin(); it != requestList.end(); ++it) {
             if (!fGenesisCheck || (it->second.hashGenesis == hash)) {
-                auto item = requestToJSON(it->second);
-                item.push_back(Pair("txid", it->first.ToString()));
-                ret.push_back(item);
+                if (!fIsActiveCheck || IsInAuctionRequest(it->second, (uint32_t)chainActive.Height())) {
+                    auto item = requestToJSON(it->second);
+                    item.push_back(Pair("txid", it->first.ToString()));
+                    ret.push_back(item);
+                }
             }
         }
     } else {
@@ -1162,9 +1180,11 @@ UniValue getrequests(const JSONRPCRequest& request)
                     if (GetRequest(coins.vout[0], key, coins.nHeight, req)) {
                         if (IsValidRequest(req, (uint32_t)chainActive.Height())) {
                             if (!fGenesisCheck || (req.hashGenesis == hash)) {
-                                auto item = requestToJSON(req);
-                                item.push_back(Pair("txid", key.ToString()));
-                                ret.push_back(item);
+                                if (!fIsActiveCheck || IsInAuctionRequest(req, (uint32_t)chainActive.Height())) {
+                                    auto item = requestToJSON(req);
+                                    item.push_back(Pair("txid", key.ToString()));
+                                    ret.push_back(item);
+                                }
                             }
                         }
                     }
@@ -1948,7 +1968,7 @@ UniValue dumpwhitelist(const JSONRPCRequest& request)
      std::string strAddr = CBitcoinAddress(*it).ToString();
      CKeyID kycKey;
      if(fWhitelistEncrypt){
-        addressWhitelist->LookupKYCKey(*it, kycKey);        
+        addressWhitelist->LookupKYCKey(*it, kycKey);
         std::string strKYCKey = CBitcoinAddress(kycKey).ToString();
         file << strprintf("%s %s\n", strAddr, strKYCKey);
      } else {

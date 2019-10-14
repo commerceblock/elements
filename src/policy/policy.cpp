@@ -512,6 +512,11 @@ bool IsValidRequest(const CRequest &request, uint32_t nHeight)
     return request.nEndBlockHeight > nHeight;
 }
 
+bool IsInAuctionRequest(const CRequest &request, uint32_t nHeight)
+{
+    return request.nStartBlockHeight > nHeight;
+}
+
 bool UpdateRequestList(const CTransaction& tx, uint32_t nHeight)
 {
     if (tx.IsCoinBase() || tx.vout.size() != 1)

@@ -33,10 +33,11 @@ class RequestsTest(BitcoinTestFramework):
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
+    self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "PERMISSION")
     self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1000, "", "", False, "CBT")
     self.nodes[0].generate(1)
     self.sync_all()
-    assert(self.nodes[1].getbalance()["PERMISSION"] == 3000)
+    assert(self.nodes[1].getbalance()["PERMISSION"] == 4000)
 
     genhash = self.nodes[0].getblockhash(0)
     genblock = self.nodes[0].getblock(genhash)
@@ -271,7 +272,7 @@ class RequestsTest(BitcoinTestFramework):
 
     assert_equal(1, len(self.nodes[0].getrequests()))
     assert_equal(1, len(self.nodes[1].getrequests()))
-    assert(self.nodes[1].getbalance()["PERMISSION"] == 1000)
+    assert(self.nodes[1].getbalance()["PERMISSION"] == 2000)
 
     # send second transaction
     txSpend2 = self.nodes[1].createrawtransaction([inputs2], outputs2, self.nodes[1].getblockcount(), assets2)
@@ -281,7 +282,39 @@ class RequestsTest(BitcoinTestFramework):
     self.sync_all()
     self.nodes[0].generate(1)
     self.sync_all()
-    assert(self.nodes[1].getbalance()["PERMISSION"] == 2000)
+    assert(self.nodes[1].getbalance()["PERMISSION"] == 3000)
+
+    # test getRequest with/without inAuction parameter set to true
+    # create new raw request transaction
+    inputs = {"txid": unspent[3]["txid"], "vout": unspent[3]["vout"]}
+    outputs = {"decayConst": 10, "endBlockHeight": 150, "fee": 1, "genesisBlockHash": genesis,
+    "startBlockHeight": 140, "tickets": 10, "startPrice": 5, "value": unspent[3]["amount"], "pubkey": pubkey}
+    tx = self.nodes[1].createrawrequesttx(inputs, outputs)
+    signedtx = self.nodes[1].signrawtransaction(tx)
+    txid = self.nodes[1].sendrawtransaction(signedtx["hex"])
+    self.sync_all()
+    self.nodes[0].generate(1)
+    self.sync_all()
+
+    # test request tx in auction phase
+    assert_equal(2, len(self.nodes[0].getrequests()))
+    assert_equal(2, len(self.nodes[1].getrequests()))
+    assert_equal(1, len(self.nodes[0].getrequests("",True)))
+    assert_equal(1, len(self.nodes[1].getrequests("",True)))
+    self.sync_all()
+    self.nodes[0].generate(15) # move request into service period
+    self.sync_all()
+    assert_equal(2, len(self.nodes[0].getrequests()))
+    assert_equal(2, len(self.nodes[1].getrequests()))
+    assert_equal(0, len(self.nodes[0].getrequests("",True)))
+    assert_equal(0, len(self.nodes[1].getrequests("",True)))
+    self.sync_all()
+    self.nodes[0].generate(5) # move requests out of service period and out of valid period
+    self.sync_all()
+    assert_equal(0, len(self.nodes[0].getrequests()))
+    assert_equal(0, len(self.nodes[1].getrequests()))
+    assert_equal(0, len(self.nodes[0].getrequests("",True)))
+    assert_equal(0, len(self.nodes[1].getrequests("",True)))
 
     return
 
