@@ -151,6 +151,7 @@ class OnboardManualTest (BitcoinTestFramework):
         kycfile="kycfile.dat"
         kycfile_normal="kycfile_normal.dat"
         kycfile_p2sh="kycfile_p2sh.dat"
+        kycfile_p2pkh="kycfile_p2pkh.dat"
         kycfile_multisig="kycfile_multisig.dat"
         kycfile_empty="kycfile_empty.dat"
         #userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
@@ -159,8 +160,10 @@ class OnboardManualTest (BitcoinTestFramework):
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress4=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         multisigAddress1=self.nodes[1].createmultisig(2,[onboardAddress1['address'],onboardAddress2['address'],onboardAddress3['address']])['address'];
-                                                      
+
+        #P2SH
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2sh, [{"address":multisigAddress1}], 
                 []);
@@ -187,6 +190,35 @@ class OnboardManualTest (BitcoinTestFramework):
         assert(valkyc["iswhitelisted"] == True)
 
         os.remove(kycfile_p2sh)
+
+        #P2PkH
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2pkh, [{"address":onboardAddress4['address']}], 
+                []);
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == 1)
+
+        try:
+            self.nodes[0].onboarduser(kycfile_p2pkh)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        os.remove(kycfile_p2pkh)
 
         
         #Test invalid parameters

@@ -357,14 +357,14 @@ bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
     if (!pwalletMain->IsLocked())
         pwalletMain->TopUpKeyPool();
 
-    if(_destinations.size() != 0)
-        if(!obScript.Append(_destinations)) return false;
+    if(_multisigData.size() != 0)
+        if(!obScript.Append(_multisigData)) return false;
 
     if(_pubKeyPairs.size() != 0)
         if(!obScript.Append(_pubKeyPairs)) return false;
 
-    if(_multisigData.size() != 0)
-        if(!obScript.Append(_multisigData)) return false;
+    if(_destinations.size() != 0)
+        if(!obScript.Append(_destinations)) return false;
 
 
     // Get an unassigned KYC key from the addressWhitelist

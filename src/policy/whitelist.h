@@ -24,7 +24,8 @@ class CRegisterAddressData{
 		CRegisterAddressData(){;}
 		virtual ~CRegisterAddressData(){;}
 
-		virtual CTxDestination GetDest() = 0;
+		virtual CTxDestination GetKeyID() = 0;
+		virtual CTxDestination GetScriptID() = 0;
 
 };
 
@@ -88,7 +89,7 @@ public:
   
 	void add(CRegisterAddressData* d);
 
-	baseIter remove(CRegisterAddressData* d);
+	void remove(CRegisterAddressData* d);
 
 	CPolicyList::baseIter remove(CTxDestination d){
 		return CPolicyList::remove(d);
@@ -144,6 +145,7 @@ public:
 
 	void sync_whitelist_wallet();
 
+	const CTxDestination _noDest = CNoDestination();
 
 
 protected:
@@ -174,11 +176,24 @@ private:
 
 class CDestData : public CRegisterAddressData{
 	public: 	
-		CDestData(){;}
+		CDestData(){
+			Clear();
+		}
 		virtual ~CDestData(){;}
 
-		virtual CTxDestination GetDest(){
-			return _dest;
+		virtual CTxDestination GetKeyID(){
+			return _keyID;
+		}
+
+		virtual CTxDestination GetScriptID(){
+			return _scriptID;
+		}
+
+		void Set(uint160 dest){
+			CTxDestination d = CKeyID(dest);
+			Set(d);
+			d = CScriptID(dest);
+			Set(d);
 		}
 
 		void Set(const CTxDestination& dest){
@@ -193,11 +208,22 @@ class CDestData : public CRegisterAddressData{
 				throw std::invalid_argument(std::string(std::string(__func__) + 
      		 	std::string(": invalid base58check address\n")));
 	
-			_dest = dest;
+		
+			if(addr.IsScript()){
+				_scriptID = dest;
+			} else {
+				_keyID = dest;
+			}
+		}
+
+		void Clear(){
+			_keyID = CNoDestination();
+			_scriptID = CNoDestination();
 		}
 
 	private:
-		CTxDestination _dest;
+		CTxDestination _keyID;
+		CTxDestination _scriptID;
 };
 
 class CDerivedData : public CRegisterAddressData{
@@ -213,8 +239,12 @@ class CDerivedData : public CRegisterAddressData{
 			return _pubKeyPair;
 		}
 
-		virtual CTxDestination GetDest(){
+		virtual CTxDestination GetKeyID(){
 			return _pubKeyPair.first;
+		}
+
+		virtual CTxDestination GetScriptID(){
+			return CNoDestination();
 		}
 
 		void Set(const pubKeyPair& p);
@@ -228,7 +258,11 @@ class CMultisigData : public CRegisterAddressData{
 		CMultisigData(){;}
 		virtual ~CMultisigData(){;}
 
-		virtual CTxDestination GetDest(){
+		virtual CTxDestination GetKeyID(){
+			return CNoDestination();
+		}
+
+		virtual CTxDestination GetScriptID(){
 			TryValid();
 			return _dest;
 		}
@@ -258,6 +292,12 @@ class CMultisigData : public CRegisterAddressData{
 				throw std::invalid_argument(std::string(std::string(__func__) + 
      		 ": invalid dest: " + addr.ToString() + "\n"));
 			}
+
+			if(!addr.IsScript()) {
+				throw std::invalid_argument(std::string(std::string(__func__) + 
+     		 ": invalid non-p2sh address for multisig: " + addr.ToString() + "\n"));
+			}
+
 			_dest = dest;
 		}
 
