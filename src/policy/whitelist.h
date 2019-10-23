@@ -24,8 +24,7 @@ class CRegisterAddressData{
 		CRegisterAddressData(){;}
 		virtual ~CRegisterAddressData(){;}
 
-		virtual CTxDestination GetKeyID() = 0;
-		virtual CTxDestination GetScriptID() = 0;
+		virtual CTxDestination GetDest() = 0;
 
 };
 
@@ -174,26 +173,15 @@ private:
 	void add_unassigned_kyc(const CPubKey& pubKey, const COutPoint& outPoint);
 };
 
-class CDestData : public CRegisterAddressData{
+class CP2SHData : public CRegisterAddressData{
 	public: 	
-		CDestData(){
+		CP2SHData(){
 			Clear();
 		}
-		virtual ~CDestData(){;}
+		virtual ~CP2SHData(){;}
 
-		virtual CTxDestination GetKeyID(){
-			return _keyID;
-		}
-
-		virtual CTxDestination GetScriptID(){
-			return _scriptID;
-		}
-
-		void Set(uint160 dest){
-			CTxDestination d = CKeyID(dest);
-			Set(d);
-			d = CScriptID(dest);
-			Set(d);
+		virtual CTxDestination GetDest(){
+			return _dest;
 		}
 
 		void Set(const CTxDestination& dest){
@@ -207,23 +195,21 @@ class CDestData : public CRegisterAddressData{
 			if(!addr.IsValid())
 				throw std::invalid_argument(std::string(std::string(__func__) + 
      		 	std::string(": invalid base58check address\n")));
-	
-		
-			if(addr.IsScript()){
-				_scriptID = dest;
-			} else {
-				_keyID = dest;
-			}
+
+			if(!addr.IsScript())
+				throw std::invalid_argument(std::string(std::string(__func__) + 
+     		 	std::string(": non-p2sh address: ") + addr.ToString()));
+
+			
+			_dest = dest;
 		}
 
 		void Clear(){
-			_keyID = CNoDestination();
-			_scriptID = CNoDestination();
+			_dest = CNoDestination();
 		}
 
 	private:
-		CTxDestination _keyID;
-		CTxDestination _scriptID;
+		CTxDestination _dest;
 };
 
 class CDerivedData : public CRegisterAddressData{
@@ -239,13 +225,10 @@ class CDerivedData : public CRegisterAddressData{
 			return _pubKeyPair;
 		}
 
-		virtual CTxDestination GetKeyID(){
+		virtual CTxDestination GetDest(){
 			return _pubKeyPair.first;
 		}
 
-		virtual CTxDestination GetScriptID(){
-			return CNoDestination();
-		}
 
 		void Set(const pubKeyPair& p);
 
@@ -258,11 +241,7 @@ class CMultisigData : public CRegisterAddressData{
 		CMultisigData(){;}
 		virtual ~CMultisigData(){;}
 
-		virtual CTxDestination GetKeyID(){
-			return CNoDestination();
-		}
-
-		virtual CTxDestination GetScriptID(){
+		virtual CTxDestination GetDest(){
 			TryValid();
 			return _dest;
 		}
@@ -371,7 +350,7 @@ class CRegisterAddressDataFactory{
 
 		CMultisigData* GetNextMultisig();
 		CDerivedData* GetNextDerived();
-		CDestData* GetNextDest();
+		CP2SHData* GetNextP2SH();
 
 		void ResetCursor(){_cursor=_prev_cursor;}
 

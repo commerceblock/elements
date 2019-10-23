@@ -151,7 +151,7 @@ void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubK
   CDerivedData dat;
   dat.Set(pubKeyPair(address.Get(), pubKey));
 
-  add_sorted(dat.GetKeyID());
+  add_sorted(dat.GetDest());
 }
 
 void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPubKey, 
@@ -189,7 +189,7 @@ void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const st
   dat.Set(dest, pubKeys, m);
 
   //insert new address into sorted CWhiteList vector
-  add_sorted(dat.GetScriptID());
+  add_sorted(dat.GetDest());
 }
 
 void CWhiteList::add_multisig_whitelist(const std::string& addressIn, const UniValue& keys, 
@@ -331,17 +331,12 @@ bool CWhiteList::RegisterDecryptedAddresses(const std::vector<unsigned char>& da
 }
 
 void CWhiteList::add(CRegisterAddressData* d){
-  CTxDestination dest = d->GetKeyID();
-  if(dest != _noDest) add_sorted(dest);
-  dest = d->GetScriptID();
-  if(dest != _noDest) add_sorted(dest);
+  CTxDestination dest = d->GetDest();
+  if(dest != _noDest) CPolicyList::add_sorted(dest);
 }
 
 void CWhiteList::remove(CRegisterAddressData* d){
-  CTxDestination dest = d->GetKeyID();
-  if (dest != _noDest) CPolicyList::remove(dest);
-  dest = d->GetScriptID();
-  if (dest != _noDest) CPolicyList::remove(dest);
+  CPolicyList::remove(d->GetDest());
 }
 
 //Update from transaction
@@ -532,7 +527,7 @@ CRegisterAddressData* CRegisterAddressDataFactory::GetNext(){
   CRegisterAddressData* data;
   if( data = GetNextMultisig() ) return data;
   if( data = GetNextDerived() )  return data;
-  return GetNextDest();
+  return GetNextP2SH();
 }
 
 
@@ -665,7 +660,7 @@ CDerivedData* CRegisterAddressDataFactory::GetNextDerived(){
   return data;
 }
 
-CDestData* CRegisterAddressDataFactory::GetNextDest(){
+CP2SHData* CRegisterAddressDataFactory::GetNextP2SH(){
 
   MarkReset();
 
@@ -682,10 +677,10 @@ CDestData* CRegisterAddressDataFactory::GetNextDest(){
 
   _cursor = cursor;
 
-  CDestData* data = new CDestData();
+  CP2SHData* data = new CP2SHData();
 
   try{
-    data->Set(uint160(addrChars));
+    data->Set(CScriptID(uint160(addrChars)));
   } catch (std::invalid_argument e) {
       ResetCursor();
       delete data;

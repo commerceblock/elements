@@ -197,29 +197,7 @@ class OnboardManualTest (BitcoinTestFramework):
                 []);
         except JSONRPCException as e:
             print(e.error['message'])
-            assert(False)
-
-
-        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
-        print(valkyc)
-        assert(valkyc["iswhitelisted"] == False)
-        assert(len(valkyc["addresses"]) == 1)
-
-        try:
-            self.nodes[0].onboarduser(kycfile_p2pkh)
-        except JSONRPCException as e:
-            print(e.error['message'])
-            assert(False)
-
-        self.nodes[0].generate(101)
-        self.sync_all()
-
-        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
-        print(valkyc)
-        assert(valkyc["iswhitelisted"] == True)
-
-        os.remove(kycfile_p2pkh)
-
+            assert(": non-p2sh address: " in e.error['message'])
         
         #Test invalid parameters
         try:
