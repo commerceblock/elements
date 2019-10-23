@@ -255,7 +255,6 @@ class OnboardTest (BitcoinTestFramework):
         userOnboardPubKey=self.nodes[0].dumpkycfile(kycfile0)
         kycfile0_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile0_plain.dat"))
         print("onboard node 0 \n")
-        asset(False)
         print("read kycfile0 node 0 \n")
         self.nodes[0].readkycfile(kycfile0, kycfile0_plain)
         print("generate block \n")
