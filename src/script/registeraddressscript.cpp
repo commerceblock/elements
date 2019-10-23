@@ -105,9 +105,7 @@ bool CRegisterAddressScript::Append(const pubKeyPair& p){
     if(!boost::apply_visitor(CByteVecVisitor(this), p.first)) 
         return false;
 
-    //Pubkey not needed for contactintx
-    if (!Params().ContractInTx())
-        Append(p.second);
+    Append(p.second);
 
     return true;
 }
@@ -166,26 +164,21 @@ bool CRegisterAddressScript::Append(const uint8_t nMultisig, const CTxDestinatio
 
     if (!Params().ContractInTx() && !(Consensus::CheckValidTweakedAddress(keyID, keys, nMultisig)))
         return false;
-
-    if (!Params().ContractInTx()){
     
-        _payload.insert(_payload.end(), 
+    _payload.insert(_payload.end(), 
                     (unsigned char)nMultisig);
 
-        _payload.insert(_payload.end(), 
+    _payload.insert(_payload.end(), 
                     (unsigned char)keys.size());
 
-    }
 
     if(!boost::apply_visitor(CByteVecVisitor(this), keyID)) 
         return false;
 
-    if (!Params().ContractInTx()){
-        for(unsigned int i = 0; i < keys.size(); ++i){
-            Append(keys[i]);
-        }
+
+    for(unsigned int i = 0; i < keys.size(); ++i){
+        Append(keys[i]);
     }
-    
     return true;
 }
 
