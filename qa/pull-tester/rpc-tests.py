@@ -116,6 +116,7 @@ testScripts = [
     'onboard_cit.py',
     'onboardencrypted.py',
     'onboardmanual.py',
+    'onboardmanual_cit.py',
     'onboardmanualencrypted.py',
     'fixedfee.py',
     # Accounts not supported

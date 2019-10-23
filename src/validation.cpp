@@ -1829,24 +1829,31 @@ int GetSpendHeight(const CCoinsViewCache& inputs)
 }
 
 namespace Consensus {
-bool CheckValidTweakedAddress(const CTxDestination keyID, const CPubKey& pubKey){
+
+bool CheckValidTweakedAddress(const pubKeyPair& p){
+    pubKeyPair p_copy = p;
+    return CheckValidTweakedAddress(p_copy.first, p_copy.second);
+}
+
+bool CheckValidTweakedAddress(const CTxDestination& keyID, const CPubKey& pubKey){
     uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
 
-  CPubKey tmpPubKey = pubKey;
+    CTxDestination dest = keyID;
+    CPubKey tmpPubKey = pubKey;
 
-  if (!contract.IsNull())
-    tmpPubKey.AddTweakToPubKey((unsigned char*)contract.begin());
+    if (!contract.IsNull())
+        tmpPubKey.AddTweakToPubKey((unsigned char*)contract.begin());
 
-  if (tmpPubKey.GetID() != boost::get<CKeyID>(keyID))
-    return false;
+    CBitcoinAddress addr(dest);
 
-return true;
+    CBitcoinAddress addrTweaked(tmpPubKey.GetID());
+
+    return addr.IsValid() && addr == addrTweaked;
 }
 
 //Used for multisig P2SH checking that has been created with tweaked addresses
-bool CheckValidTweakedAddress(const CTxDestination keyID, const std::vector<CPubKey>& pubKeys, const uint8_t nMultisig){
+bool CheckValidTweakedAddress(const CTxDestination& keyID, const std::vector<CPubKey>& pubKeys, const uint8_t& nMultisig){
 
-    CTxDestination destCopy = keyID;
     std::vector<CPubKey> tweakedPubKeys = pubKeys;
     uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
 
@@ -1858,18 +1865,30 @@ bool CheckValidTweakedAddress(const CTxDestination keyID, const std::vector<CPub
 
     CScript inner = GetScriptForMultisig((int)nMultisig, tweakedPubKeys);
     CScriptID innerID(inner);
-    CBitcoinAddress address(innerID);
+    CBitcoinAddress addressFromPubkeys(innerID);
 
     //Will throw an error if address is not a valid derived address.
-    CTxDestination multiKeyId;
-    multiKeyId = address.Get();
-    if (multiKeyId.which() == ((CTxDestination)CNoDestination()).which())
-        return false;
+  //  CTxDestination multiKeyId;
+//    multiKeyId = addressFromPubkeys.Get();
+//    if (multiKeyId.which() == ((CTxDestination)CNoDestination()).which())
+//        return false;
 
-    if (!(boost::get<CScriptID>(multiKeyId) == boost::get<CScriptID>(destCopy)))
-        return false;
+    CTxDestination dest = keyID;
+    CBitcoinAddress addressFromDest(dest);
 
-    return true;
+    return addressFromDest.IsScript() && addressFromDest == addressFromPubkeys;
+
+//    if(!CBitcoinAddress(multiKeyId).IsScript() || 
+//        !CBitcoinAddress(destCopy).IsScript())
+//        return false;
+
+//    if (!(boost::get<CScriptID>(multiKeyId) == boost::get<CScriptID>(destCopy)))
+//        return false;
+
+    
+
+
+//    return true;
 }
 
 bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, std::set<std::pair<uint256, COutPoint> >& setPeginsSpent, std::vector<CCheck*> *pvChecks, const bool cacheStore, bool fScriptChecks)

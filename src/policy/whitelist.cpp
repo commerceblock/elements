@@ -4,15 +4,15 @@
 
 #include "chain.h"
 #include "whitelist.h"
-#include "validation.h"
 #ifdef ENABLE_WALLET
 #endif
 #include "ecies_hex.h"
-#include "policy/policy.h"
 #include "rpc/server.h"
 #include "random.h"
 #include <fstream>
 #include <iostream>
+#include <typeinfo>
+#include "validation.h"
 
 CWhiteList::CWhiteList(){
   _asset=whitelistAsset;
@@ -147,24 +147,11 @@ void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubK
 
 void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubKey){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  if (!pubKey.IsFullyValid()) 
-    throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": invalid public key"));
 
-    //Will throw an error if address is not a valid derived address.
-  CTxDestination keyId;
-  keyId = address.Get();
-  
-  if (keyId.which() == ((CTxDestination)CNoDestination()).which())
-      throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": invalid key id"));
+  CDerivedData dat;
+  dat.Set(pubKeyPair(address.Get(), pubKey));
 
-  if(!Params().ContractInTx() && !Consensus::CheckValidTweakedAddress(keyId, pubKey))
-     throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": address does not derive from public key when tweaked with contract hash"));
-
- //insert new address into sorted CWhiteList vector
-  add_sorted(keyId);
+  add_sorted(dat.GetDest());
 }
 
 void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPubKey, 
@@ -192,28 +179,17 @@ void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const st
 }
 
 void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys, 
-  const uint8_t nMultisig){
+  const uint8_t m){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
 
-  for(unsigned int i = 0; i < pubKeys.size(); ++i) {
-    if (!pubKeys[i].IsFullyValid()) 
-      throw std::invalid_argument(std::string(std::string(__func__) + 
-        ": invalid public key"));
-  }
-  
-  //Will throw an error if address is not a valid derived address.
-  CTxDestination keyId;
-  keyId = address.Get();
-  if (keyId.which() == ((CTxDestination)CNoDestination()).which())
-      throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": invalid key id"));
-   
-  if(!Params().ContractInTx() && !Consensus::CheckValidTweakedAddress(keyId, pubKeys, nMultisig))
-     throw std::invalid_argument(std::string(std::string(__func__) + 
-      ": address does not derive from public keys when tweaked with contract hash"));
+  CMultisigData dat;
+
+  CTxDestination dest = address.Get();
+
+  dat.Set(dest, pubKeys, m);
 
   //insert new address into sorted CWhiteList vector
-  add_sorted(keyId);
+  add_sorted(dat.GetDest());
 }
 
 void CWhiteList::add_multisig_whitelist(const std::string& addressIn, const UniValue& keys, 
@@ -222,7 +198,7 @@ void CWhiteList::add_multisig_whitelist(const std::string& addressIn, const UniV
 }
 
 void CWhiteList::add_multisig_whitelist(const std::string& sAddress, const UniValue& sPubKeys, 
-  const uint8_t nMultisig){
+  const uint8_t mMultisig){
 
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
   CBitcoinAddress address;
@@ -238,7 +214,7 @@ void CWhiteList::add_multisig_whitelist(const std::string& sAddress, const UniVa
     pubKeyVec.push_back(pubKey);
    }
 
-   add_multisig_whitelist(address, pubKeyVec, nMultisig);
+   add_multisig_whitelist(address, pubKeyVec, mMultisig);
 }
 
 bool CWhiteList::RegisterAddress(const CTransaction& tx, const CBlockIndex* pindex){
@@ -307,8 +283,7 @@ bool CWhiteList::ParseRegisterAddressOutput(const CTxOut& txout, bool fBlacklist
   if (!txout.scriptPubKey.GetOp(++pc, opcode, bytes)) return false;
 
   //Confirm data read from the TX_REGISTERADDRESS
-  unsigned int minDataSize=CPubKey::COMPRESSED_PUBLIC_KEY_SIZE+addrSize;
-  if(bytes.size()<minDataSize) return false;
+  if(bytes.size()<_minDataSize) return false;
 
   CPubKey inputPubKey;
   std::set<CPubKey> inputPubKeys;
@@ -327,198 +302,41 @@ bool CWhiteList::ParseRegisterAddressOutput(const CTxOut& txout, bool fBlacklist
 
 bool CWhiteList::RegisterDecryptedAddresses(const std::vector<unsigned char>& data, 
     const bool bBlacklist){
-  //Interpret the data
-  //First 20 bytes: keyID 
-  std::vector<unsigned char>::const_iterator itData2 = data.begin();
-  std::vector<unsigned char>::const_iterator itData1 = itData2;
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
 
-  std::vector<unsigned char>::const_iterator pend = data.end();
+  CRegisterAddressDataFactory fact(data.begin(), data.end());
+  CRegisterAddressData* dat;
+  std::vector<CRegisterAddressData*> vDat;
 
-  bool bEnd=false;
-  bool bSuccess=false;
-
-  while(!bEnd){
-    bool isMultisig = IsRegisterAddressMulti(itData1, pend);
-
-    //REGISTERADDRESS for pubkeys
-    if(isMultisig == false){
-      bool fEnd = false;
-      int pairsAdded = 0;
-      while(!fEnd){
-        std::vector<unsigned char>::const_iterator itStart = itData1;
-        for(unsigned int i=0; i<addrSize; ++i){
-          if(itData2++ == pend) {
-            bEnd = true;
-            fEnd = true;
-            break;
-          }
-        }
-        if(!fEnd){
-          CBitcoinAddress addrNew;
-          std::vector<unsigned char> addrChars(itData1,itData2);
-          CTxDestination addr = CKeyID(uint160(addrChars));
-          itData1 = itData2;
-          for(unsigned int i=0; i<CPubKey::COMPRESSED_PUBLIC_KEY_SIZE; ++i){
-            if(itData2++ == pend){
-              bEnd = true;
-              fEnd = true;
-              break;
-            }
-          }
-            try{
-                CPubKey pubKeyNew = CPubKey(itData1,itData2);
-                itData1=itData2;
-                if(bBlacklist){
-                    remove(addr);
-                } else {
-                    if(!pubKeyNew.IsFullyValid())
-                    {
-                        itData1 = itStart;
-                        itData2 = itStart;
-                        if(pairsAdded == 0)
-                        bEnd = true;
-                        break;
-                    }
-                    add_derived(CBitcoinAddress(addr), pubKeyNew);
-                }
-                ++pairsAdded;
-            } catch (std::invalid_argument e){
-              LogPrintf(std::string(e.what()) + "\n");
-              return bSuccess;
-            } 
-            bSuccess = true;
-        }
-      }
-    }
-    //REGISTERADDRESS for MULTISIG
-    else{
-
-      itData2 += nMultisigSize;
-
-      uint8_t mMultisig = 0;
-      std::vector<unsigned char> mMultisigChars(itData1,itData2);
-
-      mMultisig = mMultisigChars[0];
-
-      itData1 = itData2;
-
-      itData2 += nMultisigSize;
-
-      uint8_t nMultisig = 0;
-      std::vector<unsigned char> nMultisigChars(itData1,itData2);
-
-      nMultisig = nMultisigChars[0];
-
-      itData1 = itData2;
-
-      itData2 += addrSize;
-
-      CBitcoinAddress addrMultiNew;
-      std::vector<unsigned char> addrTestChars(itData1,itData2);
-      addrMultiNew.Set(CScriptID(uint160(addrTestChars)));
-
-      std::vector<CPubKey> vPubKeys;
-
-      itData1=itData2;
-
-      unsigned int pubkeyNr = static_cast<unsigned int>(nMultisig);
-
-      for (unsigned int j=0; j < pubkeyNr; ++j){
-
-        if(bEnd == true)
-          break;
-
-        for(unsigned int i=0; i<CPubKey::COMPRESSED_PUBLIC_KEY_SIZE; ++i){
-          if(itData2++ == pend){
-            bEnd = true;
-            break;
-          }
-        }
-        if(!bEnd){
-          CPubKey pubKeyNew = CPubKey(itData1,itData2);
-          if(!pubKeyNew.IsFullyValid()){
-            itData2=itData1;
-            break;
-          }
-          itData1=itData2;
-          vPubKeys.push_back(pubKeyNew);
-        }
-      }
-      if(bBlacklist){
-        remove(addrMultiNew.Get());
-      } else {
-            try{
-            add_multisig_whitelist(addrMultiNew, vPubKeys, mMultisig);
-            } catch (std::invalid_argument e){
-            LogPrintf(std::string(e.what()) + "\n");
-            return bSuccess;
-        }
-      }
-
-      bSuccess = true;
-    }
-  }
-  return bSuccess;
-}
-
-
-bool CWhiteList::IsRegisterAddressMulti(const std::vector<unsigned char>::const_iterator start, const std::vector<unsigned char>::const_iterator vend){
-
-  std::vector<unsigned char>::const_iterator point1 = start;
-  std::vector<unsigned char>::const_iterator point2 = start;
-
-  for(unsigned int i=0; i<nMultisigSize; ++i){
-    if(point2++ == vend) {
-      return false;
-    }
+  //Conditional on result of assignment is deliberate
+  while(dat = fact.GetNext()){
+    vDat.push_back(dat);
   }
 
-  uint8_t mMultisig = *start;
+  //Everything was valid if the factory reached the end of the byte vector
+  if (!fact.IsEnd()) return false;
 
-  if(mMultisig > MAX_P2SH_SIGOPS || mMultisig == 0)
-    return false;
-
-  point1 = point2;
-
-  for(unsigned int i=0; i<nMultisigSize; ++i){
-    if(point2++ == vend) {
-      return false;
+  //If entire stream was read successfully, add the addresssses to the whitelist
+  if(bBlacklist){
+    for (auto aDat : vDat){
+      remove(aDat);
+    }
+  } else {
+    for (auto aDat : vDat){
+      add(aDat);
     }
   }
-
-  uint8_t nMultisig = *point1;
-
-  if(nMultisig > MAX_P2SH_SIGOPS || nMultisig == 0)
-    return false;
-
-  point1 = point2;
-
-  for(unsigned int i=0; i<addrSize; ++i){
-    if(point2++ == vend) {
-      return false;
-    }
-  }
-
-  CBitcoinAddress addrTestNew;
-  std::vector<unsigned char> addrTestChars(point1,point2);
-  addrTestNew.Set(CScriptID(uint160(addrTestChars)));
-
-  if(!addrTestNew.IsValid())
-    return false;
-
-  point1=point2;
-
-  for(unsigned int i=0; i<CPubKey::COMPRESSED_PUBLIC_KEY_SIZE; ++i){
-    if(point2++ == vend){
-      return false;
-    }
-  }
-
-  CPubKey pubKeyNew = CPubKey(point1,point2);
-  if(!pubKeyNew.IsFullyValid())
-    return false;
 
   return true;
+}
+
+void CWhiteList::add(CRegisterAddressData* d){
+  add_sorted(d->GetDest());
+}
+
+CPolicyList::baseIter CWhiteList::remove(CRegisterAddressData* d){
+  CTxDestination dest = d->GetDest();
+  return CPolicyList::remove(dest);
 }
 
 //Update from transaction
@@ -701,3 +519,216 @@ bool CWhiteList::get_kycpubkey_outpoint(const CPubKey& pubKey, COutPoint& outPoi
 
 
 
+//===============================================
+//CRegisterAddressDataFactory
+//-----------------------------------------------
+
+CRegisterAddressData* CRegisterAddressDataFactory::GetNext(){
+  CRegisterAddressData* data;
+  if( data = GetNextDerived() )  return data;
+  if( data = GetNextMultisig() ) return data;
+  return GetNextDest();
+}
+
+
+CMultisigData* CRegisterAddressDataFactory::GetNextMultisig(){
+
+  MarkReset();
+
+  ucvec_it cursor = _cursor; 
+  if(!AdvanceCursor(cursor, CWhiteList::nMultisigSize)){
+    return nullptr;
+  }
+  
+  std::vector<unsigned char> mMultisigChars(_cursor,cursor);
+
+  uint8_t mMultisig = mMultisigChars[0];
+
+  CMultisigData* data = new CMultisigData();
+
+  try{
+    data->SetM(mMultisig);
+  } catch (std::invalid_argument e) {
+    ResetCursor();
+    delete data;
+    return nullptr;
+  }
+
+  _cursor = cursor;
+
+  if(!AdvanceCursor(cursor, CWhiteList::nMultisigSize)){
+    ResetCursor();
+    delete data;
+    return nullptr;
+  }
+      
+  std::vector<unsigned char> nMultisigChars(_cursor,cursor);
+
+  uint8_t nMultisig = nMultisigChars[0];
+
+  _cursor = cursor;
+
+  if(!AdvanceCursor(cursor, CWhiteList::addrSize)){
+    ResetCursor();
+    delete data;
+    return nullptr;
+  }
+
+  std::vector<unsigned char> addrChars(_cursor,cursor);
+
+  //Try and set the multisig dest
+  try{
+    data->SetDest(CScriptID(uint160(addrChars))); 
+  } catch (std::invalid_argument e) {
+    ResetCursor();
+    delete data;
+    return nullptr;
+  }
+
+  _cursor=cursor;
+
+  unsigned int pubkeyNr = static_cast<unsigned int>(nMultisig);
+
+  for (unsigned int j=0; j < pubkeyNr; ++j){
+
+    if(!AdvanceCursor(cursor, _pubkeySize)){
+      ResetCursor();
+      delete data;
+      return nullptr;
+    }
+
+    CPubKey pubKeyNew = CPubKey(_cursor,cursor);
+    try{
+      data->AddPubKey(pubKeyNew);
+    } catch (std::invalid_argument e) {
+      ResetCursor();
+      delete data;
+      return nullptr;
+    }
+
+    _cursor=cursor;      
+  }
+
+  try{
+      data->TryValid(pubkeyNr);
+  } catch (std::invalid_argument e) {
+      ResetCursor();
+      delete data;
+      return nullptr;
+  }
+
+  return data;
+}
+
+CDerivedData* CRegisterAddressDataFactory::GetNextDerived(){
+
+  MarkReset();
+
+  CDerivedData* data = new CDerivedData();
+
+  ucvec_it cursor = _cursor;
+
+  if(!AdvanceCursor(cursor, CWhiteList::addrSize)){
+    ResetCursor();
+    delete data;
+    return nullptr;
+  }
+
+  std::vector<unsigned char> addrChars(_cursor,cursor);
+  CTxDestination addr = CKeyID(uint160(addrChars));
+            
+  _cursor = cursor;
+
+  if(!AdvanceCursor(cursor, _pubkeySize)){
+    ResetCursor();
+    delete data;
+    return nullptr;
+  }
+
+  CPubKey pubKeyNew = CPubKey(_cursor,cursor);
+  _cursor=cursor;
+
+  pubKeyPair p(addr, pubKeyNew);
+
+  try{
+    data->Set(p);
+  } catch (std::invalid_argument e) {
+      ResetCursor();
+      delete data;
+      return nullptr;
+  }
+  return data;
+}
+
+CDestData* CRegisterAddressDataFactory::GetNextDest(){
+
+  MarkReset();
+
+  if (!Params().ContractInTx())
+    return nullptr;
+
+  ucvec_it cursor = _cursor;
+
+  if(!AdvanceCursor(cursor,CWhiteList::addrSize)){
+    return nullptr;
+  }
+
+  std::vector<unsigned char> addrChars(_cursor,cursor);
+//  CBitcoinAddress addr(addrChars);
+  //CTxDestination dest = addr.Get();
+  CTxDestination dest = CScriptID(uint160(addrChars));
+//  if(addr.IsScript()){
+//    dest = CScriptID(uint160(addrChars));
+//  } else {
+//    dest = CKeyID(uint160(addrChars));
+//  }
+
+  _cursor = cursor;
+
+  CDestData* data = new CDestData();
+
+  try{
+    data->Set(dest);
+  } catch (std::invalid_argument e) {
+      ResetCursor();
+      delete data;
+      return nullptr;
+  }
+  return data;
+}
+
+void CDerivedData::Set(const pubKeyPair& pair){
+    pubKeyPair p = pair;
+      if (!p.second.IsFullyValid()) 
+          throw std::invalid_argument(std::string(std::string(__func__) + 
+            ": invalid public key"));
+
+
+      CBitcoinAddress addr(p.first);
+      if(!addr.IsValid())
+        throw std::invalid_argument(std::string(std::string(__func__) + 
+          ": invalid base58check address\n"));
+
+       if(!Params().ContractInTx() && 
+        !::Consensus::CheckValidTweakedAddress(p))
+          throw std::invalid_argument(std::string(std::string(__func__) + 
+            ": address does not derive from public key when tweaked with contract hash"));
+
+        _pubKeyPair = p;
+    }
+
+void CMultisigData::TryValid(const uint8_t& n){
+  if(Params().ContractInTx()) return;
+
+  //Check m-of-n validity
+  if (_m > n ||  n > MAX_P2SH_SIGOPS || n == 0){
+    throw std::invalid_argument(std::string(std::string(__func__) + 
+    ": invalid m-of-n\n"));
+  }
+
+  //Check dest built from pubkeys, m, n
+  if(!Params().ContractInTx() && !::Consensus::CheckValidTweakedAddress(_dest, _pubKeys, _m)){
+    throw std::invalid_argument(std::string(std::string(__func__) + 
+      ": address does not derive from public keys when tweaked with contract hash\n"));
+  }
+}

@@ -806,7 +806,7 @@ UniValue onboarduser(const JSONRPCRequest& request){
   if (request.fHelp || request.params.size() != 1)
     throw runtime_error(
             "onboarduser \"filename\" \n"
-            "Read in derived keys and tweaked addresses from kyc file (see dumpkycfile) into the address whitelist. Assign a KYC public key to the user if using encrypted whitelist.\n"
+            "Read in derived keys and tweaked addresses from kyc file (see dumpkycfile, createkycfile) into the address whitelist. Assign a KYC public key to the user if using encrypted whitelist.\n"
             "\nArguments:\n"
 
             "1. \"filename\"    (string, required) The kyc file name\n"
@@ -1095,7 +1095,7 @@ static void SendAddNextToWhitelistTx(const CAsset& feeAsset,
                 if (pwalletMain->GetKey(keyid, key)) { // verify exists
                     //keysToReg.push_back(key.GetPubKey());
                     if(keysToReg.insert(keyid).second){
-                        if(!raScript->Append(key.GetPubKey()))
+                        if(!raScript->Append(std::pair<CTxDestination, CPubKey>(keyid,key.GetPubKey())))
                             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Failed to append address to registeraddress script");
                         if(keysToReg.size() == nToRegister)
                             break;

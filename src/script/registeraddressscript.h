@@ -10,6 +10,7 @@
 #include "validation.h"
 
 using ucvec=std::vector<unsigned char>;
+using pubKeyPair=std::pair<CTxDestination, CPubKey>;
 
 struct OnboardMultisig {
     uint8_t nMultisig;
@@ -33,10 +34,14 @@ public:
 	//Encrypt the payload using the public, private key and build the script.
 	virtual bool Finalize(CScript& script, const CPubKey& ePubKey, const CKey& ePrivKey);
 	virtual bool FinalizeUnencrypted(CScript& script);
-	bool Append(const CPubKey& key);
-	bool Append(const std::vector<CPubKey>& keys);
+	bool Append(const pubKeyPair& keyPair);
+	bool Append(const std::vector<pubKeyPair>& keyPairs);
+	bool Append(const CTxDestination& dest);
+	bool Append(const std::vector<CTxDestination>& dests);
 	bool Append(const uint8_t nMultisig, const CTxDestination keyID, const std::vector<CPubKey>& keys);
-	bool Append(const std::vector<OnboardMultisig>& _data);
+	bool Append(const std::vector<OnboardMultisig>& multisigData);
+	void Append(const std::vector<unsigned char> v);
+
 	std::size_t getPayloadSize() { return _payload.size(); }
 
 	virtual void clear(){_payload.clear(); _encrypted.clear(); ((CScript*)this)->clear();}
@@ -51,4 +56,10 @@ protected:
 	ucvec _encrypted;
 	RegisterAddressType whitelistType;
 	opcodetype _opcode = OP_REGISTERADDRESS;
+
+	bool Append(const CPubKey& key);
+	bool Append(const std::vector<CPubKey>& keys);
+
+
+
 };

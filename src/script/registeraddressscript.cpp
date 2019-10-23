@@ -7,6 +7,33 @@
 #include "registeraddressscript.h"
 #include "util.h"
 
+namespace
+{
+    class CByteVecVisitor : public boost::static_visitor<bool>{
+        private:
+            CRegisterAddressScript* script;
+
+        public:
+            CByteVecVisitor(CRegisterAddressScript* scriptIn) : script(scriptIn) {}
+
+            bool operator()(const CKeyID& id) const { 
+                std::vector<unsigned char> v = ToByteVector(id);
+                script->Append(v);
+                return true;
+            }
+
+            bool operator()(const CScriptID& id) const { 
+                std::vector<unsigned char> v = ToByteVector(id);
+                script->Append(v);
+                return true;
+            }
+             
+            bool operator()(const CNoDestination& no) const { return false; }
+    };
+} //anon namespace
+
+
+
 CRegisterAddressScript::CRegisterAddressScript(RegisterAddressType type){
     whitelistType = type;
 }
@@ -46,26 +73,75 @@ bool CRegisterAddressScript::FinalizeUnencrypted(CScript& script){
 
 bool CRegisterAddressScript::Append(const CPubKey& pubKey){
     if(whitelistType != RA_PUBLICKEY && whitelistType != RA_ONBOARDING)
+        return false;   
+    std::vector<unsigned char> v = ToByteVector(pubKey);
+    Append(v);
+    return true;
+}
+
+bool CRegisterAddressScript::Append(const std::vector<pubKeyPair>& keyPairs){
+   if(whitelistType != RA_PUBLICKEY && whitelistType != RA_ONBOARDING)
         return false;
 
-	uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+    for (auto p : keyPairs){
+        if(!Append(p))
+            return false;
+    }
+    return true;
+}
 
-  	CPubKey tweakedPubKey(pubKey);
-    if (!contract.IsNull() && !Params().ContractInTx())
-    	tweakedPubKey.AddTweakToPubKey((unsigned char*)contract.begin());
-    CKeyID keyID=tweakedPubKey.GetID();
-    if(!Params().ContractInTx() && !Consensus::CheckValidTweakedAddress(keyID, pubKey))
+bool CRegisterAddressScript::Append(const pubKeyPair& p){
+    if(whitelistType != RA_PUBLICKEY && whitelistType != RA_ONBOARDING)
+        return false;
+
+    if(!Params().ContractInTx() && !Consensus::CheckValidTweakedAddress(p.first, p.second))
         return false;
     
-    std::vector<unsigned char> vKeyIDNew = ToByteVector(keyID);
-    _payload.insert(_payload.end(), 
-                    vKeyIDNew.begin(), 
-                    vKeyIDNew.end());
+    CBitcoinAddress addr(p.first);
 
-    std::vector<unsigned char> vPubKeyNew = ToByteVector(pubKey);
-    _payload.insert(_payload.end(), 
-                    vPubKeyNew.begin(), 
-                    vPubKeyNew.end());
+    if(!addr.IsValid())
+        return false;
+
+    if(!boost::apply_visitor(CByteVecVisitor(this), p.first)) 
+        return false;
+
+    Append(p.second);
+
+    return true;
+}
+
+bool CRegisterAddressScript::Append(const std::vector<CTxDestination>& dests){
+    if(whitelistType != RA_PUBLICKEY && whitelistType != RA_ONBOARDING)
+        return false;
+
+    for(CTxDestination dest : dests){
+        if (!Append(dest))
+            return false;
+    }
+    return true;
+}
+
+
+bool CRegisterAddressScript::Append(const CTxDestination& dest){
+    if(whitelistType != RA_PUBLICKEY && whitelistType != RA_ONBOARDING)
+        return false;
+
+    CTxDestination d = dest;
+
+    if (!Params().ContractInTx()){
+        uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+        if (!contract.IsNull())
+            return false;
+    }
+    
+    CBitcoinAddress addr(dest);
+
+    if(!addr.IsValid())
+        return false;
+
+    if(!boost::apply_visitor(CByteVecVisitor(this), dest)) 
+        return false;
+
     return true;
 }
 
@@ -80,6 +156,8 @@ bool CRegisterAddressScript::Append(const std::vector<CPubKey>& keys){
     return true;
 }
 
+
+
 bool CRegisterAddressScript::Append(const uint8_t nMultisig, const CTxDestination keyID, const std::vector<CPubKey>& keys){
     if(whitelistType != RA_MULTISIG && whitelistType != RA_ONBOARDING)
         return false;
@@ -93,15 +171,13 @@ bool CRegisterAddressScript::Append(const uint8_t nMultisig, const CTxDestinatio
     _payload.insert(_payload.end(), 
                     (unsigned char)keys.size());
 
-    CScriptID scriptID = boost::get<CScriptID>(keyID);
-    _payload.insert(_payload.end(), 
-                    scriptID.begin(), 
-                    scriptID.end());
+
+    if(!boost::apply_visitor(CByteVecVisitor(this), keyID)) 
+        return false;
+
 
     for(unsigned int i = 0; i < keys.size(); ++i){
-        _payload.insert(_payload.end(), 
-                keys[i].begin(), 
-                keys[i].end());
+        Append(keys[i]);
     }
     return true;
 }
@@ -116,4 +192,11 @@ bool CRegisterAddressScript::Append(const std::vector<OnboardMultisig>& _data){
     }
     return true;
 }
+
+void CRegisterAddressScript::Append(const std::vector<unsigned char> v){
+    _payload.insert(_payload.end(), 
+                v.begin(), 
+                v.end()); 
+}
+
 

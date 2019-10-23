@@ -690,8 +690,8 @@ UniValue createkycfile(const JSONRPCRequest& request)
             "2. \"pubkeylist\"        (array, required) A json array of json objects\n"
             "     [\n"
             "       {\n"
-            "         \"address\":\"string\",    (string, required) The tweaked bitcoin address\n"
-            "         \"pubkey\":\"string\",         (string, required) The untweaked pubkey that the address was generated with\n"
+            "         \"address\":\"string\",    (string, required) The base58check address (tweaked for sidechains using the option contractintx=0). Can be P2SH or P2SH-P2WSH if contractintx=1, otherwise P2PKH only\n"
+            "         \"pubkey\":\"string\",         (string, required) The untweaked pubkey that the address was generated with. Not required for sidechains using the option contractintx=1.\n"
             "       } \n"
             "       ,...\n"
             "     ]\n"
@@ -748,7 +748,7 @@ UniValue createkycfile(const JSONRPCRequest& request)
     UniValue multisigList = request.params[2].get_array();
 
     // produce output
-    ssFile << strprintf("# Created KYC file made by Bitcoin %s\n", CLIENT_BUILD);
+    ssFile << strprintf("# Created KYC file made by Ocean %s\n", CLIENT_BUILD);
     ssFile << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()));
     ssFile << strprintf("# * Best block at time of backup was %i (%s),\n", chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString());
     ssFile << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
@@ -772,34 +772,51 @@ UniValue createkycfile(const JSONRPCRequest& request)
         }
     }
 
+    bool fContractInTx = Params().ContractInTx();
+
     CPubKey* firstPubKey = nullptr;
     // add the tweaked bitcoin address and untweaked pubkey hex to a stringstream
     for(unsigned int i = 0; i < pubKeyList.size(); ++i) {
         UniValue pubkeyObj = pubKeyList[i];
 
-        if (!pubkeyObj.exists("address") || !pubkeyObj.exists("pubkey"))
-            continue;
+        if (!pubkeyObj.exists("address"))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Address missing in pubkeylist");
 
         std::string addrStr = pubkeyObj["address"].getValStr();
-        std::string pubkeyStr = pubkeyObj["pubkey"].getValStr();
 
         CBitcoinAddress addrNew;
         if(!addrNew.SetString(addrStr))
-            continue;
+            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address in pubkeylist: ") + addrStr);
 
-        std::vector<unsigned char> pubKeyData(ParseHex(pubkeyStr.c_str()));
-        CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
 
-        if(!pubKey.IsFullyValid())
-            continue;
+        std::string pubkeyStr = "";
 
-        if(!firstPubKey){
-            firstPubKey = new CPubKey(pubKey);
+        if (!pubkeyObj.exists("pubkey")){
+            if(!fContractInTx){
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Pubkey missing in pubkeylist");
+            }            
+        } else {
+            pubkeyStr = pubkeyObj["pubkey"].getValStr();
         }
 
-        ss << strprintf("%s %s\n",
-                addrStr,
-                HexStr(pubKey.begin(), pubKey.end()));
+
+        if (pubkeyStr.size() > 0){
+            std::vector<unsigned char> pubKeyData(ParseHex(pubkeyStr.c_str()));
+            CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
+
+            if(!pubKey.IsFullyValid())
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid pubkey in pubkeylist: ") + pubkeyStr);  
+
+            if(!firstPubKey){
+                firstPubKey = new CPubKey(pubKey);
+            }
+
+            ss << strprintf("%s %s\n",
+                    addrStr,
+                 HexStr(pubKey.begin(), pubKey.end()));
+        } else {
+            ss << strprintf("%s\n",addrStr);
+        }
     }
 
     uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
@@ -808,37 +825,36 @@ UniValue createkycfile(const JSONRPCRequest& request)
     for(unsigned int i = 0; i < multisigList.size(); ++i) {
         UniValue multiObj = multisigList[i];
 
-        if (!multiObj.exists("nmultisig") || !multiObj.exists("pubkeys"))
-            continue;
+        if (!multiObj.exists("nmultisig"))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "nmultisig missing in multisiglist");
 
+        if(!multiObj.exists("pubkeys"))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "pubkeys missing in multisiglist"); 
+            
         UniValue const &nMultiObj = find_value(multiObj, "nmultisig");
         if (!nMultiObj.isNum())
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "nmultisig must be an integer");
         unsigned nMultisig = nMultiObj.get_int();
 
+        std::stringstream ss2("");
+        ss2 << MAX_P2SH_SIGOPS;
         if (nMultisig > MAX_P2SH_SIGOPS || nMultisig == 0)
-            continue;
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "nmultisig must be an integer between 1 and " + ss2.str()); 
 
         UniValue pubkeyArr = multiObj["pubkeys"].get_array();
 
-        bool shouldContinue = false;
         std::vector<CPubKey> pubKeyVec;
         for (unsigned int j = 0; j < pubkeyArr.size(); ++j){
             std::string parseStr = pubkeyArr[j].get_str();
             std::vector<unsigned char> pubKeyData(ParseHex(parseStr.c_str()));
             CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
-            if(!pubKey.IsFullyValid()){
-                shouldContinue = true;
-                break;
-            }
+            if(!pubKey.IsFullyValid())
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid pubkey in multisiglist: ") + parseStr);  
             pubKeyVec.push_back(pubKey);
             if(!firstPubKey){
                 firstPubKey = new CPubKey(pubKey);
             }
         }
-
-        if(shouldContinue)
-            continue;
 
         std::vector<CPubKey> tweakedPubKeys = pubKeyVec;
 
@@ -856,7 +872,7 @@ UniValue createkycfile(const JSONRPCRequest& request)
         CTxDestination multiKeyId;
         multiKeyId = address.Get();
         if (multiKeyId.which() == ((CTxDestination)CNoDestination()).which())
-            continue;
+            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address from pubkeys in multisiglist"));  
 
         ss << strprintf("%d %s",
                 nMultisig,
@@ -912,8 +928,8 @@ UniValue createkycfile(const JSONRPCRequest& request)
         if (!file.is_open())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open key dump file");
         file << ssFile.str();
-        file.close();
 
+        file.close();
     } else {
         result.push_back(Pair("kycfile", ssFile.str()));
     }
@@ -1093,7 +1109,7 @@ UniValue validatekycfile(const JSONRPCRequest& request)
 
 
 
-    std::vector<CTxDestination> addressKeyIds = file.getAddressKeyIds();
+    std::vector<CTxDestination> addressKeyIds = file.getAddresses();
     UniValue addresses(UniValue::VARR);
     for(auto k: addressKeyIds){
         CBitcoinAddress addr=CBitcoinAddress(k);

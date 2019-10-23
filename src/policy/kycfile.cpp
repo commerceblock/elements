@@ -14,8 +14,8 @@ CKYCFile::~CKYCFile(){
 }
 
 void CKYCFile::clear(){
-    _addressKeys.clear();
-    _addressKeyIds.clear();
+    _pubKeyPairs.clear();
+    _destinations.clear();
     _decryptedStream.clear();
     _errorStream.clear();
     _multisigData.clear();
@@ -89,15 +89,17 @@ bool CKYCFile::read(){
                         throw std::invalid_argument(
                         std::string(std::string(__func__) +  ": invalid kyc pub key in KYC file"));
 
-            if(!pwalletMain->GetKey(_onboardPubKey->GetID(), onboardPrivKey))
-                throw std::invalid_argument(
-                        std::string(std::string(__func__) +  ": cannot get onboard private key"));
   
             std::vector<unsigned char> userPubKeyData(ParseHex(vstr[1]));    
             _onboardUserPubKey = new CPubKey(userPubKeyData.begin(), userPubKeyData.end());
             if(!_onboardUserPubKey->IsFullyValid())
                  throw std::invalid_argument(
                         std::string(std::string(__func__) +  ": invalid onboard user pub key in kyc file"));
+
+            if(!pwalletMain->GetKey(_onboardPubKey->GetID(), onboardPrivKey))
+                if(!pwalletMain->GetKey(_onboardUserPubKey->GetID(), onboardPrivKey))
+                    throw std::invalid_argument(
+                        std::string(std::string(__func__) +  ": cannot get onboard private key"));
 
             std::stringstream ssNBytes;
             ssNBytes << vstr[2];
@@ -120,10 +122,12 @@ bool CKYCFile::read(){
                 std::string str=ss.str();
                 std::vector<unsigned char> vch(str.begin(), str.end());
                 std::vector<unsigned char> vdata;
-                if(!encryptor.Decrypt(vdata, vch, onboardPrivKey))
-                    throw std::invalid_argument(
-                        std::string(std::string(__func__) +  ": KYC file decryption failed"));
-        
+                if(!encryptor.Decrypt(vdata, vch, onboardPrivKey)){
+                    if((_onboardPubKey == nullptr) |! encryptor.Decrypt(vdata, vch, onboardPrivKey, *_onboardPubKey))
+                        throw std::invalid_argument(
+                            std::string(std::string(__func__) +  ": KYC file decryption failed"));
+                }
+
                 data = std::string(vdata.begin(), vdata.end());
                 std::stringstream ss_data;
                 ss_data << data;
@@ -135,7 +139,11 @@ bool CKYCFile::read(){
                         continue;
                     }
                     boost::split(vstr, line, boost::is_any_of(" "));
-                    if (vstr.size() < 2){
+                    if (vstr.size() < 1){
+                        continue;
+                    }
+                    else if (vstr.size() == 1){
+                        if(!parseAddress(vstr,line)) _fAddressesValid = false;
                         continue;
                     }
                     else if (vstr.size() == 2){
@@ -189,6 +197,21 @@ void CKYCFile::appendOutStream(std::string line, std::string error){
     appendOutStream(ss.str());
 }
 
+bool CKYCFile::parseAddress(const std::vector<std::string> vstr, const std::string line){
+    CBitcoinAddress address;
+    if (!address.SetString(vstr[0])) {
+        std::stringstream ss(": invalid base58check address: ");
+        ss << vstr[0];
+        appendOutStream(line, ss.str());
+        return false;
+    }
+
+    //Addresses valid, write to map
+    _destinations.push_back(address.Get());
+    appendOutStream(line);
+    return true;
+}
+
 bool CKYCFile::parsePubkeyPair(const std::vector<std::string> vstr, const std::string line){
     CBitcoinAddress address;
     if (!address.SetString(vstr[0])) {
@@ -207,9 +230,11 @@ bool CKYCFile::parsePubkeyPair(const std::vector<std::string> vstr, const std::s
 
     //Check the key tweaking
     CKeyID addressKeyId;
+    pubKeyPair p;
     if(address.GetKeyID(addressKeyId)){
+        p = pubKeyPair(addressKeyId, pubKey);
         if(!Params().ContractInTx()){
-            if(!Consensus::CheckValidTweakedAddress(addressKeyId, pubKey)){
+            if(!Consensus::CheckValidTweakedAddress(p)){
                 appendOutStream(line, ": invalid key tweaking");
                 return false;
             }
@@ -222,8 +247,7 @@ bool CKYCFile::parsePubkeyPair(const std::vector<std::string> vstr, const std::s
 
 
     //Addresses valid, write to map
-    _addressKeys.push_back(pubKey);
-    _addressKeyIds.push_back(addressKeyId);
+    _pubKeyPairs.push_back(p);
     appendOutStream(line);
     return true;
 }
@@ -286,7 +310,6 @@ bool CKYCFile::parseMultisig(const std::vector<std::string> vstr, const std::str
 
     //Multi Address is valid, write to map
     _multisigData.push_back(OnboardMultisig(nMultisig, multiKeyId, pubKeys));
-    _addressKeyIds.push_back(multiKeyId);
     appendOutStream(line);
     return true;
 }
@@ -295,13 +318,13 @@ bool CKYCFile::is_valid(){
     CScript script;
     if(is_empty())
         throw std::invalid_argument(std::string(std::string(__func__) +  
-                "no address data in file"));
+                ": no address data in file"));
     return getOnboardingScript(script);
 }
 
 bool CKYCFile::is_empty(){
-    if(_addressKeys.size() > 0) return false;
-    if(_addressKeyIds.size() > 0) return false;
+    if(_pubKeyPairs.size() > 0) return false;
+    if(_destinations.size() > 0) return false;
     if(_multisigData.size() > 0) return false;
     return true;
 }
@@ -320,10 +343,10 @@ bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
 
     if(!_fAddressesValid) {
         std::stringstream ss(std::string(std::string(__func__)));
-        ss << "invalid addresses in kycfile: " << std::endl;
-        ss << _errorStream.str();
+        ss << "invalid addresses in kycfile: " << _errorStream.str();
         throw std::invalid_argument(ss.str());
     }
+
 
     COnboardingScript obScript;
     obScript.SetDeregister(fBlacklist);
@@ -334,8 +357,11 @@ bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
     if (!pwalletMain->IsLocked())
         pwalletMain->TopUpKeyPool();
 
-    if(_addressKeys.size() != 0)
-        if(!obScript.Append(_addressKeys)) return false;
+    if(_destinations.size() != 0)
+        if(!obScript.Append(_destinations)) return false;
+
+    if(_pubKeyPairs.size() != 0)
+        if(!obScript.Append(_pubKeyPairs)) return false;
 
     if(_multisigData.size() != 0)
         if(!obScript.Append(_multisigData)) return false;
@@ -373,8 +399,14 @@ std::ostream& operator<<(std::ostream& os, const CKYCFile& fl){
 
 bool CKYCFile::is_whitelisted(){
     bool fOk = true;
-    for(auto k : _addressKeyIds){
+    for(auto k : _destinations){
         if(!addressWhitelist->is_whitelisted(k)){
+            fOk = false;
+            break;
+        }
+    }
+    for(auto k : _pubKeyPairs){
+        if(!addressWhitelist->is_whitelisted(k.first)){
             fOk = false;
             break;
         }
@@ -387,5 +419,20 @@ bool CKYCFile::is_whitelisted(){
     }
     return fOk;
 }
+
+std::vector<CTxDestination> CKYCFile::getAddresses() const{
+    std::vector<CTxDestination> result = _destinations;
+    for(auto k : _pubKeyPairs){
+        result.push_back(k.first);
+    }
+    for(auto k : _multisigData){
+        result.push_back(k.scriptID);
+    }
+    return result;
+}
+
+
+
+
 
 
