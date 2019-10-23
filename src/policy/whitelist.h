@@ -369,12 +369,3 @@ class CRegisterAddressDataFactory{
 			return AdvanceCursor(_cursor, nSteps);
 		}
 };
-
-const unsigned int CWhiteList::nMultisigSize;
-
-const unsigned int CWhiteList::addrSize;
-
-const int64_t CWhiteList::MAX_UNASSIGNED_KYCPUBKEYS;
-	
-const int64_t CWhiteList::MAX_KYCPUBKEY_GAP;
-
