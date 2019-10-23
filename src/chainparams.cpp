@@ -329,6 +329,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
+        fDefaultConsistencyChecks = false;
+
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,0);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
         base58Prefixes[BLINDED_ADDRESS]= std::vector<unsigned char>(1,11);
@@ -348,6 +350,8 @@ class CGoldParams : public CCustomParams {
 public:
     CGoldParams(const std::string& chain) : CCustomParams(chain)
     {
+        fDefaultConsistencyChecks = false;
+
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,38); // G
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,97); // g
         base58Prefixes[BLINDED_ADDRESS]= std::vector<unsigned char>(1,13);
