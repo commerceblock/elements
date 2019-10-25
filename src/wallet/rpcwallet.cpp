@@ -5069,7 +5069,7 @@ UniValue validateethpegin(const JSONRPCRequest& request)
     pubKey.Decompress(); // eth addresses require full pubkey
 
     std::string strFailReason;
-    if (!IsValidEthPegin(tx, nAmount, pubKey, strFailReason) && IsConfirmedEthPegin(tx, strFailReason)) {
+    if (!IsValidEthPegin(tx, nAmount, pubKey, strFailReason) || !IsConfirmedEthPegin(tx, strFailReason)) {
         throw JSONRPCError(RPC_TRANSACTION_ERROR, strFailReason);
     }
     return true;
