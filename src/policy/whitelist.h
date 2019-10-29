@@ -15,7 +15,7 @@
 #include "policy/policy.h"
 #include "pubkey.h"
 
-
+using uc_vec=std::vector<unsigned char>;
 using ucvec_it = std::vector<unsigned char>::const_iterator;
 using pubKeyPair = std::pair<CTxDestination, CPubKey>;
 
@@ -37,14 +37,18 @@ public:
 	static constexpr int64_t MAX_KYCPUBKEY_GAP=MAX_UNASSIGNED_KYCPUBKEYS;
 
 		//The written code behaviour expects nMultisigSize to be of length 1 at the moment. If it is changed in the future the code needs to be adjusted accordingly.
-  	static constexpr unsigned int nMultisigSize=1;
+  	
+	static const unsigned int nMultisigSize;
+	static const unsigned int addrSize;
+	static const unsigned int _minDataSize;
 
-  	static constexpr unsigned int addrSize=20;
-
-  	static constexpr unsigned int _minDataSize=addrSize;
-
-
-
+	enum AddrType : unsigned int{
+		DERIVED = 0,
+		MULTI,
+		P2SH,
+		P2PKH,
+		LAST
+	};
 
     void init_defaults();
   
@@ -76,7 +80,7 @@ public:
 	virtual void add_multisig_whitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys,
 		const uint8_t nMultisig);
 
-  	bool RegisterDecryptedAddresses(const std::vector<unsigned char>& data, const bool bBlacklist=false);
+  	bool RegisterDecryptedAddresses(const txnouttype& whichType, const std::vector<unsigned char>& data);
 
   	virtual bool RegisterAddress(const CTransaction& tx, const CBlockIndex* pindex);
   	
@@ -84,7 +88,7 @@ public:
 	
 	virtual bool RegisterAddress(const std::vector<CTxOut>& vout);
 
-	bool ParseRegisterAddressOutput(const CTxOut& txout, bool fBlacklist);
+	bool ParseRegisterAddressOutput(const txnouttype& whichType, const std::vector<uc_vec>& solutions);
   
 	void add(CRegisterAddressData* d);
 
@@ -212,6 +216,45 @@ class CP2SHData : public CRegisterAddressData{
 		CTxDestination _dest;
 };
 
+class CP2PKHData : public CRegisterAddressData{
+	public: 	
+		CP2PKHData(){
+			Clear();
+		}
+		virtual ~CP2PKHData(){;}
+
+		virtual CTxDestination GetDest(){
+			return _dest;
+		}
+
+		void Set(const CTxDestination& dest){
+			if (!Params().ContractInTx())
+	        	throw std::invalid_argument(
+	        		std::string(std::string(__func__) + 
+	        		"attempting to register address without key tweaking checks for contractintx=0")
+	        	);
+
+			CBitcoinAddress addr(dest);
+			if(!addr.IsValid())
+				throw std::invalid_argument(std::string(std::string(__func__) + 
+     		 	std::string(": invalid base58check address\n")));
+
+			if(addr.IsScript())
+				throw std::invalid_argument(std::string(std::string(__func__) + 
+     		 	std::string(": p2sh address: ") + addr.ToString()));
+
+			
+			_dest = dest;
+		}
+
+		void Clear(){
+			_dest = CNoDestination();
+		}
+
+	private:
+		CTxDestination _dest;
+};
+
 class CDerivedData : public CRegisterAddressData{
 	public: 	
 		CDerivedData(){;}
@@ -317,15 +360,16 @@ class CRegisterAddressDataFactory{
 	 CRegisterAddressDataFactory(){
 	 	;
 	 }
-	 CRegisterAddressDataFactory(const ucvec_it& start, const ucvec_it& end){
+
+	 CRegisterAddressDataFactory(const uc_vec& data){
 	 	CRegisterAddressDataFactory();
-	 	SetCursor(start, end);
+	 	InitCursor(data.begin(), data.end());
 	 }
-	 ~CRegisterAddressDataFactory(){;}
+	 virtual ~CRegisterAddressDataFactory(){;}
 
 
 
-	 void SetCursor(const ucvec_it& start,
+	 void InitCursor(const ucvec_it& start,
 	 	const ucvec_it& end){
 	 	_start=start;
 	 	_cursor=start;
@@ -333,24 +377,25 @@ class CRegisterAddressDataFactory{
 	 	_prev_cursor=_cursor;
 	 }
 
-	 	//Returns the next data object
-		CRegisterAddressData* GetNext();
+	 void SetCursor(const ucvec_it& c){
+	 	_cursor = c;
+	 }
+
+	 ucvec_it GetCursor() const{
+	 	return _cursor;
+	 }
+
+	 //Returns the next data object
+	virtual CRegisterAddressData* GetNext();
 
 	 bool IsEnd(){ 
 	 	return (_cursor == _end); 
 	 }
 
-	 private:
-	 	unsigned int _pubkeySize=CPubKey::COMPRESSED_PUBLIC_KEY_SIZE;
-
-	 	ucvec_it _start;
-		ucvec_it _end;
-		ucvec_it _cursor;
-		ucvec_it _prev_cursor;
-
-		CMultisigData* GetNextMultisig();
-		CDerivedData* GetNextDerived();
-		CP2SHData* GetNextP2SH();
+	protected:
+		virtual CMultisigData* GetNextMultisig();
+		virtual CDerivedData* GetNextDerived();
+		virtual CP2SHData* GetNextP2SH();
 
 		void ResetCursor(){_cursor=_prev_cursor;}
 
@@ -368,4 +413,40 @@ class CRegisterAddressDataFactory{
 		bool AdvanceCursor(const unsigned int& nSteps=1){
 			return AdvanceCursor(_cursor, nSteps);
 		}
+
+		ucvec_it _cursor;
+
+	private:
+	 	unsigned int _pubkeySize=CPubKey::COMPRESSED_PUBLIC_KEY_SIZE;
+
+	 	unsigned int _version=0;
+
+	 	ucvec_it _start;
+		ucvec_it _end;
+		ucvec_it _prev_cursor;
+
+};
+
+class CRegisterAddressDataFactory_v1 : public CRegisterAddressDataFactory{
+	public:
+		CRegisterAddressDataFactory_v1(){
+	 		;
+	 	}
+	 
+	 	CRegisterAddressDataFactory_v1(const uc_vec& data)
+	 	: CRegisterAddressDataFactory(data){
+	 		;
+	 	}
+	 virtual ~CRegisterAddressDataFactory_v1(){;}
+
+	//Returns the next data object
+	virtual CRegisterAddressData* GetNext();
+
+	protected:
+		virtual CP2SHData* GetNextP2SH();
+		virtual CP2PKHData* GetNextP2PKH();
+
+	private:
+		bool GetNextAddrType(CWhiteList::AddrType& type);
+
 };

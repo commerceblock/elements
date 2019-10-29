@@ -298,9 +298,11 @@ bool CWhiteListEncrypted::RegisterAddress(const CTransaction& tx, const CCoinsVi
     std::vector<std::vector<unsigned char> > vSolutions;
     txnouttype whichType;
     if (!Solver(txout.scriptPubKey, whichType, vSolutions)) return false;
-    if(whichType == TX_REGISTERADDRESS) {
-      CScript::const_iterator pc = txout.scriptPubKey.begin();
-      if (!txout.scriptPubKey.GetOp(++pc, opcode, bytes)) return false;
+    if(whichType == TX_REGISTERADDRESS_V0) {
+      //CScript::const_iterator pc = txout.scriptPubKey.begin();
+      //if (!txout.scriptPubKey.GetOp(++pc, opcode, bytes)) return false;
+      bytes.clear();
+      bytes.insert(bytes.end(), vSolutions[0].begin(), vSolutions[0].end());
       break;
     }
   }

@@ -14,6 +14,10 @@
 #include <typeinfo>
 #include "validation.h"
 
+const unsigned int CWhiteList::nMultisigSize=1;
+const unsigned int CWhiteList::addrSize=20;
+const unsigned int CWhiteList::_minDataSize=CWhiteList::addrSize;
+
 CWhiteList::CWhiteList(){
   _asset=whitelistAsset;
   //The written code behaviour expects nMultisigSize to be of length 1 at the moment. If it is changed in the future the code needs to be adjusted accordingly.
@@ -80,10 +84,12 @@ bool CWhiteList::Load(CCoinsView *view)
               COutPoint outPoint(key, i);
               add_unassigned_kyc(kycPubKey, outPoint);
             }
-          } else if ((whichType == TX_REGISTERADDRESS || 
-                      whichType == TX_DEREGISTERADDRESS)
+          } else if ((whichType == TX_REGISTERADDRESS_V1 || 
+                      whichType == TX_REGISTERADDRESS_V0 || 
+                      whichType == TX_DEREGISTERADDRESS_V1 ||
+                      whichType == TX_DEREGISTERADDRESS_V0)
                       &! fReindex &! fReindexChainState ) {
-            ParseRegisterAddressOutput(out, whichType == TX_DEREGISTERADDRESS);
+            ParseRegisterAddressOutput(whichType, vSolutions);
           }
         }
       }
@@ -256,12 +262,16 @@ bool CWhiteList::RegisterAddress(const std::vector<CTxOut>& vout){
   //Check if this is a TX_REGISTERADDRESS or TX_DEREGISTERADDRESS. If so, read the data into a byte vector.
   txnouttype whichType;
 
-  // For each TXOUT, if a TX_REGISTERADDRESS, read the data
+  // For each TXOUT, if a TX_REGISTERADDRESS, read the istdata
   BOOST_FOREACH (const CTxOut& txout, vout) {
+    if (!IsWhitelistAsset(txout)) continue;
     std::vector<std::vector<unsigned char> > vSolutions;
     if (!Solver(txout.scriptPubKey, whichType, vSolutions)) return false;
-    if(whichType == TX_REGISTERADDRESS || whichType == TX_DEREGISTERADDRESS) {
-      return ParseRegisterAddressOutput(txout, whichType == TX_DEREGISTERADDRESS);
+    if(whichType == TX_REGISTERADDRESS_V1 ||
+      whichType == TX_REGISTERADDRESS_V0 || 
+      whichType == TX_DEREGISTERADDRESS_V1 ||
+      whichType == TX_DEREGISTERADDRESS_V0) {
+      return ParseRegisterAddressOutput(whichType, vSolutions);
     }
   }
   return false;
@@ -271,26 +281,18 @@ bool CWhiteList::RegisterAddress(const std::vector<CTxOut>& vout){
   #endif //#ifdef ENABLE_WALLET
 }
 
-bool CWhiteList::ParseRegisterAddressOutput(const CTxOut& txout, bool fBlacklist){
+bool CWhiteList::ParseRegisterAddressOutput(const txnouttype& whichType, const std::vector<uc_vec>& solutions){
   #ifdef ENABLE_WALLET
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
 
- if (!IsWhitelistAsset(txout)) return false;
-
-  opcodetype opcode;
-  std::vector<unsigned char> bytes;
-  CScript::const_iterator pc = txout.scriptPubKey.begin();
-  if (!txout.scriptPubKey.GetOp(++pc, opcode, bytes)) return false;
+  const uc_vec& bytes = solutions[0];
 
   //Confirm data read from the TX_REGISTERADDRESS
   if(bytes.size()<_minDataSize) return false;
 
-  CPubKey inputPubKey;
-  std::set<CPubKey> inputPubKeys;
-
   //Read the message data
   std::vector<unsigned char> data(bytes.begin(), bytes.end());
-  return RegisterDecryptedAddresses(data, fBlacklist);
+  return RegisterDecryptedAddresses(whichType, data);
 
   #else //#ifdef ENABLE_WALLET
     LogPrintf("POLICY: wallet not enabled - unable to process registeraddress transaction.\n");
@@ -300,24 +302,35 @@ bool CWhiteList::ParseRegisterAddressOutput(const CTxOut& txout, bool fBlacklist
 
 
 
-bool CWhiteList::RegisterDecryptedAddresses(const std::vector<unsigned char>& data, 
-    const bool bBlacklist){
+bool CWhiteList::RegisterDecryptedAddresses(const txnouttype& whichType, const std::vector<unsigned char>& data){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
 
-  CRegisterAddressDataFactory fact(data.begin(), data.end());
   CRegisterAddressData* dat;
   std::vector<CRegisterAddressData*> vDat;
 
-  //Conditional on result of assignment is deliberate
-  while(dat = fact.GetNext()){
+  CRegisterAddressDataFactory* fact;
+
+  //Selects the appropriate factory for the registeraddress script format
+  if ( whichType == TX_REGISTERADDRESS_V1 || whichType == TX_DEREGISTERADDRESS_V1 ){
+    fact = new CRegisterAddressDataFactory_v1(data);
+  } else if( whichType == TX_REGISTERADDRESS_V0 || whichType == TX_DEREGISTERADDRESS_V0 ){
+    fact = new CRegisterAddressDataFactory(data);
+  } else {
+    return false;
+  }
+    
+  while(dat = fact->GetNext()){
     vDat.push_back(dat);
   }
 
   //Everything was valid if the factory reached the end of the byte vector
-  if (!fact.IsEnd()) return false;
+  if (!fact->IsEnd()) {
+    delete fact;
+    return false;
+  }
 
   //If entire stream was read successfully, add the addresssses to the whitelist
-  if(bBlacklist){
+  if((whichType == TX_DEREGISTERADDRESS_V1) || (whichType == TX_DEREGISTERADDRESS_V0)){
     for (auto aDat : vDat){
       remove(aDat);
     }
@@ -327,6 +340,7 @@ bool CWhiteList::RegisterDecryptedAddresses(const std::vector<unsigned char>& da
     }
   }
 
+  delete fact;
   return true;
 }
 
@@ -526,8 +540,7 @@ bool CWhiteList::get_kycpubkey_outpoint(const CPubKey& pubKey, COutPoint& outPoi
 CRegisterAddressData* CRegisterAddressDataFactory::GetNext(){
   CRegisterAddressData* data;
   if( data = GetNextMultisig() ) return data;
-  if( data = GetNextDerived() )  return data;
-  return GetNextP2SH();
+  return GetNextDerived();
 }
 
 
@@ -661,31 +674,90 @@ CDerivedData* CRegisterAddressDataFactory::GetNextDerived(){
 }
 
 CP2SHData* CRegisterAddressDataFactory::GetNextP2SH(){
+  return nullptr;
+}
 
+CRegisterAddressData* CRegisterAddressDataFactory_v1::GetNext(){
+  CWhiteList::AddrType nAddrType;
+  if(!GetNextAddrType(nAddrType))
+    return nullptr;
+  switch(nAddrType){
+    case CWhiteList::AddrType::MULTI:
+      return GetNextMultisig(); 
+    case CWhiteList::AddrType::DERIVED:
+      return GetNextDerived();
+    case CWhiteList::AddrType::P2SH:
+      return GetNextP2SH();
+    case CWhiteList::AddrType::P2PKH:
+      return GetNextP2PKH();
+    default:
+      return nullptr;;
+  }
+}
+
+bool CRegisterAddressDataFactory_v1::GetNextAddrType( CWhiteList::AddrType& type){
+  unsigned int t = *_cursor;
+  if (t >= CWhiteList::AddrType::LAST)
+    return false;
+  type = CWhiteList::AddrType(t);
+  return AdvanceCursor();
+}
+
+CP2PKHData* CRegisterAddressDataFactory_v1::GetNextP2PKH(){
   MarkReset();
 
-  if (!Params().ContractInTx())
-    return nullptr;
+  CP2PKHData* data = new CP2PKHData();
 
-  ucvec_it cursor = _cursor;
+  ucvec_it cursor = GetCursor();
 
-  if(!AdvanceCursor(cursor,CWhiteList::addrSize)){
+  if(!AdvanceCursor(cursor, CWhiteList::addrSize)){
+    ResetCursor();
+    delete data;
     return nullptr;
   }
 
   std::vector<unsigned char> addrChars(_cursor,cursor);
-
-  _cursor = cursor;
-
-  CP2SHData* data = new CP2SHData();
-
-  try{
-    data->Set(CScriptID(uint160(addrChars)));
-  } catch (std::invalid_argument e) {
+  CTxDestination addr = CKeyID(uint160(addrChars));
+            
+   try{
+    data->Set(addr);
+    } catch (std::invalid_argument e) {
       ResetCursor();
       delete data;
       return nullptr;
+    }
+
+  _cursor = cursor;
+
+  return data;
+}
+
+CP2SHData* CRegisterAddressDataFactory_v1::GetNextP2SH(){
+  MarkReset();
+
+  CP2SHData* data = new CP2SHData();
+
+  ucvec_it cursor = GetCursor();
+
+  if(!AdvanceCursor(cursor, CWhiteList::addrSize)){
+    ResetCursor();
+    delete data;
+    return nullptr;
   }
+
+  std::vector<unsigned char> addrChars(_cursor,cursor);
+  CTxDestination addr = CScriptID(uint160(addrChars));
+            
+   try{
+    data->Set(addr);
+    } catch (std::invalid_argument e) {
+      ResetCursor();
+      delete data;
+      return nullptr;
+    }
+
+  _cursor = cursor;
+
   return data;
 }
 
@@ -724,3 +796,4 @@ void CMultisigData::TryValid(const uint8_t& n){
       ": address does not derive from public keys when tweaked with contract hash\n"));
   }
 }
+

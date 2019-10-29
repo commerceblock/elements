@@ -36,8 +36,10 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_SCRIPTHASH: return "scripthash";
     case TX_MULTISIG: return "multisig";
     case TX_NULL_DATA: return "nulldata";
-    case TX_REGISTERADDRESS: return "registeraddress";
-    case TX_DEREGISTERADDRESS: return "deregisteraddress";
+    case TX_REGISTERADDRESS_V0: return "registeraddress_v0";
+    case TX_DEREGISTERADDRESS_V0: return "deregisteraddress_v0";
+    case TX_REGISTERADDRESS_V1: return "registeraddress_v1";
+    case TX_DEREGISTERADDRESS_V1: return "deregisteraddress_v1";
     case TX_WITNESS_V0_KEYHASH: return "witness_v0_keyhash";
     case TX_WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
     case TX_TRUE: return "true";
@@ -157,6 +159,33 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         return false;
     }
 
+    //Register address transaction
+    std::vector<unsigned char> radata;
+    int raversion;
+    bool rawhitelist;
+    if(scriptPubKey.IsRegisteraddress(raversion, radata, rawhitelist)){
+        if(raversion == 0){
+            if(rawhitelist){
+                typeRet = TX_REGISTERADDRESS_V0;
+            } else {
+                typeRet = TX_DEREGISTERADDRESS_V0;
+            }
+        } else if(raversion == 1){
+            if(rawhitelist){
+                typeRet = TX_REGISTERADDRESS_V1;
+            } else {
+                typeRet = TX_DEREGISTERADDRESS_V1;
+            }
+        }
+        vSolutionsRet.push_back(radata);
+        return true;
+    }
+
+    if (scriptPubKey == CScript() << OP_TRUE) {
+        typeRet = TX_TRUE;
+        return true;
+    }
+
     // Provably prunable, data-carrying output
     //
     // So long as script passes the IsUnspendable() test and all but the first
@@ -164,28 +193,6 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
     // script.
     if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_RETURN && scriptPubKey.IsPushOnly(scriptPubKey.begin()+1)) {
         typeRet = TX_NULL_DATA;
-        return true;
-    }
-
-    //Register address transaction
-    //Firt byte OP_REGISTERADDRESS, remainder is push only (unspendable)
-    //Decode the metadata
-    if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_REGISTERADDRESS){
-        if(scriptPubKey.IsPushOnly(scriptPubKey.begin()+1)){
-            typeRet = TX_REGISTERADDRESS;
-            return true;
-        }
-    }
-
-    if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_DEREGISTERADDRESS){
-        if(scriptPubKey.IsPushOnly(scriptPubKey.begin()+1)){
-            typeRet = TX_DEREGISTERADDRESS;
-            return true;
-        }
-    }
-
-    if (scriptPubKey == CScript() << OP_TRUE) {
-        typeRet = TX_TRUE;
         return true;
     }
 
@@ -264,8 +271,9 @@ bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, vecto
     vector<valtype> vSolutions;
     if (!Solver(scriptPubKey, typeRet, vSolutions))
         return false;
-    if (typeRet == TX_NULL_DATA || typeRet == TX_FEE || typeRet == TX_REGISTERADDRESS 
-        || typeRet == TX_DEREGISTERADDRESS){
+    if (typeRet == TX_NULL_DATA || typeRet == TX_FEE || typeRet == TX_REGISTERADDRESS_V0 
+        || typeRet == TX_DEREGISTERADDRESS_V0 || typeRet == TX_REGISTERADDRESS_V1 
+        || typeRet == TX_DEREGISTERADDRESS_V1){
         // This is data, not addresses
         return false;
     }

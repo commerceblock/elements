@@ -283,6 +283,47 @@ bool CScript::IsWitnessProgram(int& version, std::vector<unsigned char>& program
     return false;
 }
 
+bool CScript::IsRegisteraddress() const {
+    int version;
+    std::vector<unsigned char> data;
+    bool whitelist;
+    return IsRegisteraddress(version, data, whitelist);
+}
+
+bool CScript::IsRegisteraddress(int &version, std::vector<unsigned char>& data, bool& whitelist) const {
+    if(!size()>0) return false;
+    
+    CScript::const_iterator pc = begin();
+
+    if(*pc == OP_REGISTERADDRESS){
+        whitelist = true;
+    } else if (*pc == OP_DEREGISTERADDRESS){
+        whitelist = false;
+    } else {
+        return false;
+    }
+
+    if(!IsPushOnly(++pc))
+        return false;
+
+    opcodetype opcode;
+    if(!GetOp(pc, opcode, data))
+        return false;
+    
+    if (opcode <= OP_PUSHDATA4){
+        version = 0;
+        return true;
+    } else if (opcode == OP_1) {
+        version = 1;
+        if(!GetOp(pc, opcode, data))
+            return false;
+        return (opcode <= OP_PUSHDATA4);
+    } else {        
+        return false;
+    }
+}
+
+
 bool CScript::IsPushOnly(const_iterator pc) const
 {
     while (pc < end())
@@ -299,6 +340,7 @@ bool CScript::IsPushOnly(const_iterator pc) const
     }
     return true;
 }
+
 
 bool CScript::IsPushOnly() const
 {

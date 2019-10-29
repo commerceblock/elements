@@ -67,7 +67,7 @@ class CKYCFile{
     	CWhiteList* _whitelist=nullptr;
 
     	// The user address keys to be whitelisted
-    	std::vector<std::pair<CTxDestination, CPubKey> > _pubKeyPairs;
+    	std::vector<pubKeyPair> _pubKeyPairs;
 
     	std::vector<CTxDestination> _destinations; 
 

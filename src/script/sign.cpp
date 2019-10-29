@@ -83,9 +83,13 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
     case TX_NONSTANDARD:
     case TX_NULL_DATA:
         return false;
-    case TX_REGISTERADDRESS:
+    case TX_REGISTERADDRESS_V0:
         return false;
-    case TX_DEREGISTERADDRESS:
+    case TX_DEREGISTERADDRESS_V0:
+        return false;
+    case TX_REGISTERADDRESS_V1:
+        return false;
+    case TX_DEREGISTERADDRESS_V1:
         return false;
     case TX_PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();

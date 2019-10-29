@@ -26,7 +26,7 @@ bool COnboardingScript::Finalize(CScript& script,
                     const CPubKey& onboardPubKey, 
                     const CKey& kycPrivKey){
 
-    if(whitelistType != RA_ONBOARDING)
+    if(_whitelistType != RA_ONBOARDING)
         return false;
    	_encrypted.clear();
     CECIES_hex encryptor;
@@ -43,23 +43,19 @@ bool COnboardingScript::Finalize(CScript& script,
 	//Append the encrypted addresses
     sendData.insert(sendData.end(), _encrypted.begin(), _encrypted.end()); 
 
-    //Assemble the script and return
-    script.clear();
-    script << _opcode << sendData; 
-    return true;
+    return BuildScript(script, sendData);
 }
 
 bool COnboardingScript::FinalizeUnencrypted(CScript& script){
-    if(whitelistType != RA_ONBOARDING)
+    if(_whitelistType != RA_ONBOARDING)
         return false;
-	ucvec sendData = ToByteVector(_kycPubKey);
+	ucvec sendData;// = ToByteVector(_kycPubKey);
 	//Append the addresses (unencrypted)
     sendData.insert(sendData.end(), _payload.begin(), _payload.end()); 
-    script.clear();
-    script << _opcode << sendData; 
-    return true;
+
+    return BuildScript(script, sendData);
 }
 
-	
+
 
 
