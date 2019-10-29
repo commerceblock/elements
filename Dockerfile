@@ -9,7 +9,6 @@ RUN set -ex \
     && ./configure --without-gui \
     && make clean \
     && make -j$(nproc) \
-    && make \
     && echo "Running tests" \
     && make check \
     && echo "Running Python QA tests" \
