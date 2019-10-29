@@ -161,12 +161,13 @@ class OnboardManualTest (BitcoinTestFramework):
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress4=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress5=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         multisigAddress1=self.nodes[1].createmultisig(2,[onboardAddress1['address'],onboardAddress2['address'],onboardAddress3['address']])['address'];
+        multisigAddress2=self.nodes[1].createmultisig(2,[onboardAddress3['address'],onboardAddress4['address'],onboardAddress5['address']])['address'];
 
         #P2SH
         try:
-            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2sh, [{"address":multisigAddress1}], 
-                []);
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2sh, [{"address":multisigAddress1},{"address":multisigAddress2}],[]);
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
@@ -174,7 +175,7 @@ class OnboardManualTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
-        assert(len(valkyc["addresses"]) == 1)
+        assert(len(valkyc["addresses"]) == 2)
 
         try:
             self.nodes[0].onboarduser(kycfile_p2sh)
@@ -189,15 +190,39 @@ class OnboardManualTest (BitcoinTestFramework):
         print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
+        assert(self.nodes[0].querywhitelist(multisigAddress1) == True)
+        
         os.remove(kycfile_p2sh)
 
         #P2PkH
         try:
-            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2pkh, [{"address":onboardAddress4['address']}], 
-                []);
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2pkh, [{"address":onboardAddress4['address']},{"address":onboardAddress5['address']}],[]);
         except JSONRPCException as e:
             print(e.error['message'])
-            assert(": non-p2sh address: " in e.error['message'])
+            assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == 2)
+
+        try:
+            self.nodes[0].onboarduser(kycfile_p2pkh)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        assert(self.nodes[0].querywhitelist(onboardAddress4['address']) == True)
+        
+        os.remove(kycfile_p2pkh)
+            
         
         #Test invalid parameters
         try:
