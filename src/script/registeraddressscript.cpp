@@ -119,20 +119,24 @@ bool CRegisterAddressScript::Append(const pubKeyPair& p){
     if(_whitelistType != RA_PUBLICKEY && _whitelistType != RA_ONBOARDING)
         return false;
 
-    if(!Params().ContractInTx() && !Consensus::CheckValidTweakedAddress(p.first, p.second))
-        return false;
-    
-    CBitcoinAddress addr(p.first);
+    if(!Params().ContractInTx()){
+        if(!Consensus::CheckValidTweakedAddress(p.first, p.second))
+            return false;
 
-    if(!addr.IsValid())
-        return false;
+        CBitcoinAddress addr(p.first);
 
-    Append(AddrType::DERIVED);
+        if(!addr.IsValid())
+            return false;
 
-    if(!boost::apply_visitor(CByteVecVisitor(this, false), p.first)) 
-        return false;
+        Append(AddrType::DERIVED);
 
-    Append(p.second);
+        if(!boost::apply_visitor(CByteVecVisitor(this, false), p.first)) 
+            return false;
+
+        Append(p.second);
+    } else {
+        Append(p.first);
+    }
 
     return true;
 }
@@ -165,23 +169,28 @@ bool CRegisterAddressScript::Append(const uint8_t nMultisig, const CTxDestinatio
     if(_whitelistType != RA_MULTISIG && _whitelistType != RA_ONBOARDING)
         return false;
 
-    if (!Params().ContractInTx() && !(Consensus::CheckValidTweakedAddress(keyID, keys, nMultisig)))
-        return false;
+    if (!Params().ContractInTx()){
 
-    unsigned int nAppend=0;
-    if(Append(AddrType::MULTI)) ++nAppend;
-    AppendChar((unsigned char)nMultisig);
-    ++nAppend;
-    AppendChar((unsigned char)keys.size());
-    ++nAppend;
+        if(!(Consensus::CheckValidTweakedAddress(keyID, keys, nMultisig)))
+            return false;
 
-    if(!boost::apply_visitor(CByteVecVisitor(this, false), keyID)) {
-        PopBack(nAppend);
-        return false;
-    }
+        unsigned int nAppend=0;
+        if(Append(AddrType::MULTI)) ++nAppend;
+        AppendChar((unsigned char)nMultisig);
+        ++nAppend;
+        AppendChar((unsigned char)keys.size());
+        ++nAppend;
 
-    for(unsigned int i = 0; i < keys.size(); ++i){
-        Append(keys[i]);
+        if(!boost::apply_visitor(CByteVecVisitor(this, false), keyID)) {
+            PopBack(nAppend);
+            return false;
+        }
+
+        for(unsigned int i = 0; i < keys.size(); ++i){
+            Append(keys[i]);
+        }
+    } else {
+        Append(keyID);
     }
     return true;
 }
