@@ -803,13 +803,14 @@ static void SendOnboardTx(const CScript& script,  CWalletTx& wtxNew){
 }
 
 UniValue onboarduser(const JSONRPCRequest& request){
-  if (request.fHelp || request.params.size() != 1)
+  if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
     throw runtime_error(
             "onboarduser \"filename\" \n"
             "Read in derived keys and tweaked addresses from kyc file (see dumpkycfile, createkycfile) into the address whitelist. Assign a KYC public key to the user if using encrypted whitelist.\n"
             "\nArguments:\n"
 
-            "1. \"filename\"    (string, required) The kyc file name\n"
+            "1. \"filename\"         (string, required) The kyc file name\n"
+            "2. \"scriptversion\"    (integer, optional) The registeraddress script version (default = latest)\n"
 
             "\nExamples:\n"
             + HelpExampleCli("onboarduser", "\"my filename\"")
@@ -821,10 +822,16 @@ UniValue onboarduser(const JSONRPCRequest& request){
     EnsureWalletIsUnlocked();
 
     CKYCFile file;
+
     file.read(request.params[0].get_str().c_str());
 
+    int nVersion=-1;
+    if(request.params.size() > 1){
+        nVersion = request.params[1].get_int();
+    }
+
     CScript script;
-    if(!file.getOnboardingScript(script))
+    if(!file.getOnboardingScript(script, false, nVersion))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot generate onboarding script");
 
     CWalletTx wtx;
@@ -6039,7 +6046,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "dumpkycfile",              &dumpkycfile,               true,   {"filename"} },
     { "wallet",             "readkycfile",              &readkycfile,               true,   {"filename", "outfilename", "onboardpubkey"} },
     { "wallet",             "validatekycfile",          &validatekycfile,           true,   {"filename"} },
-    { "wallet",             "onboarduser",              &onboarduser,               false,  {"filename"} },
+    { "wallet",             "onboarduser",              &onboarduser,               false,  {"filename", "scriptversion"} },
     { "wallet",             "blacklistuser",            &blacklistuser,             false,  {"filename"} },
     { "wallet",             "topupkycpubkeys",          &topupkycpubkeys,           false,  {"nkeys"} },
     { "wallet",             "removekycpubkey",          &removekycpubkey,           false,  {"kycpubkey"} },
