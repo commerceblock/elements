@@ -9,7 +9,6 @@
 
 #include "registeraddressscript.h"
 
-
 class COnboardingScript : public CRegisterAddressScript{
 public:
 	COnboardingScript();

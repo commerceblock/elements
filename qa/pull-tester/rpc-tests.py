@@ -114,9 +114,8 @@ testScripts = [
     'policytransactions.py',
     'onboard.py',
     'onboard_cit.py',
-    'onboardencrypted.py',
     'onboardmanual.py',
-    'onboardmanualencrypted.py',
+    'onboardmanual_cit.py',
     'fixedfee.py',
     # Accounts not supported
     #'wallet-accounts.py',

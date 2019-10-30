@@ -16,6 +16,7 @@ class OnboardManualTest (BitcoinTestFramework):
         self.setup_clean_chain = True
         self.num_nodes = 3
         self.extra_args = [['-txindex'] for i in range(3)]
+        self.extra_args[0].append("-contractintx=1")
         self.extra_args[0].append("-pkhwhitelist=1")
         self.extra_args[0].append("-pkhwhitelist-encrypt=0")
         self.extra_args[0].append("-rescan=1")
@@ -24,6 +25,7 @@ class OnboardManualTest (BitcoinTestFramework):
         self.extra_args[0].append("-regtest=0")
         self.extra_args[0].append("-initialfreecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
         self.extra_args[0].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
+        self.extra_args[1].append("-contractintx=1")
         self.extra_args[1].append("-rescan=1")
         self.extra_args[1].append("-regtest=0")
         self.extra_args[1].append("-pkhwhitelist=1")
@@ -32,6 +34,7 @@ class OnboardManualTest (BitcoinTestFramework):
         self.extra_args[1].append("-policycoins=50000000000000")
         self.extra_args[1].append("-initialfreecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
         self.extra_args[1].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
+        self.extra_args[2].append("-contractintx=1")
         self.extra_args[2].append("-rescan=1")
         self.extra_args[2].append("-regtest=0")
         self.extra_args[2].append("-pkhwhitelist=1")
@@ -145,15 +148,94 @@ class OnboardManualTest (BitcoinTestFramework):
         self.sync_all()
 
         #Onboard node1
-        kycfile=os.path.join(self.options.tmpdir,"kycfile.dat")
-        kycfile_normal=os.path.join(self.options.tmpdir,"kycfile_normal.dat")
-        kycfile_normal_plain=os.path.join(self.options.tmpdir,"kycfile_normal_plain.dat")
-        kycfile_multisig=os.path.join(self.options.tmpdir,"kycfile_multisig.dat")
-        kycfile_multisig_plain=os.path.join(self.options.tmpdir,"kycfile_multisig_plain.dat")
-        kycfile_empty=os.path.join(self.options.tmpdir,"kycfile_empty.dat")
+        kycfile="kycfile.dat"
+        kycfile_normal="kycfile_normal.dat"
+        kycfile_p2sh="kycfile_p2sh.dat"
+        kycfile_p2pkh="kycfile_p2pkh.dat"
+        kycfile_multisig="kycfile_multisig.dat"
+        kycfile_empty="kycfile_empty.dat"
         #userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
 
+        #P2SH
+        onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress4=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        onboardAddress5=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        multisigAddress1=self.nodes[1].createmultisig(2,[onboardAddress1['address'],onboardAddress2['address'],onboardAddress3['address']])['address'];
+        multisigAddress2=self.nodes[1].createmultisig(2,[onboardAddress3['address'],onboardAddress4['address'],onboardAddress5['address']])['address'];
 
+        witnessAddress1=self.nodes[1].addwitnessaddress(self.nodes[1].getnewaddress())
+        
+        #P2SH
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2sh, [{"address":multisigAddress1},{"address":multisigAddress2},{"address":witnessAddress1}],[]);
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == 3)
+
+        assert(self.nodes[0].querywhitelist(multisigAddress1) == False)
+        assert(self.nodes[0].querywhitelist(multisigAddress2) == False)
+        assert(self.nodes[0].querywhitelist(witnessAddress1) == False)
+        
+        try:
+            self.nodes[0].onboarduser(kycfile_p2sh)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        assert(self.nodes[0].querywhitelist(multisigAddress1) == True)
+        assert(self.nodes[0].querywhitelist(multisigAddress2) == True)
+        assert(self.nodes[0].querywhitelist(witnessAddress1) == True)
+        
+        os.remove(kycfile_p2sh)
+
+        #P2PkH
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2pkh, [{"address":onboardAddress4['address']},{"address":onboardAddress5['address']}],[]);
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == 2)
+
+        assert(self.nodes[0].querywhitelist(onboardAddress4['address']) == False)
+        assert(self.nodes[0].querywhitelist(onboardAddress5['address']) == False)
+        
+        try:
+            self.nodes[0].onboarduser(kycfile_p2pkh)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        assert(self.nodes[0].querywhitelist(onboardAddress4['address']) == True)
+        assert(self.nodes[0].querywhitelist(onboardAddress5['address']) == True)
+        
+        os.remove(kycfile_p2pkh)
+            
+        
         #Test invalid parameters
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test,None, None);
@@ -188,8 +270,6 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].readkycfile(kycfile_normal, kycfile_normal_plain)
-            
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
@@ -198,28 +278,9 @@ class OnboardManualTest (BitcoinTestFramework):
         self.nodes[0].generate(101)
         self.sync_all()
 
-        #Test invalid parameters
-        try:
-            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test, [{"address":onboardAddress1['address']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpubkey']}], []);
-            #expect an exception
-            assert(False)
-        except JSONRPCException as e:
-            message=e.error['message']
-            print(message)
-            assert("Pubkey missing in pubkeylist" in message)
 
         try:
-            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test, [{"pubkey":onboardAddress1['derivedpubk\
-ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpubkey']}], []);
-            #expect an exception
-            assert(False)
-        except JSONRPCException as e:
-            message=e.error['message']
-            assert("Address missing in pubkeylist" in message)
-
-        try:
-            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test, [{"address":"myInvalidAddress","pubkey":onboardAddress1['derivedpubk\
-ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpubkey']}], []);
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test, [{"address":"myInvalidAddress","pubkey":onboardAddress1['derivedpubkey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpubkey']}], []);
             #expect an exception
             assert(False)
         except JSONRPCException as e:
@@ -251,6 +312,50 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
 
         os.remove(kycfile_normal)
 
+        #P2SH
+        onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
+        multisigAddress1=self.nodes[1].createmultisig(2,[onboardAddress1['address'],onboardAddress2['address'],onboardAddress3['address']])['address'];
+                                                      
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2sh, [{"address":multisigAddress1}], 
+                []);
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == 1)
+        
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        #Test invalid parameters
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test, [{"address":"myInvalidAddress"}], []);
+            #expect an exception
+            assert(False)
+        except JSONRPCException as e:
+            message=e.error['message']
+            assert("Invalid address in pubkeylist: myInvalidAddress" in message)
+
+        balance_1=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
+        try:
+            self.nodes[0].onboarduser(kycfile_p2sh)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        os.remove(kycfile_p2sh)
+
 
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
@@ -260,12 +365,11 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         untweakedPubkeys2=[onboardAddress2['derivedpubkey'],onboardAddress3['derivedpubkey'],onboardAddress4['derivedpubkey']]
         untweakedPubkeys3=[onboardAddress3['derivedpubkey'],onboardAddress4['derivedpubkey']]
         try:
-            createResult=self.nodes[1].createkycfile(kycfile_multisig, [], [{"nmultisig":2,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}]);
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_multisig, [], [{"nmultisig":2,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}]);
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].readkycfile(kycfile_multisig, kycfile_multisig_plain)
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
@@ -280,19 +384,6 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         self.nodes[0].generate(101)
         self.sync_all()
 
-        
-        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
-        print(valkyc)
-
-        print("querying whitelist for addresses...")
-        for addr in valkyc["addresses"]:
-            print(addr)
-            assert(self.nodes[0].querywhitelist(addr))
-
-        assert(valkyc["iswhitelisted"] == True)
-
-        os.remove(kycfile_multisig)
-
 
         #Test invalid parameters
         try:
@@ -301,7 +392,6 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             assert(False)
         except JSONRPCException as e:
             message=e.error['message']
-            print(message)
             assert("nmultisig missing in multisiglist" in message)
 
         try:
@@ -310,7 +400,6 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             assert(False)
         except JSONRPCException as e:
             message=e.error['message']
-            print(message)
             assert("pubkeys missing in multisiglist" in message)
                     
         try:
@@ -319,7 +408,6 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             assert(False)
         except JSONRPCException as e:
             message=e.error['message']
-            print(message)
             assert("JSON integer out of range" in message)
         
         try:
@@ -328,7 +416,6 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             assert(False)
         except JSONRPCException as e:
             message=e.error['message']
-            print(message)
             assert("nmultisig must be an integer between 1 and 15")
 
         try:
@@ -348,9 +435,15 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             assert(False)
         except JSONRPCException as e:
             message=e.error['message']
-            print(message)
             assert("Invalid pubkey in multisiglist: " in message)
-                
+        
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        os.remove(kycfile_multisig)
+        
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())

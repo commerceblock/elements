@@ -264,7 +264,11 @@ class OnboardTest (BitcoinTestFramework):
         wl1file=self.initfile(os.path.join(self.options.tmpdir,"wl1.dat"))
         self.nodes[1].dumpwhitelist(wl1file)
         nadd=100
-        saveres=self.nodes[1].sendaddtowhitelisttx(nadd,"CBT")
+        try:
+            saveres=self.nodes[1].sendaddtowhitelisttx(nadd,"CBT")
+        except Exception as e:
+            print(e.error['message'])
+            assert False
         time.sleep(5)
         self.nodes[0].generate(101)
         self.sync_all()

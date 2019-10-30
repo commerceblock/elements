@@ -458,18 +458,25 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 bool CheckTransaction(const CTransaction& tx, CValidationState& state, bool fCheckDuplicateInputs=true);
 
 namespace Consensus {
+	using pubKeyPair = std::pair<CTxDestination, CPubKey>;
 
 /**
 * Check wether the bitcoin address is derived from the public key via key tweaking
 * using the hash contract of the chain active tip.
 */
-bool CheckValidTweakedAddress(const CTxDestination keyID, const CPubKey& pubKey);
+bool CheckValidTweakedAddress(const pubKeyPair& p);
+
+/**
+* Check wether the bitcoin address is derived from the public key via key tweaking
+* using the hash contract of the chain active tip.
+*/
+bool CheckValidTweakedAddress(const CTxDestination& keyID, const CPubKey& pubKey);
 
 /**
 * Check whether the script address is derived from the public keys via key tweaking
 * using the hash contract of the chain active tip.
 */
-bool CheckValidTweakedAddress(const CTxDestination keyID, const std::vector<CPubKey>& pubKeys, const uint8_t nMultisig);
+bool CheckValidTweakedAddress(const CTxDestination& keyID, const std::vector<CPubKey>& pubKeys, const uint8_t& nMultisig);
 
 /**
  * Check whether all inputs of this transaction are valid (no double spends and amounts)

@@ -14,9 +14,11 @@
 #include <functional> 
 #include <cctype>
 #include <locale>
+#include <utility>
 #include "script/onboardingscript.h"
 
 using uc_vec=std::vector<unsigned char>;
+using pubKeyPair=std::pair<CTxDestination, CPubKey>;
 
 class CKYCFile{
 	public:
@@ -35,12 +37,13 @@ class CKYCFile{
 
 		bool initEncryptor();
 
-		std::vector<CPubKey> getAddressKeys() const {return _addressKeys;}
-		std::vector<CTxDestination> getAddressKeyIds() const {return _addressKeyIds;}
+
+		std::vector<CTxDestination> getAddresses() const;
 
 		const CPubKey* getOnboardPubKey() const {return _onboardPubKey;}
 		const CPubKey* getOnboardUserPubKey() const {return _onboardUserPubKey;}
 
+		bool parseAddress(const std::vector<std::string> vstr, const std::string line);
 		bool parsePubkeyPair(const std::vector<std::string> vstr, const std::string line);
 		bool parseContractHash(const std::vector<std::string> vstr, const std::string line);
 		bool parseMultisig(const std::vector<std::string> vstr, const std::string line);
@@ -64,8 +67,9 @@ class CKYCFile{
     	CWhiteList* _whitelist=nullptr;
 
     	// The user address keys to be whitelisted
-    	std::vector<CPubKey> _addressKeys; 
-    	std::vector<CTxDestination> _addressKeyIds; 
+    	std::vector<pubKeyPair> _pubKeyPairs;
+
+    	std::vector<CTxDestination> _destinations; 
 
     	std::vector<OnboardMultisig> _multisigData;
 

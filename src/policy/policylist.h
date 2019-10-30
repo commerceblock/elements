@@ -18,10 +18,10 @@
 
 class CPolicyList : private std::set<CTxDestination>
 {
+ public:
   using base = std::set<CTxDestination>;
   using baseIter = base::iterator;
 
- public:
   CPolicyList();
   virtual ~CPolicyList();
   void lock(){_mtx.lock();}

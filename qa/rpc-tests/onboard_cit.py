@@ -253,11 +253,18 @@ class OnboardTest (BitcoinTestFramework):
         #Onboard node0
         kycfile0=self.initfile(os.path.join(self.options.tmpdir,"kycfile0.dat"))
         userOnboardPubKey=self.nodes[0].dumpkycfile(kycfile0)
+        kycfile0_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile0_plain.dat"))
+        print("onboard node 0 \n")
+        print("read kycfile0 node 0 \n")
+        self.nodes[0].readkycfile(kycfile0, kycfile0_plain)
         self.nodes[0].onboarduser(kycfile0)
+        print("generate block \n")
         self.nodes[0].generate(101)
+        print("sync all \n")
         self.sync_all()
 
         wl1file=self.initfile(os.path.join(self.options.tmpdir,"wl1.dat"))
+        print("dump node1 wl \n")
         self.nodes[1].dumpwhitelist(wl1file)
         nlines=self.linecount(wl1file)
         nlines_empty=self.linecount(wl1file_empty)
@@ -434,6 +441,9 @@ class OnboardTest (BitcoinTestFramework):
         except JSONRPCException as e:
             assert("Not implemented for unencrypted whitelist" in e.error['message'])
 
+
+        print("Multisig address: ")
+        print(multiAddress1['address'])
         #Adding the created p2sh to the whitelist via addmultitowhitelist rpc
         try:
             self.nodes[1].addmultitowhitelist(multiAddress1['address'],[clientAddress1['derivedpubkey'],clientAddress2['derivedpubkey'],clientAddress3['derivedpubkey']],2,"")
