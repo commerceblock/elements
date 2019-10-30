@@ -62,6 +62,7 @@ public:
 		_payload.push_back(c);
 	}
 
+
 	std::size_t getPayloadSize() { return _payload.size(); }
 
 	virtual void clear(){_payload.clear(); _encrypted.clear(); ((CScript*)this)->clear();}

@@ -346,7 +346,7 @@ bool CWhiteList::RegisterDecryptedAddresses(const txnouttype& whichType, const s
 
 void CWhiteList::add(CRegisterAddressData* d){
   CTxDestination dest = d->GetDest();
-  if(dest != _noDest) CPolicyList::add_sorted(dest);
+  if!((dest == _noDest)) CPolicyList::add_sorted(dest);
 }
 
 void CWhiteList::remove(CRegisterAddressData* d){
