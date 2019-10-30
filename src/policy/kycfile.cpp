@@ -329,7 +329,7 @@ bool CKYCFile::is_empty(){
     return true;
 }
 
-bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
+bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist, int nVersion){
     uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
     if(!contract.IsNull() && Params().ContractInKYCFile()){
         if(!_fContractHash_parsed) 
@@ -349,6 +349,7 @@ bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist){
 
 
     COnboardingScript obScript;
+    if(nVersion >=0) obScript.ScriptVersion(nVersion);
     obScript.SetDeregister(fBlacklist);
 
     // Lookup the KYC public key assigned to the user from the whitelist

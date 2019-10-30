@@ -31,6 +31,7 @@ public:
  */
 static const CRPCConvertParam vRPCConvertParams[] =
 {
+    { "onboarduser", 1, "scriptversion"},
     { "topupkycpubkeys", 0, "nkeys" },
     { "whitelistkycpubkeys", 0, "kycpubkeys" },
     { "setmocktime", 0, "timestamp" },

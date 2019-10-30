@@ -384,6 +384,41 @@ class OnboardManualTest (BitcoinTestFramework):
         self.nodes[0].generate(101)
         self.sync_all()
 
+        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+
+        #Blacklist
+        try:
+            self.nodes[0].blacklistuser(kycfile_multisig)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+
+        #Onboard again using registeraddresss script version 0
+        try:
+            self.nodes[0].onboarduser(kycfile_multisig, 0)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+        
+        os.remove(kycfile_multisig)
+        
+
 
         #Test invalid parameters
         try:
@@ -438,12 +473,6 @@ class OnboardManualTest (BitcoinTestFramework):
             assert("Invalid pubkey in multisiglist: " in message)
         
 
-        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
-        print(valkyc)
-        assert(valkyc["iswhitelisted"] == True)
-
-        os.remove(kycfile_multisig)
-        
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())

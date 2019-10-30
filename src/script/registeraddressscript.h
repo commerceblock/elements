@@ -58,10 +58,10 @@ public:
 		return _nScriptVersion;
 	}
 
-
 	void AppendChar(const unsigned char& c){
 		_payload.push_back(c);
 	}
+
 
 	std::size_t getPayloadSize() { return _payload.size(); }
 

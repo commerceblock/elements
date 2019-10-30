@@ -180,7 +180,8 @@ class OnboardTest (BitcoinTestFramework):
         kycfile0_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile0_plain.dat"))
         self.nodes[0].readkycfile(kycfile0, kycfile0_plain)
 
-        self.nodes[0].onboarduser(kycfile0)
+        #Old registeraddresss script (version 0)
+        self.nodes[0].onboarduser(kycfile0, 0)
         time.sleep(5)
         self.nodes[0].generate(101)
         time.sleep(5)

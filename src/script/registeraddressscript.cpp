@@ -119,9 +119,10 @@ bool CRegisterAddressScript::Append(const pubKeyPair& p){
     if(_whitelistType != RA_PUBLICKEY && _whitelistType != RA_ONBOARDING)
         return false;
 
-    if(!Params().ContractInTx()){
-        if(!Consensus::CheckValidTweakedAddress(p.first, p.second))
+    if(!Params().ContractInTx() &! Consensus::CheckValidTweakedAddress(p.first, p.second))
             return false;
+
+    if(!Params().ContractInTx() || _nScriptVersion == 0){
 
         CBitcoinAddress addr(p.first);
 
@@ -169,10 +170,10 @@ bool CRegisterAddressScript::Append(const uint8_t nMultisig, const CTxDestinatio
     if(_whitelistType != RA_MULTISIG && _whitelistType != RA_ONBOARDING)
         return false;
 
-    if (!Params().ContractInTx()){
-
-        if(!(Consensus::CheckValidTweakedAddress(keyID, keys, nMultisig)))
+    if(!Params().ContractInTx() &! Consensus::CheckValidTweakedAddress(keyID, keys, nMultisig))
             return false;
+
+    if (!Params().ContractInTx() || _nScriptVersion == 0){
 
         unsigned int nAppend=0;
         if(Append(AddrType::MULTI)) ++nAppend;

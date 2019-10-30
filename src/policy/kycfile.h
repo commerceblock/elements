@@ -50,7 +50,7 @@ class CKYCFile{
 
 		const std::stringstream& getStream() const {return _decryptedStream;}
 
-	 	bool getOnboardingScript(CScript& script, bool fBlacklist=false);
+	 	bool getOnboardingScript(CScript& script, bool fBlacklist=false, int nVersion=-1);
 
 	 	bool is_whitelisted();
 
