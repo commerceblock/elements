@@ -4,5 +4,5 @@ Section: base
 Priority: optional
 Architecture: amd64
 Depends: libc6 (>= 2.27)
-Maintainer: Martin Tsvetanov <martin@commerceblock.com>
+Maintainer: CommerceBlock
 Description: oceand ocean-cli and ocean-tx binaries
