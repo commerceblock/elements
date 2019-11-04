@@ -27,7 +27,7 @@ RUN set -ex \
     && sed -i "s/Version: .*/Version: ${tag_name}/" \
         ocean-${tag_name}/DEBIAN/control \
     && dpkg-deb --build ocean-${tag_name} \
-    && curl -v -d @ocean-${tag_name}.deb \
+    && curl -v --data-binary @ocean-${tag_name}.deb \
        -H "Content-Type: multipart/form-data" \
        -H "Authorization: token $(echo $token)" \
        -H "Content-Type: application/octet-stream" \
