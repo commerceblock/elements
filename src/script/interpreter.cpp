@@ -1627,7 +1627,13 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         // Sighash type
         ss << nHashType;
 
-        return ss.GetHash();
+        uint256 result = ss.GetHash();
+
+        std::stringstream ss_pi;
+        ss_pi << ss.GetPreimage(); 
+        LogPrintf("SignatureHash(): preimage: %s results in hash %s\n", ss_pi.str(), result);
+
+        return result;
     }
 
     static const uint256 one(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));

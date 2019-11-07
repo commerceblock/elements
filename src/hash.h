@@ -30,8 +30,6 @@ public:
         sha.Reset().Write(buf, CSHA256::OUTPUT_SIZE).Finalize(hash);
     }
 
-    void 
-
     CHash256& Write(const unsigned char *data, size_t len) {
         sha.Write(data, len);
         return *this;
@@ -133,7 +131,6 @@ class CHashWriter
 {
 private:
     CHash256 ctx;
-    //For debugging purposes
     std::vector<unsigned char> preimage;
 
     const int nType;
