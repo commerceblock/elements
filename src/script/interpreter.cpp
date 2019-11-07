@@ -1601,6 +1601,8 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
             CHashWriter ss(SER_GETHASH, 0);
             ss << txTo.vout[nIn];
+            std::vector<unsigned char> pri = ss.GetPreimage(); 
+            LogPrintf("SignatureHash(): preimage of hashOutputs: %s\n", std::string(pri.begin(), pri.end()));
             hashOutputs = ss.GetHash();
         }
 
@@ -1629,9 +1631,8 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
 
         uint256 result = ss.GetHash();
 
-        std::stringstream ss_pi;
-        ss_pi << ss.GetPreimage(); 
-        LogPrintf("SignatureHash(): preimage: %s results in hash %s\n", ss_pi.str(), result);
+        std::vector<unsigned char> pri = ss.GetPreimage(); 
+        LogPrintf("SignatureHash(): preimage: %s\n", std::string(pri.begin(), pri.end()));
 
         return result;
     }
