@@ -14,9 +14,21 @@ class SendAnyTest (BitcoinTestFramework):
         self.num_nodes = 4
         self.extra_args = [['-usehd={:d}'.format(i%2==0)] for i in range(4)]
         self.extra_args[0].append("-txindex")
+        self.extra_args[0].append("-policycoins=50000000000000")
+        self.extra_args[0].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
+        self.extra_args[0].append("-initialfreecoinsdestination=76a914b87ed64e2613422571747f5d968fff29a466e24e88ac")
         self.extra_args[1].append("-txindex")
+        self.extra_args[1].append("-policycoins=50000000000000")
+        self.extra_args[1].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
+        self.extra_args[1].append("-initialfreecoinsdestination=76a914b87ed64e2613422571747f5d968fff29a466e24e88ac")
         self.extra_args[2].append("-txindex")
+        self.extra_args[2].append("-policycoins=50000000000000")
+        self.extra_args[2].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
+        self.extra_args[2].append("-initialfreecoinsdestination=76a914b87ed64e2613422571747f5d968fff29a466e24e88ac")
         self.extra_args[3].append("-txindex")
+        self.extra_args[3].append("-policycoins=50000000000000")
+        self.extra_args[3].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
+        self.extra_args[3].append("-initialfreecoinsdestination=76a914b87ed64e2613422571747f5d968fff29a466e24e88ac")
 
     def setup_network(self, split=False):
         self.nodes = start_nodes(4, self.options.tmpdir, self.extra_args[:4])
@@ -32,12 +44,27 @@ class SendAnyTest (BitcoinTestFramework):
     def run_test (self):
 
         # Check that there's 100 UTXOs on each of the nodes
+        self.nodes[0].importprivkey("cQRC9YB11Li3QHqyxMPff3uznfRggMUYdixctbyNdWdnNWr3koZy")
+        self.nodes[1].importprivkey("cQRC9YB11Li3QHqyxMPff3uznfRggMUYdixctbyNdWdnNWr3koZy")
+        self.nodes[2].importprivkey("cQRC9YB11Li3QHqyxMPff3uznfRggMUYdixctbyNdWdnNWr3koZy")
         assert_equal(len(self.nodes[0].listunspent()), 100)
         assert_equal(len(self.nodes[1].listunspent()), 100)
         assert_equal(len(self.nodes[2].listunspent()), 100)
 
         walletinfo = self.nodes[2].getbalance()
         assert_equal(walletinfo["CBT"], 21000000)
+
+        # test sendany/createany does not work with policy assets
+        self.nodes[3].importprivkey("cNCQhCnpnzyeYh48NszsTJC2G4HPoFMZguUnUgBpJ5X9Vf2KaPYx")
+        assert_equal(self.nodes[3].getbalance(), {'WHITELIST': Decimal('500000.00000000')})
+        try:
+            self.nodes[3].sendanytoaddress(self.nodes[3].getnewaddress(), 100)
+        except Exception as exp:
+            assert("Insufficient funds for sendany" in exp.error['message'])
+        try:
+            self.nodes[3].createanytoaddress(self.nodes[3].getnewaddress(), 100)
+        except JSONRPCException as exp:
+            assert("Insufficient funds for sendany" in exp.error['message'])
 
         self.nodes[2].generate(101)
         self.sync_all()
