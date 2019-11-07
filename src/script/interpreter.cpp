@@ -1604,28 +1604,58 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
             hashOutputs = ss.GetHash();
         }
 
+        LogPrintf("SignatureHash Preimage:\n");
+
         CHashWriter ss(SER_GETHASH, 0);
         // Version
         ss << txTo.nVersion;
+        stringstream stream;
+        stream << hex << txTo.nVersion;
+        LogPrintf(stream.str());
         // Input prevouts/nSequence (none/all, depending on flags)
         ss << hashPrevouts;
+        LogPrintf(hashPrevouts.GetHex());
         ss << hashSequence;
+        LogPrintf(hashSequence.GetHex());
         ss << hashIssuance;
+        LogPrintf(hashIssuance.GetHex());
         // The input being signed (replacing the scriptSig with scriptCode + amount)
         // The prevout may already be contained in hashPrevout, and the nSequence
         // may already be contain in hashSequence.
         ss << txTo.vin[nIn].prevout;
+        LogPrintf(txTo.vin[nIn].prevout.hash.GetHex());
+        stream.str("");
+        stream << hex << txTo.vin[nIn].prevout.n;
+        LogPrintf(stream.str());        
         ss << static_cast<const CScriptBase&>(scriptCode);
+        LogPrintf(HexStr(scriptCode.begin(),scriptCode.end()));  
         ss << amount;
+        stream.str("");
+//        stream << hex << amount;
+        LogPrintf(stream.str());   
         ss << txTo.vin[nIn].nSequence;
+        stream.str("");
+        stream << hex << txTo.vin[nIn].nSequence;
+        LogPrintf(stream.str());
         if (!txTo.vin[nIn].assetIssuance.IsNull())
             ss << txTo.vin[nIn].assetIssuance;
         // Outputs (none/one/all, depending on flags)
         ss << hashOutputs;
+        LogPrintf(hashOutputs.GetHex()); 
         // Locktime
         ss << txTo.nLockTime;
+        stream.str("");
+        stream << hex << txTo.nLockTime;
+        LogPrintf(stream.str());
         // Sighash type
         ss << nHashType;
+        stream.str("");
+        stream << hex << nHashType;
+        LogPrintf(stream.str());        
+
+        LogPrintf("SignatureHash:\n");
+        LogPrintf(ss.GetHash().GetHex());
+        LogPrintf("\n");
 
         return ss.GetHash();
     }

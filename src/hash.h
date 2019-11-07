@@ -158,6 +158,7 @@ public:
         ::Serialize(*this, obj);
         return (*this);
     }
+
 };
 
 /** Compute the 256-bit hash of an object's serialization. */
