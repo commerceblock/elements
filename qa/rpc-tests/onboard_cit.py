@@ -130,7 +130,7 @@ class OnboardTest (BitcoinTestFramework):
         #Issuance
         self.nodes[3].importprivkey("cSdWz4JStWKgVMQrdQ8TCqzmhAt7jprCPxvrZMpzy4s6WcBuW9NW")
 
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         # issue some new asset (that is not the domain asset)
@@ -260,7 +260,7 @@ class OnboardTest (BitcoinTestFramework):
         #Old registeraddresss script (version 0)
         self.nodes[0].onboarduser(kycfile0, 0)
         print("generate block \n")
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(11)
         print("sync all \n")
         self.sync_all()
 
@@ -281,7 +281,7 @@ class OnboardTest (BitcoinTestFramework):
 
         balance_1=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         self.nodes[0].onboarduser(kycfile)
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(11)
         self.sync_all()
 
         with open(kycfile_plain) as fp:
@@ -557,7 +557,7 @@ class OnboardTest (BitcoinTestFramework):
         self.blacklist_test(kycfile, keypool)
 
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
-        #Test that the onboard transaction does not spend and whitelist asset
+        #Test that the onboard transaction does not spend any whitelist asset
         assert_equal(wb0_1, wb0_2)
 
 
@@ -572,7 +572,7 @@ class OnboardTest (BitcoinTestFramework):
         nlines4=self.linecount(wl1file_4)
 
         self.nodes[0].blacklistuser(kycfile)
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(11)
         self.sync_all()
 
         wl1_bl_file=self.initfile(os.path.join(self.options.tmpdir,"wl1_bl.dat"))
@@ -590,7 +590,7 @@ class OnboardTest (BitcoinTestFramework):
         #Re-whitelist node1 wallet
         self.nodes[0].onboarduser(kycfile)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(11)
         self.sync_all()
 
         wl1file_rwl=self.initfile(os.path.join(self.options.tmpdir,"wl1_rwl.dat"))
