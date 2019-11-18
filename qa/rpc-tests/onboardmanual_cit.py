@@ -199,7 +199,35 @@ class OnboardManualTest (BitcoinTestFramework):
         assert(self.nodes[0].querywhitelist(multisigAddress1) == True)
         assert(self.nodes[0].querywhitelist(multisigAddress2) == True)
         assert(self.nodes[0].querywhitelist(witnessAddress1) == True)
-        
+
+        #Blacklist
+        try:
+            self.nodes[0].blacklistuser(kycfile_p2sh)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+
+        #Onboard again using registeraddresss script version 0 (will fail to whitelist)
+        try:
+            self.nodes[0].onboarduser(kycfile_p2sh, 0)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+
         os.remove(kycfile_p2sh)
 
         #P2PkH
@@ -232,7 +260,36 @@ class OnboardManualTest (BitcoinTestFramework):
 
         assert(self.nodes[0].querywhitelist(onboardAddress4['address']) == True)
         assert(self.nodes[0].querywhitelist(onboardAddress5['address']) == True)
-        
+
+
+        #Blacklist
+        try:
+            self.nodes[0].blacklistuser(kycfile_p2pkh)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+
+        #Onboard again using registeraddresss script version 0 (will fail to whitelist)
+        try:
+            self.nodes[0].onboarduser(kycfile_p2pkh, 0)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+
         os.remove(kycfile_p2pkh)
             
         
@@ -310,6 +367,34 @@ class OnboardManualTest (BitcoinTestFramework):
         print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
+        #Blacklist
+        try:
+            self.nodes[0].blacklistuser(kycfile_normal)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_normal)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+
+        #Onboard again using registeraddresss script version 0
+        try:
+            self.nodes[0].onboarduser(kycfile_normal, 0)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_normal)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+        
         os.remove(kycfile_normal)
 
         #P2SH
@@ -545,6 +630,35 @@ class OnboardManualTest (BitcoinTestFramework):
         print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
+
+        #Blacklist
+        try:
+            self.nodes[0].blacklistuser(kycfile)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+
+        #Onboard again using registeraddresss script version 0
+        try:
+            self.nodes[0].onboarduser(kycfile, 0)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(101)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+        
         os.remove(kycfile)
 
         
