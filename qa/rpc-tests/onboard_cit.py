@@ -130,7 +130,7 @@ class OnboardTest (BitcoinTestFramework):
         #Issuance
         self.nodes[3].importprivkey("cSdWz4JStWKgVMQrdQ8TCqzmhAt7jprCPxvrZMpzy4s6WcBuW9NW")
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(101)
         self.sync_all()
 
         # issue some new asset (that is not the domain asset)

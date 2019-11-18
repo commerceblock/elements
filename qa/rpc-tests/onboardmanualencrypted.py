@@ -80,7 +80,7 @@ class OnboardManualTest (BitcoinTestFramework):
         self.nodes[0].importprivkey("cS29UJMQrpnee7UaUHo6NqJVpGr35TEqUDkKXStTnxSZCGUWavgE")
         self.nodes[0].importprivkey("cNCQhCnpnzyeYh48NszsTJC2G4HPoFMZguUnUgBpJ5X9Vf2KaPYx")
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(101)
         self.sync_all()
 
         #find txouts for the freezelistasset and burnlistasset
