@@ -227,7 +227,7 @@ class OnboardTest (BitcoinTestFramework):
 
         #Register a KYC public key
         self.nodes[0].topupkycpubkeys(1)
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(11)
         self.sync_all()
 
         self.nodes[0].dumpkycpubkeys(kycpkfile)
@@ -260,7 +260,7 @@ class OnboardTest (BitcoinTestFramework):
         #Old registeraddresss script (version 0)
         self.nodes[0].onboarduser(kycfile0, 0)
         print("generate block \n")
-        self.nodes[0].generate(11)
+        self.nodes[0].generate(101)
         print("sync all \n")
         self.sync_all()
 
