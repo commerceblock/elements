@@ -101,12 +101,12 @@ class OnboardTest (BitcoinTestFramework):
         #Issuance
         self.nodes[0].importprivkey("cSdWz4JStWKgVMQrdQ8TCqzmhAt7jprCPxvrZMpzy4s6WcBuW9NW")
 
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         # issue some new asset (that is not the domain asset)
         issue = self.nodes[0].issueasset('100.0','0', False)
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         #find txouts for the freezelistasset and burnlistasset
@@ -159,7 +159,7 @@ class OnboardTest (BitcoinTestFramework):
         #Top up to one KYC public key
         nkyckeys=1
         self.nodes[0].topupkycpubkeys(nkyckeys)
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         self.nodes[0].dumpkycpubkeys(kycpkfile)
@@ -183,7 +183,7 @@ class OnboardTest (BitcoinTestFramework):
         #Old registeraddresss script (version 0)
         self.nodes[0].onboarduser(kycfile0, 0)
         time.sleep(5)
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         time.sleep(5)
         self.sync_all()
         time.sleep(5)
@@ -206,7 +206,7 @@ class OnboardTest (BitcoinTestFramework):
         kycfile_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile_plain.dat"))
         self.nodes[0].readkycfile(kycfile, kycfile_plain)
 
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         #And some whitespace to kycfile
@@ -216,7 +216,7 @@ class OnboardTest (BitcoinTestFramework):
         balance_1=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         self.nodes[0].onboarduser(kycfile)
         time.sleep(5)
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         time.sleep(5)
         self.sync_all()
         time.sleep(5)
@@ -281,7 +281,7 @@ class OnboardTest (BitcoinTestFramework):
         #Send some tokens to node 1
         ntosend=10.234
         self.nodes[0].sendtoaddress(node1addr, ntosend, "", "", False, "CBT")
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
 
@@ -315,7 +315,7 @@ class OnboardTest (BitcoinTestFramework):
             assert("Not implemented for unencrypted whitelist" in e.error['message'])
 
 
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
         wl1file_2=self.initfile(os.path.join(self.options.tmpdir,"wl1_2.dat"))
         self.nodes[1].dumpwhitelist(wl1file_2)
@@ -475,7 +475,7 @@ class OnboardTest (BitcoinTestFramework):
 
         # Send 12 issued asset from 0 to 1 using sendtoaddress. Will fail to create mempool transaction because recipient addresses not whitelisted.
         txidm = self.nodes[0].sendtoaddress(multiAddr['address'], 12,"","",False,issue["asset"])
-        self.nodes[1].generate(101)
+        self.nodes[1].generate(1)
         self.sync_all()
 
         try:
@@ -505,7 +505,7 @@ class OnboardTest (BitcoinTestFramework):
         nlines4=self.linecount(wl1file_4)
 
         self.nodes[0].blacklistuser(kycfile)
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         wl1_bl_file=self.initfile(os.path.join(self.options.tmpdir,"wl1_bl.dat"))
@@ -523,7 +523,7 @@ class OnboardTest (BitcoinTestFramework):
         #Re-whitelist node1 wallet
         self.nodes[0].onboarduser(kycfile)
 
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         wl1file_rwl=self.initfile(os.path.join(self.options.tmpdir,"wl1_rwl.dat"))

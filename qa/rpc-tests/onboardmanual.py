@@ -77,7 +77,7 @@ class OnboardManualTest (BitcoinTestFramework):
         self.nodes[0].importprivkey("cS29UJMQrpnee7UaUHo6NqJVpGr35TEqUDkKXStTnxSZCGUWavgE")
         self.nodes[0].importprivkey("cNCQhCnpnzyeYh48NszsTJC2G4HPoFMZguUnUgBpJ5X9Vf2KaPYx")
 
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         #find txouts for the freezelistasset and burnlistasset
@@ -141,7 +141,7 @@ class OnboardManualTest (BitcoinTestFramework):
         assert(wltx_signed["complete"])
         wltx_send = self.nodes[0].sendrawtransaction(wltx_signed["hex"])
 
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         #Onboard node1
@@ -195,7 +195,7 @@ class OnboardManualTest (BitcoinTestFramework):
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
         
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         #Test invalid parameters
@@ -242,7 +242,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
@@ -277,7 +277,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         
@@ -416,7 +416,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             print(e.error['message'])
             assert(False)
         
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
