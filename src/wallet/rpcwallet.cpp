@@ -6049,6 +6049,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "onboarduser",              &onboarduser,               false,  {"filename", "scriptversion"} },
     { "wallet",             "blacklistuser",            &blacklistuser,             false,  {"filename"} },
     { "wallet",             "topupkycpubkeys",          &topupkycpubkeys,           false,  {"nkeys"} },
+    { "wallet",             "getnunassignedkycpubkeys", &getnunassignedkycpubkeys,  true,   {} },
     { "wallet",             "removekycpubkey",          &removekycpubkey,           false,  {"kycpubkey"} },
     { "wallet",             "blacklistkycpubkey",       &blacklistkycpubkey,        false,  {"kycpubkey"} },
     { "wallet",             "whitelistkycpubkeys",      &whitelistkycpubkeys,       false,  {"kycpubkeys"} },
