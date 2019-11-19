@@ -18,6 +18,8 @@ const unsigned int CWhiteList::nMultisigSize=1;
 const unsigned int CWhiteList::addrSize=20;
 const unsigned int CWhiteList::_minDataSize=CWhiteList::addrSize;
 
+const CTxDestination CWhiteList::_noDest = CNoDestination();
+
 CWhiteList::CWhiteList(){
   _asset=whitelistAsset;
   //The written code behaviour expects nMultisigSize to be of length 1 at the moment. If it is changed in the future the code needs to be adjusted accordingly.
@@ -320,7 +322,7 @@ bool CWhiteList::RegisterDecryptedAddresses(const txnouttype& whichType, const s
     return false;
   }
     
-  while(dat = fact->GetNext()){
+  while( (dat = fact->GetNext()) != nullptr){
     vDat.push_back(dat);
   }
 
@@ -539,7 +541,7 @@ bool CWhiteList::get_kycpubkey_outpoint(const CPubKey& pubKey, COutPoint& outPoi
 
 CRegisterAddressData* CRegisterAddressDataFactory::GetNext(){
   CRegisterAddressData* data;
-  if( data = GetNextMultisig() ) return data;
+  if( (data = GetNextMultisig()) != nullptr ) return data;
   return GetNextDerived();
 }
 
