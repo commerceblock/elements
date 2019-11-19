@@ -713,10 +713,27 @@ class OnboardManualCITTest (BitcoinTestFramework):
                 assert(valkyc["iswhitelisted"] == True)
 
         #Should test node restart here
+        self.stop_node(2)
+        time.sleep(2)
 
+        self.nodes[2] = start_node(2, self.options.tmpdir, self.extra_args[2])
+            
+        time.sleep(1)
+        connect_nodes_bi(self.nodes, 0, 1)
+        connect_nodes_bi(self.nodes, 0, 2)
+        self.sync_all()
+
+        #Check that all the addresses in the kycfiles are whitelisted
+        for file in self.files:
+            print("Validating kycfile: " + str(file))
+            valkyc=self.nodes[0].validatekycfile(file)
+            print(valkyc)
+            if len(valkyc["addresses"]) > 0:
+                assert(valkyc["iswhitelisted"] == True)
+        
         self.cleanup_files()
         return
 
 if __name__ == '__main__':
  OnboardManualCITTest().main()
-B
+

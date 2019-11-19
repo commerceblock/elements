@@ -66,20 +66,21 @@ bool CWhiteList::Load(CCoinsView *view)
       //loop over all vouts within a single transaction
       for (unsigned int i=0; i<coins.vout.size(); i++) {
         const CTxOut &out = coins.vout[i];
-        //null vouts are spent
-        if (!out.IsNull() && (out.nAsset.GetAsset() == _asset)) {
-          std::vector<std::vector<unsigned char> > vSolutions;
-          txnouttype whichType;
         
-          if (!Solver(out.scriptPubKey, whichType, vSolutions)) 
-            continue;
+        if(!check_asset_type(out)) continue;
+          
+        std::vector<std::vector<unsigned char> > vSolutions;
+        txnouttype whichType;
+        
+        if (!Solver(out.scriptPubKey, whichType, vSolutions)) 
+          continue;
               
-          // extract address from second multisig public key and add to the freezelist
-          // encoding: 33 byte public key: address is encoded in the last 20 bytes (i.e. byte 14 to 33)
-          if (whichType == TX_MULTISIG && vSolutions.size() == 4){
-            std::vector<unsigned char> vKycPub(vSolutions[2].begin(), vSolutions[2].begin() + 33);
-            //The last bytes of the KYC public key are
-            //in reverse to prevent spending, 
+        // extract address from second multisig public key and add to the freezelist
+        // encoding: 33 byte public key: address is encoded in the last 20 bytes (i.e. byte 14 to 33)
+        if (whichType == TX_MULTISIG && vSolutions.size() == 4){
+          std::vector<unsigned char> vKycPub(vSolutions[2].begin(), vSolutions[2].begin() + 33);
+          //The last bytes of the KYC public key are
+          //in reverse to prevent spending, 
             std::reverse(vKycPub.begin() + 3, vKycPub.end());
             CPubKey kycPubKey(vKycPub.begin(), vKycPub.end());
             if (!kycPubKey.IsFullyValid()) {
@@ -91,7 +92,6 @@ bool CWhiteList::Load(CCoinsView *view)
             }
           } 
         }
-      }
       pcursor->Next();
     }
 
@@ -263,7 +263,7 @@ bool CWhiteList::RegisterAddress(const std::vector<CTxOut>& vout){
 
   // For each TXOUT, if a TX_REGISTERADDRESS, read the istdata
   BOOST_FOREACH (const CTxOut& txout, vout) {
-    if (!IsWhitelistAsset(txout)) continue;
+    if (!check_asset_type(txout)) continue;
     std::vector<std::vector<unsigned char> > vSolutions;
     if (!Solver(txout.scriptPubKey, whichType, vSolutions)) return false;
     if(whichType == TX_REGISTERADDRESS_V1 ||
@@ -363,8 +363,7 @@ bool CWhiteList::Update(const CTransaction& tx, const CCoinsViewCache& mapInputs
     // The first dummy key in the multisig is the (scrambled) kyc public key.
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
         const CTxOut& prev = mapInputs.GetOutputFor(tx.vin[i]);
-        if(prev.nAsset.GetAsset() != whitelistAsset)
-          return false;
+        if(!check_asset_type(prev)) continue;
         std::vector<std::vector<unsigned char> > vSolutions;
         txnouttype whichType;
 

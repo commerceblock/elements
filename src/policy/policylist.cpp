@@ -110,3 +110,9 @@ bool CPolicyList::Update(const CTransaction& tx, const CCoinsViewCache& mapInput
     }
     return true;
 }
+
+bool CPolicyList::check_asset_type(const CTxOut& out){
+  if(out.IsNull()) return false;
+  if(out.nAsset.GetAsset() != _asset) return false;
+  return true;
+}

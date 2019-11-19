@@ -49,4 +49,6 @@ class CPolicyList : private std::set<CTxDestination>
 	boost::recursive_mutex _mtx;
   CAsset _asset;
 
+  bool check_asset_type(const CTxOut& out);
+
 };
