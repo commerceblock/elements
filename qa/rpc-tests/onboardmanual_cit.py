@@ -9,6 +9,7 @@ import filecmp
 import time
 import string
 import urllib.parse
+import array as arr
 
 class OnboardManualCITTest (BitcoinTestFramework):
 
@@ -157,6 +158,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         kycfile_p2sh=self.initfile(os.path.join(self.options.tmpdir,"kycfile_p2sh.dat"))
         kycfile_p2pkh=self.initfile(os.path.join(self.options.tmpdir,"kycfile_p2pkh.dat"))
         kycfile_multisig=self.initfile(os.path.join(self.options.tmpdir,"kycfile_multisig.dat"))
+        kycfile_large=self.initfile(os.path.join(self.options.tmpdir,"kycfile_large.dat"))
         kycfile_empty=self.initfile(os.path.join(self.options.tmpdir,"kycfile_empty.dat"))
         #userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
 
@@ -706,6 +708,45 @@ class OnboardManualCITTest (BitcoinTestFramework):
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         assert_equal(wb0_1-float(wlvalue), wb0_2)
 
+        #Test for large kycfile
+        sizeBytes = 11000
+        addressSizeBytes=20
+        nAddresses=int(sizeBytes/addressSizeBytes)
+        addresses=[]
+
+        for i in range(nAddresses):
+            addr = self.nodes[1].getnewaddress()
+            addresses.append({"address":addr})
+
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_large, addresses, 
+                []);
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_large)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == nAddresses)
+        
+        self.nodes[0].generate(6)
+        self.sync_all()
+
+        try:
+            self.nodes[0].onboarduser(kycfile_large)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        self.nodes[0].generate(6)
+        self.sync_all()
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_large)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+        
+        
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
             print("Validating kycfile: " + str(file))
@@ -736,16 +777,14 @@ class OnboardManualCITTest (BitcoinTestFramework):
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
             print("Validating kycfile: " + str(file))
-            valkyc=self.nodes[0].validatekycfile(file)
+            valkyc=self.nodes[2].validatekycfile(file)
             print(valkyc)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
 
         #Check we still have the correct number of kycpubkeys
         assert_equal(self.nodes[2].getnunassignedkycpubkeys(),100)
-        
 
-                
         self.cleanup_files()
         return
 

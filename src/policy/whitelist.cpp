@@ -55,14 +55,11 @@ bool CWhiteList::Load(CCoinsView *view)
       boost::this_thread::interruption_point();
       uint256 key;
       CCoins coins;
-      if (!(pcursor->GetKey(key) && pcursor->GetValue(coins))) 
-        return error("%s: unable to read value", __func__);
-
-      if(RegisterAddress(coins.vout)){
+      if ( !(pcursor->GetKey(key) && pcursor->GetValue(coins)) ){
         pcursor->Next();
         continue;
       }
-      
+
       //loop over all vouts within a single transaction
       for (unsigned int i=0; i<coins.vout.size(); i++) {
         const CTxOut &out = coins.vout[i];
@@ -90,7 +87,12 @@ bool CWhiteList::Load(CCoinsView *view)
               COutPoint outPoint(key, i);
               add_unassigned_kyc(kycPubKey, outPoint);
             }
-          } 
+          } else if(whichType == TX_REGISTERADDRESS_V1 ||
+                    whichType == TX_REGISTERADDRESS_V0 || 
+                    whichType == TX_DEREGISTERADDRESS_V1 ||
+                    whichType == TX_DEREGISTERADDRESS_V0) {
+              ParseRegisterAddressOutput(whichType, vSolutions);
+            } 
         }
       pcursor->Next();
     }
