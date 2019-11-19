@@ -167,7 +167,7 @@ protected:
         nPruneAfterHeight = GetArg("-npruneafterheight", 1000);
         fMiningRequiresPeers = GetBoolArg("-fminingrequirespeers", false);
         fDefaultConsistencyChecks = GetBoolArg("-fdefaultconsistencychecks", true);
-        fRequireStandard = GetBoolArg("-frequirestandard", false);
+        fRequireStandard = GetBoolArg("-frequirestandard", DEFAULT_REQUIRE_STANDARD);
         fEmbedContract = GetBoolArg("-embedcontract", DEFAULT_EMBED_CONTRACT);
         fContractInTx = GetBoolArg("-contractintx", DEFAULT_CONTRACT_IN_TX);
         fContractInKYCFile = GetBoolArg("-contractinkycfile", DEFAULT_CONTRACT_IN_KYCFILE);
