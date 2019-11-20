@@ -709,18 +709,20 @@ class OnboardManualCITTest (BitcoinTestFramework):
         assert_equal(wb0_1-float(wlvalue), wb0_2)
 
         #Test for large kycfile
-        sizeBytes = 11000
-        addressSizeBytes=20
-        nAddresses=int(sizeBytes/addressSizeBytes)
-        addresses=[]
+        sizeBytes = 20000
+        pkeySizeBytes=33
+        nAddresses=int(sizeBytes/(3*pkeySizeBytes)) + 1
+        pkeys=[]
 
         for i in range(nAddresses):
-            addr = self.nodes[1].getnewaddress()
-            addresses.append({"address":addr})
+            onboardAddress1=self.nodes[2].validateaddress(self.nodes[2].getnewaddress())
+            onboardAddress2=self.nodes[2].validateaddress(self.nodes[2].getnewaddress())
+            onboardAddress3=self.nodes[2].validateaddress(self.nodes[2].getnewaddress())
+            untweakedPubkeys=[onboardAddress1['derivedpubkey'],onboardAddress2['derivedpubkey'],onboardAddress3['derivedpubkey']]
+            pkeys.append({"nmultisig":2,"pubkeys":untweakedPubkeys})
 
         try:
-            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_large, addresses, 
-                []);
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_large, [], pkeys)
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
@@ -734,7 +736,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         try:
-            self.nodes[0].onboarduser(kycfile_large)
+            self.nodes[0].onboarduser(kycfile_large, 1)
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
@@ -761,13 +763,21 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.nodes[0].generate(6)
         self.sync_all()
 
-        assert_equal(self.nodes[2].getnunassignedkycpubkeys(),100)
+        assert_equal(self.nodes[0].getnunassignedkycpubkeys(),100)
                 
         #Restart node
-        self.stop_node(2)
+        self.stop_node(0)
         time.sleep(2)
 
-        self.nodes[2] = start_node(2, self.options.tmpdir, self.extra_args[2])
+        bConnected=True
+        try:
+            self.nodes[0].validatekycfile(kycfile_large)
+        except ConnectionRefusedError as e:
+            bConnected=False
+
+        assert_equal(bConnected, False)
+            
+        self.nodes[0] = start_node(0, self.options.tmpdir, self.extra_args[0])
             
         time.sleep(1)
         connect_nodes_bi(self.nodes, 0, 1)
@@ -777,13 +787,13 @@ class OnboardManualCITTest (BitcoinTestFramework):
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
             print("Validating kycfile: " + str(file))
-            valkyc=self.nodes[2].validatekycfile(file)
+            valkyc=self.nodes[0].validatekycfile(file)
             print(valkyc)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
 
         #Check we still have the correct number of kycpubkeys
-        assert_equal(self.nodes[2].getnunassignedkycpubkeys(),100)
+        assert_equal(self.nodes[0].getnunassignedkycpubkeys(),100)
 
         self.cleanup_files()
         return

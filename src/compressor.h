@@ -9,7 +9,6 @@
 #include "primitives/transaction.h"
 #include "script/script.h"
 #include "serialize.h"
-#include "chainparams.h"
 
 
 class CKeyID;
@@ -80,7 +79,7 @@ public:
             return;
         }
         nSize -= nSpecialScripts;
-        if( Params().RequireStandard() && nSize > MAX_SCRIPT_SIZE ) {
+        if( nSize > MAX_SCRIPT_SIZE ) {
             // Overly long script, replace with a short invalid one
             script << OP_RETURN;
             s.ignore(nSize);
