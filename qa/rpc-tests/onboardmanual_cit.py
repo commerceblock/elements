@@ -736,7 +736,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         try:
-            onboardtx=self.nodes[0].onboarduser(kycfile_large, 1)
+            onboardtx=self.nodes[0].onboarduser(kycfile_large, 0)
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
@@ -747,7 +747,8 @@ class OnboardManualCITTest (BitcoinTestFramework):
         #Check that the TX size > MAX_SCRIPT_SIZE
         MAX_SCRIPT_SIZE=10000
         rawtx=self.nodes[0].getrawtransaction(onboardtx)
-        nchars = len(rawtx)
+        scriptPubKeyHex=self.nodes[0].decoderawtransaction(rawtx)['vout'][0]['scriptPubKey']['hex']
+        nchars = len(scriptPubKeyHex)
         nbytes = nchars/2
         assert(nbytes > MAX_SCRIPT_SIZE)
         
