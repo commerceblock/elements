@@ -711,7 +711,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         #Test for large kycfile
         sizeBytes = 20000
         pkeySizeBytes=33
-        nAddresses=int(sizeBytes/(3*pkeySizeBytes)) + 1
+        nAddresses=int(sizeBytes/(pkeySizeBytes)) + 1
         pkeys=[]
 
         for i in range(nAddresses):
@@ -736,14 +736,21 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         try:
-            self.nodes[0].onboarduser(kycfile_large, 1)
+            onboardtx=self.nodes[0].onboarduser(kycfile_large, 1)
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
-
+            
         self.nodes[0].generate(6)
         self.sync_all()
 
+        #Check that the TX size > MAX_SCRIPT_SIZE
+        MAX_SCRIPT_SIZE=10000
+        rawtx=self.nodes[0].getrawtransaction(onboardtx)
+        nchars = len(rawtx)
+        nbytes = nchars/2
+        assert(nbytes > MAX_SCRIPT_SIZE)
+        
         valkyc=self.nodes[0].validatekycfile(kycfile_large)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
