@@ -290,7 +290,6 @@ bool CWhiteListEncrypted::RegisterAddress(const CTransaction& tx, const CCoinsVi
   EnsureWalletIsUnlocked();
 
   //Check if this is a TX_REGISTERADDRESS. If so, read the data into a byte vector.
-  opcodetype opcode;
   std::vector<unsigned char> bytes;
 
   // For each TXOUT, if a TX_REGISTERADDRESS, read the data

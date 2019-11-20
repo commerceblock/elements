@@ -148,8 +148,7 @@ public:
 
 	void sync_whitelist_wallet();
 
-	const CTxDestination _noDest = CNoDestination();
-
+	
 
 protected:
 	std::set<CTxDestination> _myPending;
@@ -172,6 +171,9 @@ protected:
 
   	RAType GetRAType(const std::vector<unsigned char>::const_iterator start, 
   		  const std::vector<unsigned char>::const_iterator vend);
+
+  	static const CTxDestination _noDest;
+
 
 private:
 	void add_unassigned_kyc(const CPubKey& pubKey, const COutPoint& outPoint);
@@ -418,8 +420,6 @@ class CRegisterAddressDataFactory{
 
 	private:
 	 	unsigned int _pubkeySize=CPubKey::COMPRESSED_PUBLIC_KEY_SIZE;
-
-	 	unsigned int _version=0;
 
 	 	ucvec_it _start;
 		ucvec_it _end;

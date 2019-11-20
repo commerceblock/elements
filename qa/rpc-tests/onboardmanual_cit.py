@@ -8,8 +8,10 @@ from test_framework.util import *
 import filecmp
 import time
 import string
+import urllib.parse
+import array as arr
 
-class OnboardManualTest (BitcoinTestFramework):
+class OnboardManualCITTest (BitcoinTestFramework):
 
     def __init__(self):
         super().__init__()
@@ -19,14 +21,12 @@ class OnboardManualTest (BitcoinTestFramework):
         self.extra_args[0].append("-contractintx=1")
         self.extra_args[0].append("-pkhwhitelist=1")
         self.extra_args[0].append("-pkhwhitelist-encrypt=0")
-        self.extra_args[0].append("-rescan=1")
         self.extra_args[0].append("-initialfreecoins=2100000000000000")
         self.extra_args[0].append("-policycoins=50000000000000")
         self.extra_args[0].append("-regtest=0")
         self.extra_args[0].append("-initialfreecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
         self.extra_args[0].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
         self.extra_args[1].append("-contractintx=1")
-        self.extra_args[1].append("-rescan=1")
         self.extra_args[1].append("-regtest=0")
         self.extra_args[1].append("-pkhwhitelist=1")
         self.extra_args[1].append("-pkhwhitelist-encrypt=0")
@@ -35,7 +35,6 @@ class OnboardManualTest (BitcoinTestFramework):
         self.extra_args[1].append("-initialfreecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
         self.extra_args[1].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
         self.extra_args[2].append("-contractintx=1")
-        self.extra_args[2].append("-rescan=1")
         self.extra_args[2].append("-regtest=0")
         self.extra_args[2].append("-pkhwhitelist=1")
         self.extra_args[2].append("-pkhwhitelist-encrypt=0")
@@ -66,8 +65,11 @@ class OnboardManualTest (BitcoinTestFramework):
         return filename
 
     def removefileifexists(self, filename):
+        if filename in self.files:
+            self.files.remove(filename)
         if(os.path.isfile(filename)):
             os.remove(filename)
+        
 
     def cleanup_files(self):
         for file in self.files:
@@ -112,7 +114,7 @@ class OnboardManualTest (BitcoinTestFramework):
         os.remove("keys.main")
 
         #Try and create kycfile when no KYC pub keys available
-        kycfile_test="kycfile_test.dat"
+        kycfile_test=self.initfile(os.path.join(self.options.tmpdir,"kycfile_test.dat"))
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test,[], []);
             #expect an exception
@@ -120,8 +122,9 @@ class OnboardManualTest (BitcoinTestFramework):
         except JSONRPCException as e:
             message=e.error['message']
             assert('No unassigned KYC public keys available.' in message)
-        
-        #Register a KYC public key
+        self.removefileifexists(kycfile_test)
+
+        #Register a KYC public key manually
         policyaddr=self.nodes[0].getnewaddress()
         assert(self.nodes[0].querywhitelist(policyaddr))
         policypubkey=self.nodes[0].validateaddress(policyaddr)["pubkey"]
@@ -144,16 +147,19 @@ class OnboardManualTest (BitcoinTestFramework):
         assert(wltx_signed["complete"])
         wltx_send = self.nodes[0].sendrawtransaction(wltx_signed["hex"])
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
+        assert_equal(self.nodes[0].getnunassignedkycpubkeys(), 1)
+
         #Onboard node1
-        kycfile="kycfile.dat"
-        kycfile_normal="kycfile_normal.dat"
-        kycfile_p2sh="kycfile_p2sh.dat"
-        kycfile_p2pkh="kycfile_p2pkh.dat"
-        kycfile_multisig="kycfile_multisig.dat"
-        kycfile_empty="kycfile_empty.dat"
+        kycfile=self.initfile(os.path.join(self.options.tmpdir,"kycfile.dat"))
+        kycfile_normal=self.initfile(os.path.join(self.options.tmpdir,"kycfile_normal.dat"))
+        kycfile_p2sh=self.initfile(os.path.join(self.options.tmpdir,"kycfile_p2sh.dat"))
+        kycfile_p2pkh=self.initfile(os.path.join(self.options.tmpdir,"kycfile_p2pkh.dat"))
+        kycfile_multisig=self.initfile(os.path.join(self.options.tmpdir,"kycfile_multisig.dat"))
+        kycfile_large=self.initfile(os.path.join(self.options.tmpdir,"kycfile_large.dat"))
+        kycfile_empty=self.initfile(os.path.join(self.options.tmpdir,"kycfile_empty.dat"))
         #userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
 
         #P2SH
@@ -189,7 +195,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
@@ -207,7 +213,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
@@ -221,14 +227,13 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
 
-        os.remove(kycfile_p2sh)
 
         #P2PkH
         try:
@@ -251,7 +256,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
@@ -269,7 +274,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
@@ -283,14 +288,13 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
 
-        os.remove(kycfile_p2pkh)
             
         
         #Test invalid parameters
@@ -315,7 +319,6 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert('no address data in file' in e.error['message'])
 
-        os.remove(kycfile_empty)
             
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
@@ -332,7 +335,7 @@ class OnboardManualTest (BitcoinTestFramework):
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
         
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
 
@@ -360,7 +363,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
@@ -374,7 +377,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
@@ -388,14 +391,13 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
         
-        os.remove(kycfile_normal)
 
         #P2SH
         onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
@@ -413,7 +415,7 @@ class OnboardManualTest (BitcoinTestFramework):
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 1)
         
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         #Test invalid parameters
@@ -432,14 +434,13 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
-        os.remove(kycfile_p2sh)
 
 
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
@@ -466,7 +467,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
@@ -480,7 +481,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
@@ -494,14 +495,13 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
         
-        os.remove(kycfile_multisig)
         
 
 
@@ -623,7 +623,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
         
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
@@ -638,7 +638,7 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
@@ -652,14 +652,13 @@ class OnboardManualTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
         
-        os.remove(kycfile)
 
         
         balance_2=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
@@ -708,9 +707,114 @@ class OnboardManualTest (BitcoinTestFramework):
         #Test that txs do not send WHITELIST tokens
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         assert_equal(wb0_1-float(wlvalue), wb0_2)
+
+        #Test for large kycfile
+        MAX_SCRIPT_SIZE=10000
+        sizeBytes = 2*MAX_SCRIPT_SIZE        
+        pkeySizeBytes=33
+        nAddresses=int(sizeBytes/(pkeySizeBytes)) + 1
+        pkeys=[]
+
+        for i in range(nAddresses):
+            onboardAddress1=self.nodes[2].validateaddress(self.nodes[2].getnewaddress())
+            onboardAddress2=self.nodes[2].validateaddress(self.nodes[2].getnewaddress())
+            onboardAddress3=self.nodes[2].validateaddress(self.nodes[2].getnewaddress())
+            untweakedPubkeys=[onboardAddress1['derivedpubkey'],onboardAddress2['derivedpubkey'],onboardAddress3['derivedpubkey']]
+            pkeys.append({"nmultisig":2,"pubkeys":untweakedPubkeys})
+
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_large, [], pkeys)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_large)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == nAddresses)
         
+        self.nodes[0].generate(6)
+        self.sync_all()
+
+        try:
+            onboardtx=self.nodes[0].onboarduser(kycfile_large, 0)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+            
+        self.nodes[0].generate(6)
+        self.sync_all()
+
+        #Check that the TX size > MAX_SCRIPT_SIZE
+        rawtx=self.nodes[0].getrawtransaction(onboardtx)
+        
+        vouts=self.nodes[0].decoderawtransaction(rawtx)['vout']
+
+        nchars=0
+        for vout in vouts:
+            temp = len(vout['scriptPubKey']['hex'])
+            if temp > nchars:
+                nchars = temp
+
+        nbytes = nchars/2
+        print(nbytes)
+        print(nchars)
+        assert(nbytes > MAX_SCRIPT_SIZE)
+        
+        valkyc=self.nodes[0].validatekycfile(kycfile_large)
+        print(valkyc)
+        assert(valkyc["iswhitelisted"] == True)
+        
+        
+        #Check that all the addresses in the kycfiles are whitelisted
+        for file in self.files:
+            print("Validating kycfile: " + str(file))
+            valkyc=self.nodes[0].validatekycfile(file)
+            print(valkyc)
+            if len(valkyc["addresses"]) > 0:
+                assert(valkyc["iswhitelisted"] == True)
+
+                
+        #Add some more kycpubkeys
+        self.nodes[0].topupkycpubkeys(100)
+        self.nodes[0].generate(6)
+        self.sync_all()
+
+        assert_equal(self.nodes[0].getnunassignedkycpubkeys(),100)
+                
+        #Restart node
+        self.stop_node(0)
+        time.sleep(2)
+
+        bConnected=True
+        try:
+            self.nodes[0].validatekycfile(kycfile_large)
+        except ConnectionRefusedError as e:
+            bConnected=False
+
+        assert_equal(bConnected, False)
+            
+        self.nodes[0] = start_node(0, self.options.tmpdir, self.extra_args[0])
+            
+        time.sleep(1)
+        connect_nodes_bi(self.nodes, 0, 1)
+        connect_nodes_bi(self.nodes, 0, 2)
+        self.sync_all()
+
+        #Check that all the addresses in the kycfiles are whitelisted
+        for file in self.files:
+            print("Validating kycfile: " + str(file))
+            valkyc=self.nodes[0].validatekycfile(file)
+            print(valkyc)
+            if len(valkyc["addresses"]) > 0:
+                assert(valkyc["iswhitelisted"] == True)
+
+        #Check we still have the correct number of kycpubkeys
+        assert_equal(self.nodes[0].getnunassignedkycpubkeys(),100)
+
         self.cleanup_files()
         return
 
 if __name__ == '__main__':
- OnboardManualTest().main()
+ OnboardManualCITTest().main()
+

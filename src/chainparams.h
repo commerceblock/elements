@@ -40,6 +40,7 @@ struct ChainTxData {
 
 static const bool DEFAULT_EMBED_CONTRACT = true;
 static const bool DEFAULT_CONTRACT_IN_TX = false;
+static const bool DEFAULT_REQUIRE_STANDARD = false;
 static const bool DEFAULT_CONTRACT_IN_KYCFILE = true;
 static const bool DEFAULT_EMBED_MAPPING = true;
 
