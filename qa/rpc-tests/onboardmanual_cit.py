@@ -24,6 +24,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.extra_args[0].append("-initialfreecoins=2100000000000000")
         self.extra_args[0].append("-policycoins=50000000000000")
         self.extra_args[0].append("-regtest=0")
+        self.extra_args[0].append("-rescan=1")
         self.extra_args[0].append("-initialfreecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
         self.extra_args[0].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
         self.extra_args[1].append("-contractintx=1")
@@ -747,8 +748,15 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         #Check that the TX size > MAX_SCRIPT_SIZE
         rawtx=self.nodes[0].getrawtransaction(onboardtx)
-        scriptPubKeyHex=str(self.nodes[0].decoderawtransaction(rawtx)['vout'][0]['scriptPubKey']['hex'])
-        nchars = len(scriptPubKeyHex)
+        
+        vouts=self.nodes[0].decoderawtransaction(rawtx)['vout']
+
+        nchars=0
+        for vout in vouts:
+            temp = len(vout['scriptPubKey']['hex'])
+            if temp > nchars:
+                nchars = temp
+
         nbytes = nchars/2
         print(nbytes)
         print(nchars)
