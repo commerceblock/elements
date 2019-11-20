@@ -709,7 +709,8 @@ class OnboardManualCITTest (BitcoinTestFramework):
         assert_equal(wb0_1-float(wlvalue), wb0_2)
 
         #Test for large kycfile
-        sizeBytes = 20000
+        MAX_SCRIPT_SIZE=10000
+        sizeBytes = 2*MAX_SCRIPT_SIZE        
         pkeySizeBytes=33
         nAddresses=int(sizeBytes/(pkeySizeBytes)) + 1
         pkeys=[]
@@ -745,11 +746,12 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         #Check that the TX size > MAX_SCRIPT_SIZE
-        MAX_SCRIPT_SIZE=10000
         rawtx=self.nodes[0].getrawtransaction(onboardtx)
-        scriptPubKeyHex=self.nodes[0].decoderawtransaction(rawtx)['vout'][0]['scriptPubKey']['hex']
+        scriptPubKeyHex=str(self.nodes[0].decoderawtransaction(rawtx)['vout'][0]['scriptPubKey']['hex'])
         nchars = len(scriptPubKeyHex)
         nbytes = nchars/2
+        print(nbytes)
+        print(nchars)
         assert(nbytes > MAX_SCRIPT_SIZE)
         
         valkyc=self.nodes[0].validatekycfile(kycfile_large)
