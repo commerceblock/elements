@@ -168,7 +168,7 @@ UniValue validateaddress(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "validateaddress \"address\"\n"
-            "\nReturn information about the giSo ven bitcoin address.\n"
+            "\nReturn information about the given bitcoin address.\n"
             "\nArguments:\n"
             "1. \"address\"     (string, required) The bitcoin address to validate\n"
             "\nResult:\n"
