@@ -822,7 +822,6 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             "        \"fee\": \"hex\" \n"
             "       ...\n"
             "   }\n"
-            "5. \"allow_dupes\"           (bool, optional, default = false) Allow more than one output to the same address."
             "\nResult:\n"
             "\"transaction\"              (string) hex string of the transaction\n"
 
@@ -849,9 +848,6 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
     UniValue assets;
     if (request.params.size() > 3 && !request.params[3].isNull())
         assets = request.params[3].get_obj();
-    bool fAllowDupes=false;
-    if (request.params.size() > 4 &! request.params[4].IsNull())
-        fAllowDupes = request.params[4].get_bool();
     for (unsigned int idx = 0; idx < inputs.size(); idx++) {
         UniValue const &input = inputs[idx];
         UniValue const &o = input.get_obj();
@@ -2088,7 +2084,7 @@ static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
     { "rawtransactions",    "getrawtransaction",      &getrawtransaction,      true,  {"txid","verbose"} },
-    { "rawtransactions",    "createrawtransaction",   &createrawtransaction,   true,  {"inputs","outputs","locktime","output_assets", "allow_dupes"} },
+    { "rawtransactions",    "createrawtransaction",   &createrawtransaction,   true,  {"inputs","outputs","locktime","output_assets"} },
     { "rawtransactions",    "createrawtxoutputs",     &createrawtxoutputs,     true,  {"inputs","outputs","locktime"} },
     { "rawtransactions",    "createrawpolicytx",      &createrawpolicytx,      true,  {"inputs","outputs","locktime","asset"} },
     { "rawtransactions",    "createrawrequesttx",     &createrawrequesttx,     true,  {"inputs","outputs"} },

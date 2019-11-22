@@ -122,7 +122,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "createrawtransaction", 2, "locktime" },
     { "createrawtxoutputs", 2, "locktime" },
     { "createrawtransaction", 3, "output_assetids" },
-    { "createrawtransaction", 4, "allow_dupes" },
     { "createrawpolicytx", 2, "locktime" },
     { "signrawtransaction", 1, "prevtxs" },
     { "signrawtransaction", 2, "privkeys" },
