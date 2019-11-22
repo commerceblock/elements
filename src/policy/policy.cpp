@@ -111,6 +111,8 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
 }
 
 bool IsSpam(const CTransaction &tx) {
+    if (IsAllPolicy(tx))
+      return false;
     txnouttype whichType;
     vector<vector<uint8_t>> vSolutions;
     vector<tuple<uint160, CAsset>> addr_asset;
