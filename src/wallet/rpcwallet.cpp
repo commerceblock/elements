@@ -834,6 +834,9 @@ UniValue onboarduser(const JSONRPCRequest& request){
     if(!file.getOnboardingScript(script, false, nVersion))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot generate onboarding script");
 
+    if (script.size() > MAX_SCRIPT_SIZE)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Onboarding script size exceeds MAX_SCRIPT_SIZE");
+
     CWalletTx wtx;
     SendOnboardTx(script, wtx);
     return wtx.GetHash().GetHex();
@@ -863,6 +866,9 @@ UniValue blacklistuser(const JSONRPCRequest& request){
     CScript script;
     if(!file.getOnboardingScript(script, true))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot generate blacklisting script");
+
+    if (script.size() > MAX_SCRIPT_SIZE)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Blacklisting script size exceeds MAX_SCRIPT_SIZE");
 
     CWalletTx wtx;
     SendOnboardTx(script, wtx);

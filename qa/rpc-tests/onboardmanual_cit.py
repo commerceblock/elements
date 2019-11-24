@@ -158,6 +158,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         kycfile_p2sh=self.initfile(os.path.join(self.options.tmpdir,"kycfile_p2sh.dat"))
         kycfile_p2pkh=self.initfile(os.path.join(self.options.tmpdir,"kycfile_p2pkh.dat"))
         kycfile_multisig=self.initfile(os.path.join(self.options.tmpdir,"kycfile_multisig.dat"))
+        kycfile_oversize=self.initfile(os.path.join(self.options.tmpdir,"kycfile_oversize.dat"))
         kycfile_large=self.initfile(os.path.join(self.options.tmpdir,"kycfile_large.dat"))
         kycfile_empty=self.initfile(os.path.join(self.options.tmpdir,"kycfile_empty.dat"))
         #userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
@@ -709,27 +710,50 @@ class OnboardManualCITTest (BitcoinTestFramework):
         assert_equal(wb0_1-float(wlvalue), wb0_2)
 
         #Test for large kycfile
-        MAX_SCRIPT_SIZE=10000
-        sizeBytes = 2*MAX_SCRIPT_SIZE        
-        pkeySizeBytes=33
-        nAddresses=int(sizeBytes/(pkeySizeBytes)) + 1
+        MAX_SCRIPT_SIZE=20000
         pkeys=[]
-
-        for i in range(nAddresses):
+        nBytesAddress=5
+        nAddresses=0
+        while True:
             onboardAddress1=self.nodes[2].validateaddress(self.nodes[2].getnewaddress())
             onboardAddress2=self.nodes[2].validateaddress(self.nodes[2].getnewaddress())
             onboardAddress3=self.nodes[2].validateaddress(self.nodes[2].getnewaddress())
             untweakedPubkeys=[onboardAddress1['derivedpubkey'],onboardAddress2['derivedpubkey'],onboardAddress3['derivedpubkey']]
             pkeys.append({"nmultisig":2,"pubkeys":untweakedPubkeys})
+            nBytesAddress+=(3*33)+20+2
+            nAddresses+=1
+            if nBytesAddress > MAX_SCRIPT_SIZE:
+                break
+            
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_oversize, [], pkeys)
+        except JSONRPCException as e:
+            print(e.error['message'])
+            assert(False)
+
+        valkyc=self.nodes[0].validatekycfile(kycfile_oversize)
+        assert(valkyc["iswhitelisted"] == False)
+        assert(len(valkyc["addresses"]) == nAddresses)
+        
+        self.nodes[0].generate(6)
+        self.sync_all()
 
         try:
-            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_large, [], pkeys)
+            onboardtx=self.nodes[0].onboarduser(kycfile_oversize, 0)
+        except JSONRPCException as e:
+            assert 'Onboarding script size exceeds MAX_SCRIPT_SIZE' in e.error['message']
+
+
+        pkeysLarge=pkeys[:-1]
+        nAddresses-=1
+        
+        try:
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_large, [], pkeysLarge)
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_large)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == nAddresses)
         
@@ -741,6 +765,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
+
             
         self.nodes[0].generate(6)
         self.sync_all()
@@ -756,13 +781,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             if temp > nchars:
                 nchars = temp
 
-        nbytes = nchars/2
-        print(nbytes)
-        print(nchars)
-        assert(nbytes > MAX_SCRIPT_SIZE)
-        
         valkyc=self.nodes[0].validatekycfile(kycfile_large)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
         
         
@@ -770,7 +789,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         for file in self.files:
             print("Validating kycfile: " + str(file))
             valkyc=self.nodes[0].validatekycfile(file)
-            print(valkyc)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
 
@@ -805,7 +823,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         for file in self.files:
             print("Validating kycfile: " + str(file))
             valkyc=self.nodes[0].validatekycfile(file)
-            print(valkyc)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
 

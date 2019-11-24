@@ -921,6 +921,8 @@ UniValue createkycfile(const JSONRPCRequest& request)
     result.push_back(Pair("onboardpubkey", sOnboardPubKey));
     result.push_back(Pair("onboarduserpubkey", sOnboardUserPubKey));
 
+    CKYCFile kycFile;
+
     std::string sFilename = request.params[0].get_str().c_str();
     if(sFilename.length() > 0){
         std::ofstream file;
@@ -930,9 +932,22 @@ UniValue createkycfile(const JSONRPCRequest& request)
         file << ssFile.str();
 
         file.close();
+
+        kycFile.read(sFilename);
+
+        //Check the script size
+        CScript script;
+        if(!kycFile.getOnboardingScript(script, false))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "KYC file invalid - cannot generate onboarding script from file");
+
+        if (script.size() > MAX_SCRIPT_SIZE)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Onboarding script size would exceed MAX_SCRIPT_SIZE");
+
     } else {
         result.push_back(Pair("kycfile", ssFile.str()));
     }
+
+
 
     return result;
 }
@@ -1063,6 +1078,16 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
     } else {
         AuditLogPrintf("%s : dumpkycfile %s\n", getUser(), request.params[0].get_str());
     }
+
+    CKYCFile kycFile;
+    kycFile.read(request.params[0].get_str().c_str());
+    CScript script;
+    if(!kycFile.getOnboardingScript(script, false))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "cannot generate onboarding script from generated KYC file");
+
+    if (script.size() > MAX_SCRIPT_SIZE)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Onboarding script size would exceed MAX_SCRIPT_SIZE");
+
 
     UniValue result = sOnboardUserPubKey;
     return result;
