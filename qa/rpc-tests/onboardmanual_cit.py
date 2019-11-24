@@ -710,7 +710,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         assert_equal(wb0_1-float(wlvalue), wb0_2)
 
         #Test for large kycfile
-        MAX_SCRIPT_SIZE=20000
+        MAX_SCRIPT_SIZE=50000
         pkeys=[]
         nBytesAddress=5
         nAddresses=0
@@ -740,6 +740,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         try:
             onboardtx=self.nodes[0].onboarduser(kycfile_oversize, 0)
+            assert(False)
         except JSONRPCException as e:
             assert 'Onboarding script size exceeds MAX_SCRIPT_SIZE' in e.error['message']
 

@@ -37,7 +37,7 @@ static const bool DEFAULT_VALIDATE_PEGIN = false;
 static const unsigned int DEFAULT_PEGIN_CONFIRMATION_DEPTH = 8;
 
 // Maximum script length in bytes
-static const int MAX_SCRIPT_SIZE = 100000;
+static const int MAX_SCRIPT_SIZE = 50000;
 
 class uint256;
 class COutPoint;
