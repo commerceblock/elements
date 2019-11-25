@@ -21,6 +21,7 @@ const unsigned int CWhiteList::_minDataSize=CWhiteList::addrSize;
 const CTxDestination CWhiteList::_noDest = CNoDestination();
 
 CWhiteList::CWhiteList(){
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
   _asset=whitelistAsset;
   //The written code behaviour expects nMultisigSize to be of length 1 at the moment. If it is changed in the future the code needs to be adjusted accordingly.
   assert(nMultisigSize == 1);
@@ -29,6 +30,7 @@ CWhiteList::CWhiteList(){
 CWhiteList::~CWhiteList(){;}
 
 void CWhiteList::init_defaults(){
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
   if (fRequireWhitelistCheck || fScanWhitelist) {
     const CChainParams& chainparams = Params();
     if (chainparams.GetConsensus().mandatory_coinbase_destination != CScript()){
@@ -48,6 +50,7 @@ void CWhiteList::init_defaults(){
 
 bool CWhiteList::Load(CCoinsView *view)
 {
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
     CCoinsViewCache coins(view);
     std::unique_ptr<CCoinsViewCursor> pcursor(coins.Cursor());
     LOCK(cs_main);
@@ -151,6 +154,7 @@ void CWhiteList::add_destination(const CTxDestination& dest){
 
 void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubKey, 
         const std::unique_ptr<CPubKey>& kycPubKey){
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
     add_derived(address, pubKey);
 }
 
@@ -165,6 +169,7 @@ void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubK
 
 void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPubKey, 
         const std::string& sKYCPubKey){
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);    
     add_derived(sAddress, sPubKey);
 }
 
@@ -184,6 +189,7 @@ void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPu
 
 void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys, 
         const std::unique_ptr<CPubKey>& kycPubKey, const uint8_t nMultisig){
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
     add_multisig_whitelist(address, pubKeys, nMultisig);
 }
 
@@ -203,6 +209,7 @@ void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const st
 
 void CWhiteList::add_multisig_whitelist(const std::string& addressIn, const UniValue& keys, 
         const std::string& sKYCAddress, const uint8_t nMultisig){
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
     add_multisig_whitelist(addressIn, keys, nMultisig);
 }
 
@@ -348,11 +355,13 @@ bool CWhiteList::RegisterDecryptedAddresses(const txnouttype& whichType, const s
 }
 
 void CWhiteList::add(CRegisterAddressData* d){
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
   CTxDestination dest = d->GetDest();
   if(!(dest == _noDest)) CPolicyList::add_sorted(dest);
 }
 
 void CWhiteList::remove(CRegisterAddressData* d){
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
   CPolicyList::remove(d->GetDest());
 }
 
