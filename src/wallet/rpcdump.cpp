@@ -1095,12 +1095,14 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
 
 UniValue validatekycfile(const JSONRPCRequest& request)
 {
-  if (request.fHelp || request.params.size() != 1)
+    auto nParams =  request.params.size(); 
+  if (request.fHelp || nParams < 1 ||  || nParams > 2)
     throw runtime_error(
             "validatekycfile \"filename\"\n"
             "Return information about a kycfile.\n"
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The kyc file name\n"
+            "2. \"verbose\"    (boolean, optional, default=false) Show verbose output?\n"
             "\nReturn:\n"
             "{                    (json object)\n"
             "   \"iswhitelisted\": \"iswhitelisted\",    (bool) Wether all the addresses in the kycfile are whitelisted\n"
@@ -1111,13 +1113,19 @@ UniValue validatekycfile(const JSONRPCRequest& request)
             "    ]\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("validatekycfile", "\"kycfile\"")
-            + HelpExampleRpc("validatekycfile", "\"kycfile\"")
+            + HelpExampleCli("validatekycfile", "\"kycfile\"", "\"true\"")
+            + HelpExampleRpc("validatekycfile", "\"kycfile\"", "\"true\"")
             );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
+
+    bool fVerbose=false;
+
+    if (nParams > 1){
+        fVerbose=request.params[1].get_bool();
+    }   
 
     CKYCFile file;
     file.read(request.params[0].get_str().c_str());
@@ -1125,23 +1133,23 @@ UniValue validatekycfile(const JSONRPCRequest& request)
     if(!file.is_valid())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "kycfile is invalid");
 
-
     bool fWhitelisted = file.is_whitelisted();
 
     UniValue ret(UniValue::VOBJ);
 
     ret.push_back(Pair("iswhitelisted", fWhitelisted));
 
-
-
-    std::vector<CTxDestination> addressKeyIds = file.getAddresses();
-    UniValue addresses(UniValue::VARR);
-    for(auto k: addressKeyIds){
-        CBitcoinAddress addr=CBitcoinAddress(k);
-        addresses.push_back(addr.ToString());
+        
+    if(fVerbose){
+        std::vector<CTxDestination> addressKeyIds = file.getAddresses();
+        UniValue addresses(UniValue::VARR);
+        for(auto k: addressKeyIds){
+            CBitcoinAddress addr=CBitcoinAddress(k);s
+            addresses.push_back(addr.ToString());
+        }
+        ret.push_back(Pair("addresses",addresses));
     }
 
-    ret.push_back(Pair("addresses",addresses));
     return ret;
 }
 
