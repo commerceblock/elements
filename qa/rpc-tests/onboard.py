@@ -197,7 +197,7 @@ class OnboardTest (BitcoinTestFramework):
 
         #Onboard node1
         userOnboardPubKey=self.nodes[1].dumpkycfile(kycfile)
-        valkyc=self.nodes[0].validatekycfile(kycfile)
+        valkyc=self.nodes[0].validatekycfile(kycfile, True)
         assert(valkyc["iswhitelisted"] == False)
         for addr in valkyc["addresses"]:
             assert(self.nodes[1].validateaddress(addr)["ismine"] == True)
@@ -221,7 +221,7 @@ class OnboardTest (BitcoinTestFramework):
         self.sync_all()
         time.sleep(5)
 
-        assert(self.nodes[0].validatekycfile(kycfile)["iswhitelisted"] == True)
+        assert(self.nodes[0].validatekycfile(kycfile, True)["iswhitelisted"] == True)
 
         for addr in valkyc["addresses"]:
             assert(self.nodes[1].validateaddress(addr)["ismine"] == True)

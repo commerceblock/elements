@@ -181,7 +181,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh, True)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
@@ -243,7 +243,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh, True)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
@@ -331,7 +331,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        valkyc=self.nodes[0].validatekycfile(kycfile_normal)
+        valkyc=self.nodes[0].validatekycfile(kycfile_normal, True)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
@@ -411,7 +411,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
+        valkyc=self.nodes[0].validatekycfile(kycfile_p2sh, True)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 1)
@@ -457,7 +457,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
+        valkyc=self.nodes[0].validatekycfile(kycfile_multisig, True)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
@@ -580,7 +580,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        valkyc=self.nodes[0].validatekycfile(kycfile)
+        valkyc=self.nodes[0].validatekycfile(kycfile, True)
         print(valkyc)
         assert(len(valkyc["addresses"]) == 5)
         assert(valkyc["iswhitelisted"] == False)
@@ -731,7 +731,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        valkyc=self.nodes[0].validatekycfile(kycfile_oversize)
+        valkyc=self.nodes[0].validatekycfile(kycfile_oversize, True)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == nAddresses)
         
@@ -754,7 +754,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        valkyc=self.nodes[0].validatekycfile(kycfile_large)
+        valkyc=self.nodes[0].validatekycfile(kycfile_large, True)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == nAddresses)
         
@@ -789,7 +789,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
             print("Validating kycfile: " + str(file))
-            valkyc=self.nodes[0].validatekycfile(file)
+            valkyc=self.nodes[0].validatekycfile(file, True)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
 
@@ -823,7 +823,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
             print("Validating kycfile: " + str(file))
-            valkyc=self.nodes[0].validatekycfile(file)
+            valkyc=self.nodes[0].validatekycfile(file, True)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
 
