@@ -1547,6 +1547,10 @@ UniValue getsidechaininfo(const JSONRPCRequest& request)
             "  \"pegged_asset\" : \"xxxx\",        (string) Pegged asset type in hex\n"
             "  \"min_peg_diff\" : \"xxxx\",        (string) The minimum difficulty parent chain header target. Peg-in headers that have less work will be rejected as an anti-Dos measure.\n"
             "  \"parent_blockhash\" : \"xxxx\",    (string) The parent genesis blockhash as source of pegged-in funds.\n"
+            "  \"addr_prefixes\": {                (object) Address type prefixes\n"
+            "     \"type\" : \"xxxx\",             (string) Address type\n"
+            "     \"prefix\": \"xxxx\"             (numeric) Address prefix\n"
+            "  }\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("getsidechaininfo", "")
@@ -1563,6 +1567,15 @@ UniValue getsidechaininfo(const JSONRPCRequest& request)
     obj.push_back(Pair("pegged_asset", consensus.pegged_asset.GetHex()));
     obj.push_back(Pair("min_peg_diff", consensus.parentChainPowLimit.GetHex()));
     obj.push_back(Pair("parent_blockhash", parent_blockhash.GetHex()));
+
+    UniValue AddrPrefixes(UniValue::VOBJ);
+    AddrPrefixes.push_back(Pair("PUBKEY_ADDRESS", CChainParams::PUBKEY_ADDRESS));
+    AddrPrefixes.push_back(Pair("BLINDED_ADDRESS", CChainParams::BLINDED_ADDRESS));
+    AddrPrefixes.push_back(Pair("SECRET_KEY", CChainParams::SECRET_KEY));
+    AddrPrefixes.push_back(Pair("SCRIPT_ADDRESS", CChainParams::SCRIPT_ADDRESS));
+
+    obj.push_back(Pair("addr_prefixes", AddrPrefixes));
+
     return obj;
 }
 
