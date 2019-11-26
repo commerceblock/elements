@@ -1168,6 +1168,61 @@ UniValue removekycpubkey(const JSONRPCRequest& request){
     return RemoveKYCPubKey(kycPubKey);
 }
 
+UniValue recoverencryptionkey(const JSONRPCRequest& request){
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+        throw runtime_error(
+            "recoverencryptionkey \"pubkey\" \n"
+            "\nArguments:\n"
+
+            "1. \"pubkey\"    (string, required) The encryption public key (i.e. kyc pub key) to be recovered\n"
+            "2. \"maxngen\"   (integer, optional, default=100) The maximum number of HD encryption keys to generate in searching for the required key (default=100)\n"
+            "\nResult:\n"
+            "\"true\" if the key was recovered, \"false\" otherwise. The key is added to the wallet database and keystore"
+            "\nExamples:\n"
+            + HelpExampleCli("recoverencryptionkey", "\"pubkey\", 100")
+            + HelpExampleRpc("recoverencryptionkey", "\"pubkey\", 100")
+            );
+    if(fWhitelistEncrypt)
+        throw JSONRPCError(RPC_MISC_ERROR, "not implemented for encrypted whitelist");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    std::vector<unsigned char> pubKeyData(ParseHex(request.params[0].get_str()));
+    CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
+    if(!pubKey.IsFullyValid())
+         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid public key");
+
+    int ngen=100;
+    if(request.params.size() > 1){
+        ngen=request.params[1].get_int();
+    }
+    if(ngen <= 0)
+         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter maxngen: must be greater than 0");
+
+    return RecoverEncryptionKey(pubKey, ngen);
+}
+
+UniValue RecoverEncryptionKey(const CPubKey& pubKey, const uint32_t& maxGen){
+    CKey privKey;
+    uint32_t nGen=0;
+    bool bFound=true;
+    CKeyID id = pubKey.GetID();
+    while(!pwalletMain->GetKey(id, privKey)){
+      if(nGen >= maxGen){
+        bFound=false;
+        break;
+      } else {
+        pwalletMain->GenerateNewKey(true);
+        ++nGen;
+      }
+    }
+    return bFound;
+}
 
 UniValue RemoveKYCPubKey(const CPubKey& kycPubKey){
     COutPoint outPoint;
@@ -6057,6 +6112,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "topupkycpubkeys",          &topupkycpubkeys,           false,  {"nkeys"} },
     { "wallet",             "getnunassignedkycpubkeys", &getnunassignedkycpubkeys,  true,   {} },
     { "wallet",             "removekycpubkey",          &removekycpubkey,           false,  {"kycpubkey"} },
+    { "wallet",             "recoverencryptionkey",     &recoverencryptionkey,      false,  {"pubkey", "maxngen"} },
     { "wallet",             "blacklistkycpubkey",       &blacklistkycpubkey,        false,  {"kycpubkey"} },
     { "wallet",             "whitelistkycpubkeys",      &whitelistkycpubkeys,       false,  {"kycpubkeys"} },
     { "wallet",             "validatederivedkeys",      &validatederivedkeys,       true,   {"filename"} },

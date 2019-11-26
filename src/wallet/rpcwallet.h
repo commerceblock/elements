@@ -13,4 +13,6 @@ void RegisterWalletRPCCommands(CRPCTable &t);
 
 UniValue RemoveKYCPubKey(const CPubKey& kycPubKey);
 
+UniValue RecoverEncryptionKey(const CPubKey& pubKey, const uint32_t& maxGen);
+
 #endif //BITCOIN_WALLET_RPCWALLET_H

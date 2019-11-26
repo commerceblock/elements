@@ -31,6 +31,7 @@ public:
  */
 static const CRPCConvertParam vRPCConvertParams[] =
 {
+    { "recoverencryptionkey", 1, "maxngen"},
     { "onboarduser", 1, "scriptversion"},
     { "topupkycpubkeys", 0, "nkeys" },
     { "whitelistkycpubkeys", 0, "kycpubkeys" },
