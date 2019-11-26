@@ -120,11 +120,11 @@ CPubKey CWallet::GenerateNewKey(bool bEncryption)
     CPubKey pubKeyPreTweak = secret.GetPubKey();
     metadata.derivedPubKey = pubKeyPreTweak;
 
-    if (Params().EmbedContract() &! bEncryption) {
-        // use the active block contract hash to generate keys - if this is not available use the local contract
+
+    if (!Params().ContractInTx() && Params().EmbedContract() &! bEncryption) {
         uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash(); // for BIP-175
-        if (!contract.IsNull() && !Params().ContractInTx())
-        {
+        if(!contract.IsNull()){
+            // use the active block contract hash to generate keys - if this is not available use the local contract
             pubKeyPreTweak.AddTweakToPubKey((unsigned char*)contract.begin()); //tweak pubkey for reverse testing
             secret.AddTweakToPrivKey((unsigned char*)contract.begin()); //do actual tweaking of private key
         }
@@ -145,7 +145,7 @@ CPubKey CWallet::GenerateNewKey(bool bEncryption)
 }
 
 
-void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, unsigned int nExternalChain)
+void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret)
 {
     // for now we use a fixed keypath scheme of m/0'/0'/k
     CKey key;                      //master key seed (256bit)
@@ -165,7 +165,7 @@ void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, unsigned i
     masterKey.Derive(accountKey, BIP32_HARDENED_KEY_LIMIT);
 
     // derive m/0'/0'
-    accountKey.Derive(externalChainChildKey, BIP32_HARDENED_KEY_LIMIT + nExternalChain);
+    accountKey.Derive(externalChainChildKey, BIP32_HARDENED_KEY_LIMIT );
 
     // derive child key at next index, skip keys already known to the wallet
     do {
@@ -183,6 +183,52 @@ void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, unsigned i
     // update the chain model in the database
     if (!CWalletDB(strWalletFile).WriteHDChain(hdChain))
         throw std::runtime_error(std::string(__func__) + ": Writing HD chain model failed");
+}
+
+void CWallet::DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret)
+{
+    //Using externalChangeChildKey path = 2' for encryption keys.
+    uint32_t iEncryption=2;
+
+    // for now we use a fixed keypath scheme of m/0'/0'/k
+    CKey key;                      //master key seed (256bit)
+    CExtKey masterKey;             //hd master key
+    CExtKey accountKey;            //key at m/0'
+    CExtKey externalChainChildKey; //key at m/0'/iEncryption'
+    CExtKey childKey;              //key at m/0'/iEncryption'/<n>'
+
+    // try to get the master key
+    if (!GetKey(hdEncryptionChain.masterKeyID, key))
+        throw std::runtime_error(std::string(__func__) + ": Master key not found");
+
+    masterKey.SetMaster(key.begin(), key.size());
+
+    // derive m/0'
+    // use hardened derivation (child keys >= 0x80000000 are hardened after bip32)
+    masterKey.Derive(accountKey, BIP32_HARDENED_KEY_LIMIT);
+
+
+
+    // derive m/0'/iEncryption'
+    accountKey.Derive(externalChainChildKey, iEncryption | BIP32_HARDENED_KEY_LIMIT );
+
+    // derive child key at next index, skip keys already known to the wallet
+    do {
+        // always derive hardened keys
+        // childIndex | BIP32_HARDENED_KEY_LIMIT = derive childIndex in hardened child-index-range
+        // example: 1 | BIP32_HARDENED_KEY_LIMIT == 0x80000001 == 2147483649
+        externalChainChildKey.Derive(childKey, hdEncryptionChain.nExternalChainCounter | BIP32_HARDENED_KEY_LIMIT);
+        metadata.hdKeypath = "m/0'/" + std::to_string(iEncryption) + "'/" + 
+            std::to_string(hdEncryptionChain.nExternalChainCounter) + "'";
+        metadata.hdMasterKeyID = hdEncryptionChain.masterKeyID;
+        // increment childkey index
+        hdEncryptionChain.nExternalChainCounter++;
+    } while (HaveKey(childKey.key.GetPubKey().GetID()));
+    secret = childKey.key;
+
+    // update the chain model in the database
+    if (!CWalletDB(strWalletFile).WriteHDChain(hdEncryptionChain))
+        throw std::runtime_error(std::string(__func__) + ": Writing HD encryption chain model failed");
 }
 
 bool CWallet::AddKeyPubKey(const CKey& secret, const CPubKey &pubkey)
@@ -1149,7 +1195,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
 
 void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
 {
-    LOCK2(cs_main, cs_wallet);
+    LOCK(cs_wallet);
 
     int conflictconfirms = 0;
     if (mapBlockIndex.count(hashBlock)) {
@@ -1401,6 +1447,7 @@ bool CWallet::SetHDMasterKey(const CPubKey& pubkey)
     CHDChain newHdChain;
     newHdChain.masterKeyID = pubkey.GetID();
     SetHDChain(newHdChain, false);
+    SetHDEncryptionChain(newHdChain, false);
 
     return true;
 }
@@ -1412,6 +1459,16 @@ bool CWallet::SetHDChain(const CHDChain& chain, bool memonly)
         throw runtime_error(std::string(__func__) + ": writing chain failed");
 
     hdChain = chain;
+    return true;
+}
+
+bool CWallet::SetHDEncryptionChain(const CHDChain& chain, bool memonly)
+{
+    LOCK(cs_wallet);
+    if (!memonly && !CWalletDB(strWalletFile).WriteHDEncryptionChain(chain))
+        throw runtime_error(std::string(__func__) + ": writing encryption chain failed");
+
+    hdEncryptionChain = chain;
     return true;
 }
 
@@ -4121,6 +4178,7 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
             setKeyPool.insert(nEnd);
             LogPrintf("keypool added key %d, size=%u\n", nEnd, setKeyPool.size());
         }
+
     }
     return true;
 }

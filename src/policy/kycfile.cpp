@@ -99,7 +99,7 @@ bool CKYCFile::read(){
             if(!pwalletMain->GetKey(_onboardPubKey->GetID(), onboardPrivKey))
                 if(!pwalletMain->GetKey(_onboardUserPubKey->GetID(), onboardPrivKey))
                     throw std::invalid_argument(
-                        std::string(std::string(__func__) +  ": cannot get onboard private key"));
+                        std::string(std::string(__func__) +  ": cannot get onboard private key. Use \"syncwhitelistwallet\" to generate more encryption keys."));
 
             std::stringstream ssNBytes;
             ssNBytes << vstr[2];

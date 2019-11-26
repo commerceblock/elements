@@ -1727,10 +1727,13 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     if(chainActive.Height() > 1) {
-        LogPrintf("Loading Policy Lists\n");
+        LogPrintf("Loading Policy Lists:\n");
         nStart = GetTimeMillis();
+        LogPrintf("freezelist...\n");
         if (fRequireFreezelistCheck) LoadFreezeList(pcoinsTip);
+        LogPrintf("burnlist...\n");
         if (fEnableBurnlistCheck) LoadBurnList(pcoinsTip);
+        LogPrintf("whitelist.\n");
         if (fRequireWhitelistCheck || fScanWhitelist) {
 	       addressWhitelist->Load(pcoinsTip);
 	    }

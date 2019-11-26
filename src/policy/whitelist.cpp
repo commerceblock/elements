@@ -102,8 +102,6 @@ bool CWhiteList::Load(CCoinsView *view)
       pcursor->Next();
     }
 
-  sync_whitelist_wallet();
-
   return true;
 }
 
@@ -114,24 +112,25 @@ void CWhiteList::sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound){
   LOCK2(cs_main, pwalletMain->cs_wallet);
   EnsureWalletIsUnlocked();
   keysNotFound.clear();
-  int nTries = 0;
-  int nKeys = _kycUnassignedSet.size();
-  int nTriesMax = MAX_KYCPUBKEY_GAP + nKeys;
+  unsigned int  nKeys = _kycUnassignedSet.size();
+  unsigned int  nTriesMax = MAX_KYCPUBKEY_GAP + nKeys;
   bool bKeyFound = true;
   for(auto key : _kycUnassignedSet){
     bKeyFound=true;
     CKeyID kycKey=key.GetID();
     CKey privKey;
     while(!pwalletMain->GetKey(kycKey, privKey)){
-      pwalletMain->GenerateNewKey(true);
-      if(++nTries > nTriesMax){
+      if(_kycPubKeyTries > nTriesMax){
         keysNotFound.push_back(key);
         bKeyFound=false;
         break;
+      } else {
+        pwalletMain->GenerateNewKey(true);
+        ++_kycPubKeyTries;
       }
     }
     //Reset the gap if a key was found.
-    if(bKeyFound) nTries=std::min(nTries, nKeys);
+    if(bKeyFound) _kycPubKeyTries=0;
   }
   #endif //#ifdef ENABLE_WALLET
 }

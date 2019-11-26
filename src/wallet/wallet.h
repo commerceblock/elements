@@ -660,6 +660,8 @@ private:
 
     /* the HD chain data model (external chain counters) */
     CHDChain hdChain;
+    /* the HD chain data model for the encrryption key chain (external chain counters) */
+    CHDChain hdEncryptionChain;
 
     bool fFileBacked;
 
@@ -806,11 +808,9 @@ public:
      * Generate a new key
      */
     CPubKey GenerateNewKey(const bool bEncryption=false);
-    void DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, const unsigned int nExternalChain=0);
-    void DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret){
-        //Using externalChangeChildKey path = 2' for encryption keys.
-        DeriveNewChildKey(metadata, secret, 2);
-    }
+    void DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret);
+    void DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret);
+
     //! Adds a key to the store, and saves it to disk.
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey) override;
     //! Adds a key to the store, without saving it to disk (used by LoadWallet)
@@ -1096,6 +1096,10 @@ public:
     /* Set the HD chain model (chain child index counters) */
     bool SetHDChain(const CHDChain& chain, bool memonly);
     const CHDChain& GetHDChain() { return hdChain; }
+
+    /* Set the HD encryption chain model (chain child index counters) */
+    bool SetHDEncryptionChain(const CHDChain& chain, bool memonly);
+    const CHDChain& GetHDEncryptionChain() { return hdEncryptionChain; }
 
     /* Returns true if HD is enabled */
     bool IsHDEnabled();

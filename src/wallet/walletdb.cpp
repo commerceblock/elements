@@ -549,6 +549,16 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 return false;
             }
         }
+        else if (strType == "encryptionhdchain")
+        {
+            CHDChain chain;
+            ssValue >> chain;
+            if (!pwallet->SetHDEncryptionChain(chain, true))
+            {
+                strErr = "Error reading wallet database: SetEncryptioonHDChain failed";
+                return false;
+            }
+        }
         else if (strType == "blindingderivationkey")
         {
             assert(pwallet->blinding_derivation_key.IsNull());
@@ -947,7 +957,7 @@ bool CWalletDB::Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKe
                 fReadOK = ReadKeyValue(&dummyWallet, ssKey, ssValue,
                                         wss, strType, strErr);
             }
-            if (!IsKeyType(strType) && strType != "hdchain")
+            if (!IsKeyType(strType) && strType != "hdchain" && strType != "encryptionhdchain")
                 continue;
             if (!fReadOK)
             {
@@ -989,6 +999,12 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
 {
     nWalletDBUpdateCounter++;
     return Write(std::string("hdchain"), chain);
+}
+
+bool CWalletDB::WriteHDEncryptionChain(const CHDChain& chain)
+{
+    nWalletDBUpdateCounter++;
+    return Write(std::string("encryptionhdchain"), chain);
 }
 
 void CWalletDB::IncrementUpdateCounter()

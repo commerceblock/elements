@@ -174,6 +174,7 @@ protected:
 
   	static const CTxDestination _noDest;
 
+  	unsigned int _kycPubKeyTries = 0;
 
 private:
 	void add_unassigned_kyc(const CPubKey& pubKey, const COutPoint& outPoint);
