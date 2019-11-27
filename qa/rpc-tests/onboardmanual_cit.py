@@ -846,7 +846,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
-             print("Validating kycfile: " + str(file))
             valkyc=self.nodes[0].validatekycfile(file, True)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
