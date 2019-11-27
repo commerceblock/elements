@@ -171,7 +171,7 @@ class OnboardManualTest (BitcoinTestFramework):
             assert(False)
 
         try:
-            self.nodes[0].validatekycfile(kycfile_empty)
+            self.nodes[0].validatekycfile(kycfile_empty, True)
         except JSONRPCException as e:
             print(e.error['message'])
             assert('no address data in file' in e.error['message'])
@@ -190,7 +190,7 @@ class OnboardManualTest (BitcoinTestFramework):
 
         self.nodes[0].readkycfile(kycfile_normal, kycfile_normal_plain)
             
-        valkyc=self.nodes[0].validatekycfile(kycfile_normal)
+        valkyc=self.nodes[0].validatekycfile(kycfile_normal, True)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
@@ -245,7 +245,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         self.nodes[0].generate(1)
         self.sync_all()
 
-        valkyc=self.nodes[0].validatekycfile(kycfile_normal)
+        valkyc=self.nodes[0].validatekycfile(kycfile_normal, True)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
@@ -266,7 +266,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             assert(False)
 
         self.nodes[0].readkycfile(kycfile_multisig, kycfile_multisig_plain)
-        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
+        valkyc=self.nodes[0].validatekycfile(kycfile_multisig, True)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
@@ -281,7 +281,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         self.sync_all()
 
         
-        valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
+        valkyc=self.nodes[0].validatekycfile(kycfile_multisig, True)
         print(valkyc)
 
         print("querying whitelist for addresses...")
@@ -372,7 +372,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             print(e.error['message'])
             assert(False)
 
-        valkyc=self.nodes[0].validatekycfile(kycfile)
+        valkyc=self.nodes[0].validatekycfile(kycfile, True)
         print(valkyc)
         assert(len(valkyc["addresses"]) == 5)
         assert(valkyc["iswhitelisted"] == False)

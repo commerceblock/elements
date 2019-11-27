@@ -6144,7 +6144,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "dumpderivedkeys",          &dumpderivedkeys,           true,   {"filename"} },
     { "wallet",             "dumpkycfile",              &dumpkycfile,               true,   {"filename"} },
     { "wallet",             "readkycfile",              &readkycfile,               true,   {"filename", "outfilename", "onboardpubkey"} },
-    { "wallet",             "validatekycfile",          &validatekycfile,           true,   {"filename"} },
+    { "wallet",             "validatekycfile",          &validatekycfile,           true,   {"filename", "verbose"} },
     { "wallet",             "onboarduser",              &onboarduser,               false,  {"filename", "scriptversion"} },
     { "wallet",             "blacklistuser",            &blacklistuser,             false,  {"filename"} },
     { "wallet",             "topupkycpubkeys",          &topupkycpubkeys,           false,  {"nkeys"} },

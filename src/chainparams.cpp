@@ -331,8 +331,8 @@ public:
 
         fDefaultConsistencyChecks = false;
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,0);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,28);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,87);
         base58Prefixes[BLINDED_ADDRESS]= std::vector<unsigned char>(1,11);
         base58Prefixes[EXTENDED_ADDRESS]= std::vector<unsigned char>(1,12);
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,128);
