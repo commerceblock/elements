@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
