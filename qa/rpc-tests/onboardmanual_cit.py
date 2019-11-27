@@ -846,10 +846,48 @@ class OnboardManualCITTest (BitcoinTestFramework):
         
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
+             print("Validating kycfile: " + str(file))
             valkyc=self.nodes[0].validatekycfile(file, True)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
-        
+
+
+        #Add some more kycpubkeys
+        self.nodes[0].topupkycpubkeys(100)
+        self.nodes[0].generate(6)
+        self.sync_all()
+
+        assert_equal(self.nodes[0].getnunassignedkycpubkeys(),100)
+
+        #Restart node
+        self.stop_node(0)
+        time.sleep(2)
+
+        bConnected=True
+        try:
+            self.nodes[0].validatekycfile(kycfile_large)
+        except ConnectionRefusedError as e:
+            bConnected=False
+
+        assert_equal(bConnected, False)
+
+        self.nodes[0] = start_node(0, self.options.tmpdir, self.extra_args[0])
+
+        time.sleep(1)
+        connect_nodes_bi(self.nodes, 0, 1)
+        connect_nodes_bi(self.nodes, 0, 2)
+        self.sync_all()
+
+        #Check that all the addresses in the kycfiles are whitelisted
+        for file in self.files:
+            print("Validating kycfile: " + str(file))
+            valkyc=self.nodes[0].validatekycfile(file, True)
+            if len(valkyc["addresses"]) > 0:
+                assert(valkyc["iswhitelisted"] == True)
+
+        #Check we still have the correct number of kycpubkeys
+        assert_equal(self.nodes[0].getnunassignedkycpubkeys(),100)
+
         self.cleanup_files()
         return
 
