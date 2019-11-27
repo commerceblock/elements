@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(util_DateTimeStrFormat)
 
 BOOST_AUTO_TEST_CASE(util_ParseParameters)
 {
-    const char *argv_test[] = {"-ignored", "-a", "-b", "-ccc=argument", "-ccc=multiple", "f", "-d=e"};
+    const char *argv_test[] = {"-ignored", "-foo", "-bar=argument", "-bar=multiple", "f", "-d=e"};
 
     ParseParameters(0, (char**)argv_test);
     BOOST_CHECK(mapArgs.empty() && mapMultiArgs.empty());
@@ -114,14 +114,14 @@ BOOST_AUTO_TEST_CASE(util_ParseParameters)
     // expectation: -ignored is ignored (program name argument),
     // -a, -b and -ccc end up in map, -d ignored because it is after
     // a non-option argument (non-GNU option parsing)
-    BOOST_CHECK(mapArgs.size() == 3 && mapMultiArgs.size() == 3);
-    BOOST_CHECK(IsArgSet("-a") && IsArgSet("-b") && IsArgSet("-ccc")
+    BOOST_CHECK(mapArgs.size() == 2 && mapMultiArgs.size() == 2);
+    BOOST_CHECK(IsArgSet("-foo") && IsArgSet("-bar")
                 && !IsArgSet("f") && !IsArgSet("-d"));
-    BOOST_CHECK(mapMultiArgs.count("-a") && mapMultiArgs.count("-b") && mapMultiArgs.count("-ccc")
+    BOOST_CHECK(mapMultiArgs.count("-foo") && mapMultiArgs.count("-bar")
                 && !mapMultiArgs.count("f") && !mapMultiArgs.count("-d"));
 
-    BOOST_CHECK(mapArgs["-a"] == "" && mapArgs["-ccc"] == "multiple");
-    BOOST_CHECK(mapMultiArgs.at("-ccc").size() == 2);
+    BOOST_CHECK(mapArgs["-a"] == "" && mapArgs["-bar"] == "multiple");
+    BOOST_CHECK(mapMultiArgs.at("-bar").size() == 2);
 }
 
 BOOST_AUTO_TEST_CASE(util_GetArg)
