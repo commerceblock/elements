@@ -227,7 +227,7 @@ void CWallet::DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret)
     secret = childKey.key;
 
     // update the chain model in the database
-    if (!CWalletDB(strWalletFile).WriteHDChain(hdEncryptionChain))
+    if (!CWalletDB(strWalletFile).WriteHDEncryptionChain(hdEncryptionChain))
         throw std::runtime_error(std::string(__func__) + ": Writing HD encryption chain model failed");
 }
 
@@ -1447,7 +1447,10 @@ bool CWallet::SetHDMasterKey(const CPubKey& pubkey)
     CHDChain newHdChain;
     newHdChain.masterKeyID = pubkey.GetID();
     SetHDChain(newHdChain, false);
-    SetHDEncryptionChain(newHdChain, false);
+ 
+    CHDChain newHdEncryptionChain;
+    newHdEncryptionChain.masterKeyID = pubkey.GetID();
+    SetHDEncryptionChain(newHdEncryptionChain, false);
 
     return true;
 }

@@ -105,43 +105,6 @@ bool CWhiteList::Load(CCoinsView *view)
   return true;
 }
 
-//Modifies a vector of the kyc public keys whose private keys were not found in the wallet.
-void CWhiteList::sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound){
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
-  #ifdef ENABLE_WALLET
-  LOCK2(cs_main, pwalletMain->cs_wallet);
-  EnsureWalletIsUnlocked();
-  keysNotFound.clear();
-  unsigned int  nKeys = _kycUnassignedSet.size();
-  unsigned int  nTriesMax = MAX_KYCPUBKEY_GAP + nKeys;
-  bool bKeyFound = true;
-  for(auto key : _kycUnassignedSet){
-    bKeyFound=true;
-    CKeyID kycKey=key.GetID();
-    CKey privKey;
-    while(!pwalletMain->GetKey(kycKey, privKey)){
-      if(_kycPubKeyTries > nTriesMax){
-        keysNotFound.push_back(key);
-        bKeyFound=false;
-        break;
-      } else {
-        pwalletMain->GenerateNewKey(true);
-        ++_kycPubKeyTries;
-      }
-    }
-    //Reset the gap if a key was found.
-    if(bKeyFound) _kycPubKeyTries=0;
-  }
-  #endif //#ifdef ENABLE_WALLET
-}
-
-void CWhiteList::sync_whitelist_wallet(){
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
-  std::vector<CPubKey> keysNotFound;
-  sync_whitelist_wallet(keysNotFound);
-}
-  
-
 void CWhiteList::add_destination(const CTxDestination& dest){
     boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
     if (dest.which() == ((CTxDestination)CNoDestination()).which()){

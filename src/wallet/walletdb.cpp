@@ -555,7 +555,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssValue >> chain;
             if (!pwallet->SetHDEncryptionChain(chain, true))
             {
-                strErr = "Error reading wallet database: SetEncryptioonHDChain failed";
+                strErr = "Error reading wallet database: SetEncryptionHDChain failed";
                 return false;
             }
         }

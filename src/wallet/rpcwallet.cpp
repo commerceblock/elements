@@ -1168,6 +1168,48 @@ UniValue removekycpubkey(const JSONRPCRequest& request){
     return RemoveKYCPubKey(kycPubKey);
 }
 
+UniValue recoverkyckeys(const JSONRPCRequest& request){
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp)
+        throw runtime_error(
+            "recoverencryptionkey \"pubkey\" \n"
+            "Generates private keys in the HD encryption key chain until either all the address whitelist KYC keys are found or the number of keys generated between each found key exceed \"maxngap\". The keys are added to the wallet database and keystore.\n"
+            "\nArguments:\n"
+
+            "1. \"maxngap\"   (integer, optional, default=100) The maximum number of new HD encryption keys to generate after each found key (default=100)\n"
+
+            "\nResult:\n"
+            "\"true\" if the keys were all recovered, \"false\" otherwise. All the generated keys are added to the wallet database and keystore"
+
+            "\nExamples:\n"
+            + HelpExampleCli("recoverkyckeys", "100")
+            + HelpExampleRpc("recoverkyckeys", "100")
+            );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    int ngap=100;
+    if(request.params.size() == 1){
+        ngap=request.params[0].get_int();
+    }
+    if(ngap <= 0)
+         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter maxngen: must be greater than 0");
+
+    std::set<CPubKey> kycPubKeys;
+    addressWhitelist->get_kycpubkeys(kycPubKeys);
+
+    for (auto key: kycPubKeys){
+        if(!RecoverEncryptionKey(key, ngap).get_bool())
+            return false;
+    }
+
+    return true;
+}
+
 UniValue recoverencryptionkey(const JSONRPCRequest& request){
     if (!EnsureWalletIsAvailable(request.fHelp))
         return NullUniValue;
@@ -1175,18 +1217,17 @@ UniValue recoverencryptionkey(const JSONRPCRequest& request){
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
             "recoverencryptionkey \"pubkey\" \n"
+            "Generates keys in the HD encryption key chain until either the private key corresponding to \"pubkey\" is found or \"maxngen\" keys are generated. The keys are added to the wallet database and keystore.\n"
             "\nArguments:\n"
 
             "1. \"pubkey\"    (string, required) The encryption public key (i.e. kyc pub key) to be recovered\n"
-            "2. \"maxngen\"   (integer, optional, default=100) The maximum number of HD encryption keys to generate in searching for the required key (default=100)\n"
+            "2. \"maxngen\"   (integer, optional, default=100) The maximum number of new HD encryption keys to generate (default=100)\n"
             "\nResult:\n"
-            "\"true\" if the key was recovered, \"false\" otherwise. The key is added to the wallet database and keystore"
+            "\"true\" if the key was recovered, \"false\" otherwise. All the generated keys are added to the wallet database and keystore"
             "\nExamples:\n"
             + HelpExampleCli("recoverencryptionkey", "\"pubkey\", 100")
             + HelpExampleRpc("recoverencryptionkey", "\"pubkey\", 100")
             );
-    if(fWhitelistEncrypt)
-        throw JSONRPCError(RPC_MISC_ERROR, "not implemented for encrypted whitelist");
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -1208,20 +1249,17 @@ UniValue recoverencryptionkey(const JSONRPCRequest& request){
 }
 
 UniValue RecoverEncryptionKey(const CPubKey& pubKey, const uint32_t& maxGen){
-    CKey privKey;
     uint32_t nGen=0;
-    bool bFound=true;
     CKeyID id = pubKey.GetID();
-    while(!pwalletMain->GetKey(id, privKey)){
+    while(!pwalletMain->HaveKey(id)){
       if(nGen >= maxGen){
-        bFound=false;
-        break;
+        return false;
       } else {
         pwalletMain->GenerateNewKey(true);
         ++nGen;
       }
     }
-    return bFound;
+    return true;
 }
 
 UniValue RemoveKYCPubKey(const CPubKey& kycPubKey){
@@ -6113,6 +6151,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getnunassignedkycpubkeys", &getnunassignedkycpubkeys,  true,   {} },
     { "wallet",             "removekycpubkey",          &removekycpubkey,           false,  {"kycpubkey"} },
     { "wallet",             "recoverencryptionkey",     &recoverencryptionkey,      false,  {"pubkey", "maxngen"} },
+    { "wallet",             "recoverkyckeys",           &recoverkyckeys,            false,  {"maxngap"} },
     { "wallet",             "blacklistkycpubkey",       &blacklistkycpubkey,        false,  {"kycpubkey"} },
     { "wallet",             "whitelistkycpubkeys",      &whitelistkycpubkeys,       false,  {"kycpubkeys"} },
     { "wallet",             "validatederivedkeys",      &validatederivedkeys,       true,   {"filename"} },

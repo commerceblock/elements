@@ -144,11 +144,12 @@ public:
  		;
  	}
 
-	void sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound);
+	virtual void get_kycpubkeys(std::set<CPubKey>& keys){
+		keys=_kycUnassignedSet;
+	}
 
-	void sync_whitelist_wallet();
+  	virtual bool is_unassigned_kyc(const CPubKey& pubKey);
 
-	
 
 protected:
 	std::set<CTxDestination> _myPending;
@@ -156,7 +157,6 @@ protected:
 	//KYC pub keys not yet assigned to any user
 	std::set<CPubKey> _kycUnassignedSet;
 	virtual bool remove_unassigned_kyc(const CPubKey& pubKey);
-  	virtual bool is_unassigned_kyc(const CPubKey& pubKey);
 	//Make add_sorted private because we only want verified derived keys 
 	//to be added to the CWhiteList.
 	using CPolicyList::add_sorted;

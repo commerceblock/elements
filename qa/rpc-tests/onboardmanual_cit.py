@@ -16,8 +16,8 @@ class OnboardManualCITTest (BitcoinTestFramework):
     def __init__(self):
         super().__init__()
         self.setup_clean_chain = True
-        self.num_nodes = 3
-        self.extra_args = [['-txindex'] for i in range(3)]
+        self.num_nodes = 4
+        self.extra_args = [['-txindex'] for i in range(4)]
         self.extra_args[0].append("-contractintx=1")
         self.extra_args[0].append("-pkhwhitelist=1")
         self.extra_args[0].append("-pkhwhitelist-encrypt=0")
@@ -42,16 +42,65 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.extra_args[2].append("-policycoins=50000000000000")
         self.extra_args[2].append("-initialfreecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
         self.extra_args[2].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
+        self.extra_args[3].append("-contractintx=1")
+        self.extra_args[3].append("-regtest=0")
+        self.extra_args[3].append("-pkhwhitelist=1")
+        self.extra_args[3].append("-pkhwhitelist-encrypt=0")
+        self.extra_args[3].append("-initialfreecoins=2100000000000000")
+        self.extra_args[3].append("-policycoins=50000000000000")
+        self.extra_args[3].append("-initialfreecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
+        self.extra_args[3].append("-whitelistcoinsdestination=76a914427bf8530a3962ed77fd3c07d17fd466cb31c2fd88ac")
         self.files=[]
 
-    def setup_network(self, split=False):
-        self.nodes = start_nodes(3, self.options.tmpdir, self.extra_args[:3])
+    def connect_nodes(self):
         connect_nodes_bi(self.nodes,0,1)
         connect_nodes_bi(self.nodes,1,2)
         connect_nodes_bi(self.nodes,0,2)
-        self.is_network_split=False
+        connect_nodes_bi(self.nodes,2,3)
+        
+    def setup_network(self, split=False):
+        self.nodes = start_nodes(4, self.options.tmpdir, self.extra_args[:4])
+        self.connect_nodes()
+        self.is_network_split=True
         self.sync_all()
 
+        #Set up wallet path and dump the wallet
+        wlwalletname="wlwallet.dat"
+        self.wlwalletpath=self.initfile(os.path.join(self.options.tmpdir,wlwalletname))
+        self.nodes[0].backupwallet(self.wlwalletpath)
+        #Stop the nodes
+        stop_nodes(self.nodes)
+
+        #Copy the wallet file to the node 0 and 3 data dirs
+        #Give nodes 0 and 3 the same wallet (whitelist wallet)
+        node0path=os.path.join(self.options.tmpdir, "node"+str(0))
+        node3path=os.path.join(self.options.tmpdir, "node"+str(3))
+
+        self.dest0=self.initfile(os.path.join(node0path, "ocean_test"))
+        self.dest0=self.initfile(os.path.join(self.dest0, wlwalletname))
+        self.dest3=self.initfile(os.path.join(node3path, "ocean_test"))
+        self.dest3=self.initfile(os.path.join(self.dest3, wlwalletname))
+
+        shutil.copyfile(self.wlwalletpath,self.dest0)
+        shutil.copyfile(self.wlwalletpath,self.dest3)
+
+        #Start the nodes again with a different wallet path argument
+        self.extra_args[0].append("-wallet="+wlwalletname)
+        self.extra_args[3].append("-wallet="+wlwalletname)
+        self.nodes = start_nodes(4, self.options.tmpdir, self.extra_args[:4])
+
+        time.sleep(5)
+
+        #Node0 and node3 wallets should be the same
+        addr0=self.nodes[0].getnewaddress()
+        addr3=self.nodes[3].getnewaddress()
+
+        assert(addr0 == addr3)
+
+        self.connect_nodes()
+        self.is_network_split=False
+        self.sync_all()
+        
     def linecount(self, file):
         nlines=0
         with open(file) as f:
@@ -74,7 +123,25 @@ class OnboardManualCITTest (BitcoinTestFramework):
     def cleanup_files(self):
         for file in self.files:
             self.removefileifexists(file)
-        
+
+
+    def get_nmine(self, kycpubkeysfile):
+        nmine=0
+        kycpk=''
+        kycpk_address=''
+        with open(kycpubkeysfile) as fp:
+            for line in fp:
+                if line[0] == '#':
+                    continue
+                sline=line.split(' ')
+                if len(sline) == 3:
+                    if int(sline[2]) == int(1):
+                        kycpk_address=sline[0]
+                        kycpk=sline[1]
+                        nmine=nmine+1
+        return nmine, kycpk_address, kycpk
+
+            
     def run_test (self):
         keypool=1
 
@@ -152,6 +219,18 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         assert_equal(self.nodes[0].getnunassignedkycpubkeys(), 1)
 
+        #Remove the manually registered kyc public key and create a new one
+        self.nodes[0].removekycpubkey(kycpubkey)
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+        assert_equal(self.nodes[0].getnunassignedkycpubkeys(), 0)
+        self.nodes[0].topupkycpubkeys(1)
+        self.nodes[0].generate(1)
+        self.sync_all()
+        assert_equal(self.nodes[0].getnunassignedkycpubkeys(), 1)
+        assert_equal(self.nodes[1].getnunassignedkycpubkeys(), 1)
+        
         #Onboard node1
         kycfile=self.initfile(os.path.join(self.options.tmpdir,"kycfile.dat"))
         kycfile_normal=self.initfile(os.path.join(self.options.tmpdir,"kycfile_normal.dat"))
@@ -182,7 +261,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
 
@@ -200,7 +278,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
         assert(self.nodes[0].querywhitelist(multisigAddress1) == True)
@@ -218,7 +295,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
 
         #Onboard again using registeraddresss script version 0 (will fail to whitelist)
@@ -232,7 +308,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
 
 
@@ -244,7 +319,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
 
@@ -261,7 +335,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
         assert(self.nodes[0].querywhitelist(onboardAddress4['address']) == True)
@@ -279,7 +352,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
 
         #Onboard again using registeraddresss script version 0 (will fail to whitelist)
@@ -293,7 +365,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
 
             
@@ -332,7 +403,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
         
@@ -368,7 +438,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
         #Blacklist
@@ -382,7 +451,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
 
         #Onboard again using registeraddresss script version 0
@@ -396,7 +464,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
         
 
@@ -412,7 +479,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 1)
         
@@ -439,7 +505,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
 
@@ -458,7 +523,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
         
@@ -472,7 +536,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
         #Blacklist
@@ -486,7 +549,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
 
         #Onboard again using registeraddresss script version 0
@@ -500,7 +562,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
         
         
@@ -628,7 +689,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
 
 
@@ -643,7 +703,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
 
         #Onboard again using registeraddresss script version 0
@@ -657,7 +716,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == True)
         
 
@@ -707,7 +765,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         #Test that txs do not send WHITELIST tokens
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
-        assert_equal(wb0_1-float(wlvalue), wb0_2)
+        assert_equal(wb0_1-float(1/coin), wb0_2)
 
         #Test for large kycfile
         MAX_SCRIPT_SIZE=50000
@@ -788,51 +846,14 @@ class OnboardManualCITTest (BitcoinTestFramework):
         
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
-            print("Validating kycfile: " + str(file))
             valkyc=self.nodes[0].validatekycfile(file)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
-
-                
-        #Add some more kycpubkeys
-        self.nodes[0].topupkycpubkeys(100)
-        self.nodes[0].generate(6)
-        self.sync_all()
-
-        assert_equal(self.nodes[0].getnunassignedkycpubkeys(),100)
-                
-        #Restart node
-        self.stop_node(0)
-        time.sleep(2)
-
-        bConnected=True
-        try:
-            self.nodes[0].validatekycfile(kycfile_large)
-        except ConnectionRefusedError as e:
-            bConnected=False
-
-        assert_equal(bConnected, False)
-            
-        self.nodes[0] = start_node(0, self.options.tmpdir, self.extra_args[0])
-            
-        time.sleep(1)
-        connect_nodes_bi(self.nodes, 0, 1)
-        connect_nodes_bi(self.nodes, 0, 2)
-        self.sync_all()
-
-        #Check that all the addresses in the kycfiles are whitelisted
-        for file in self.files:
-            print("Validating kycfile: " + str(file))
-            valkyc=self.nodes[0].validatekycfile(file)
-            if len(valkyc["addresses"]) > 0:
-                assert(valkyc["iswhitelisted"] == True)
-
-        #Check we still have the correct number of kycpubkeys
-        assert_equal(self.nodes[0].getnunassignedkycpubkeys(),100)
-
+        
         self.cleanup_files()
         return
 
 if __name__ == '__main__':
  OnboardManualCITTest().main()
+
 
