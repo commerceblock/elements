@@ -17,6 +17,7 @@
 #include "utiltime.h"
 
 #include <stdarg.h>
+#include <stdexcept>
 
 #if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
 #include <pthread.h>
@@ -127,7 +128,10 @@ const set<string> availableArgs = {
 "-issuancecoinsdestination","-whitelist","-reindex","-rescan","-pkhwhitelist-encrypt","-pkhwhitelist-scan","-chain","-regtest","-testnet","-rpcconnect","-rpcwait","-rpcclienttimeout","-stdin","-h","-help","-version","-rpcssl","-named","-create","-json","-txid",
 "-disablewallet","-wallet","-salvagewallet","-walletnotify","-limitancestorcount","-limitdescendantcount","-walletrejectlongchains","-limitancestorsize","-limitdescendantsize","-keypool","-disablect","-fallbackfee","-mintxfee","-paytxfee","-sendfreetransactions",
 "-spendzeroconfchange","-txconfirmtarget","-usehd","-upgradewallet","-walletbroadcast","-zapwallettxes","-dblogsize","-flushwallet","privdb","-blocksonly","-sysperms","-prune","-minrelaytxfee","-maxtxfee","-limitfreerelay","-allowselfsignedrootcertificates",
-"-choosedatadir","-lang","-min","-rootcertificates","-splash","-resetguisettings","-uiplatform"};
+"-choosedatadir","-lang","-min","-rootcertificates","-splash","-resetguisettings","-uiplatform","-rpcssl","-benchmark","-socks","-debugnet","-walletprematurewitness","-prematurewitness","-promiscuousmempoolflags","-con_fpowallowmindifficultyblocks",
+"-con_fpownoretargeting","-con_nsubsidyhalvinginterval","-con_bip34height","-con_bip65height","-con_bip66height","-con_npowtargettimespan","-con_npowtargetspacing","-con_nrulechangeactivationthreshold","-con_nminerconfirmationwindow","-con_powlimit",
+"-con_parentpowlimit","-con_bip34hash","-con_nminimumchainwork","-con_defaultassumevalid","-parentgenesisblockhash","-ndefaultport","-npruneafterheight","-fdefaultconsistencychecks","-frequirestandard","-fmineblocksondemand","-ct_bits","-ct_exponent",
+"-anyonecanspendaremine","-fminingrequirespeers","-con_mandatorycoinbase","-foo","bar"}; // last items included for tests
 bool fDebug = false;
 bool fPrintToConsole = false;
 bool fPrintToAll = false;
