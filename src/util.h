@@ -45,7 +45,7 @@ public:
 };
 
 extern const std::map<std::string, std::vector<std::string> >& mapMultiArgs;
-extern const std::unordered_set<std::string> availableArgs;
+extern const std::set<std::string> availableArgs;
 extern bool fDebug;
 extern bool fPrintToConsole;
 extern bool fPrintToAll;

@@ -112,7 +112,7 @@ CCriticalSection cs_args;
 map<string, string> mapArgs;
 static map<string, vector<string> > _mapMultiArgs;
 const map<string, vector<string> >& mapMultiArgs = _mapMultiArgs;
-const unordered_set<string> availableArgs = {
+const set<string> availableArgs = {
 "-disablesafemode","-help-debug","-?","-version","-alertnotify","-blocknotify","-blocksonly","-assumevalid","-conf","-daemon","-datadir","-dbcache","-feefilter","-loadblock","-maxorphantx","-maxmempool","-mempoolexpiry","-blockreconstructionextratxn",
 "-par","-pid","-prune","-reindex-chainstate","-sysperms","-addnode","-banscore","-bantime","-bind","-burnlist","-connect","-discover","-dns","-dnsseed","-externalip","-forcednsseed","-freezelist","-issuanceblock","-listenonion","-maxconnections","-maxreceivebuffer",
 "-maxsendbuffer","-maxtimeadjustment","-onion","-proxy","-onlynet","-permitbaremultisig","-pkhwhitelist","-peerbloomfilters","-port","-proxyrandomize","-requestlist","-rpcserialversion","-seednode","-timeout","-torcontrol","-torpassword","-txindex","-upnp",
