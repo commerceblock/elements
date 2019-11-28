@@ -4013,10 +4013,6 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
         }
     }
 
-    if (nLoadWalletRet != DB_LOAD_OK)
-        return nLoadWalletRet;
-    fFirstRunRet = !vchDefaultKey.IsValid();
-
     // If the HD chain is set but the encryption HD chain is not, initialize the 
     // encryption chain to the same seed
     if (IsHDEnabled() && !IsEncryptionHDEnabled()){
@@ -4024,6 +4020,10 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
             newHdEncryptionChain.masterKeyID = hdChain.masterKeyID;
             SetHDEncryptionChain(newHdEncryptionChain, false);
     }
+
+    if (nLoadWalletRet != DB_LOAD_OK)
+        return nLoadWalletRet;
+    fFirstRunRet = !vchDefaultKey.IsValid();
 
     uiInterface.LoadWallet(this);
 
