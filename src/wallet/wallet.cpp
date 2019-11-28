@@ -156,7 +156,7 @@ void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, CHDChain& 
     CExtKey childKey;              //key at m/0'/iEncryption'/<n>'
 
     // try to get the master key
-    if (!GetKey(hdEncryptionChain.masterKeyID, key))
+    if (!GetKey(chain.masterKeyID, key))
         throw std::runtime_error(std::string(__func__) + ": Master key not found");
 
     masterKey.SetMaster(key.begin(), key.size());
@@ -175,12 +175,12 @@ void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, CHDChain& 
         // always derive hardened keys
         // childIndex | BIP32_HARDENED_KEY_LIMIT = derive childIndex in hardened child-index-range
         // example: 1 | BIP32_HARDENED_KEY_LIMIT == 0x80000001 == 2147483649
-        externalChainChildKey.Derive(childKey, hdEncryptionChain.nExternalChainCounter | BIP32_HARDENED_KEY_LIMIT);
+        externalChainChildKey.Derive(childKey, chain.nExternalChainCounter | BIP32_HARDENED_KEY_LIMIT);
         metadata.hdKeypath = "m/0'/" + std::to_string(iExternal) + "'/" + 
-            std::to_string(hdEncryptionChain.nExternalChainCounter) + "'";
-        metadata.hdMasterKeyID = hdEncryptionChain.masterKeyID;
+            std::to_string(chain.nExternalChainCounter) + "'";
+        metadata.hdMasterKeyID = chain.masterKeyID;
         // increment childkey index
-        hdEncryptionChain.nExternalChainCounter++;
+        chain.nExternalChainCounter++;
     } while (HaveKey(childKey.key.GetPubKey().GetID()));
     secret = childKey.key;
 
