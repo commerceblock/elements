@@ -1104,6 +1104,10 @@ public:
     /* Returns true if HD is enabled */
     bool IsHDEnabled();
 
+    /* Returns true if the Encryption HD chain is enabled */
+    bool IsEncryptionHDEnabled();
+
+
     /* Generates a new HD master key (will not be activated) */
     CPubKey GenerateNewHDMasterKey();
 
