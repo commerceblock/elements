@@ -994,6 +994,11 @@ bool CWalletDB::EraseDestData(const std::string &address, const std::string &key
     return Erase(std::make_pair(std::string("destdata"), std::make_pair(address, key)));
 }
 
+bool CWalletDB::WriteHDChain(const CHDChain& chain, std::string chainName)
+{
+    nWalletDBUpdateCounter++;
+    return Write(chainName, chain);
+}
 
 bool CWalletDB::WriteHDChain(const CHDChain& chain)
 {

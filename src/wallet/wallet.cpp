@@ -145,50 +145,8 @@ CPubKey CWallet::GenerateNewKey(bool bEncryption)
 }
 
 
-void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret)
-{
-    // for now we use a fixed keypath scheme of m/0'/0'/k
-    CKey key;                      //master key seed (256bit)
-    CExtKey masterKey;             //hd master key
-    CExtKey accountKey;            //key at m/0'
-    CExtKey externalChainChildKey; //key at m/0'/0'
-    CExtKey childKey;              //key at m/0'/0'/<n>'
-
-    // try to get the master key
-    if (!GetKey(hdChain.masterKeyID, key))
-        throw std::runtime_error(std::string(__func__) + ": Master key not found");
-
-    masterKey.SetMaster(key.begin(), key.size());
-
-    // derive m/0'
-    // use hardened derivation (child keys >= 0x80000000 are hardened after bip32)
-    masterKey.Derive(accountKey, BIP32_HARDENED_KEY_LIMIT);
-
-    // derive m/0'/0'
-    accountKey.Derive(externalChainChildKey, BIP32_HARDENED_KEY_LIMIT );
-
-    // derive child key at next index, skip keys already known to the wallet
-    do {
-        // always derive hardened keys
-        // childIndex | BIP32_HARDENED_KEY_LIMIT = derive childIndex in hardened child-index-range
-        // example: 1 | BIP32_HARDENED_KEY_LIMIT == 0x80000001 == 2147483649
-        externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounter | BIP32_HARDENED_KEY_LIMIT);
-        metadata.hdKeypath = "m/0'/0'/" + std::to_string(hdChain.nExternalChainCounter) + "'";
-        metadata.hdMasterKeyID = hdChain.masterKeyID;
-        // increment childkey index
-        hdChain.nExternalChainCounter++;
-    } while (HaveKey(childKey.key.GetPubKey().GetID()));
-    secret = childKey.key;
-
-    // update the chain model in the database
-    if (!CWalletDB(strWalletFile).WriteHDChain(hdChain))
-        throw std::runtime_error(std::string(__func__) + ": Writing HD chain model failed");
-}
-
-void CWallet::DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret)
-{
-    //Using externalChangeChildKey path = 2' for encryption keys.
-    uint32_t iEncryption=2;
+void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, CHDChain& chain,
+    const char* chainName,  const uint32_t& iExternal){
 
     // for now we use a fixed keypath scheme of m/0'/0'/k
     CKey key;                      //master key seed (256bit)
@@ -210,7 +168,7 @@ void CWallet::DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret)
 
 
     // derive m/0'/iEncryption'
-    accountKey.Derive(externalChainChildKey, iEncryption | BIP32_HARDENED_KEY_LIMIT );
+    accountKey.Derive(externalChainChildKey, iExternal | BIP32_HARDENED_KEY_LIMIT );
 
     // derive child key at next index, skip keys already known to the wallet
     do {
@@ -218,7 +176,7 @@ void CWallet::DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret)
         // childIndex | BIP32_HARDENED_KEY_LIMIT = derive childIndex in hardened child-index-range
         // example: 1 | BIP32_HARDENED_KEY_LIMIT == 0x80000001 == 2147483649
         externalChainChildKey.Derive(childKey, hdEncryptionChain.nExternalChainCounter | BIP32_HARDENED_KEY_LIMIT);
-        metadata.hdKeypath = "m/0'/" + std::to_string(iEncryption) + "'/" + 
+        metadata.hdKeypath = "m/0'/" + std::to_string(iExternal) + "'/" + 
             std::to_string(hdEncryptionChain.nExternalChainCounter) + "'";
         metadata.hdMasterKeyID = hdEncryptionChain.masterKeyID;
         // increment childkey index
@@ -227,8 +185,19 @@ void CWallet::DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret)
     secret = childKey.key;
 
     // update the chain model in the database
-    if (!CWalletDB(strWalletFile).WriteHDEncryptionChain(hdEncryptionChain))
+    if (!CWalletDB(strWalletFile).WriteHDChain(chain, chainName))
         throw std::runtime_error(std::string(__func__) + ": Writing HD encryption chain model failed");
+
+}
+
+void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret)
+{
+    DeriveNewChildKey(metadata, secret, hdChain, "hdchain", 0);
+}
+
+void CWallet::DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret)
+{
+    DeriveNewChildKey(metadata, secret, hdEncryptionChain, "encryptionhdchain", 2);
 }
 
 bool CWallet::AddKeyPubKey(const CKey& secret, const CPubKey &pubkey)
