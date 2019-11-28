@@ -223,7 +223,6 @@ class RecoverEncryptionKeysTest (BitcoinTestFramework):
         nmine, dum1, dum2=self.get_nmine(kycpubkeysfile)
         assert(nmine == nkeys)
 
-        #Restart node0 and check the wallet still has the kyc keys
         #Restart node
         self.stop_node(3)
         time.sleep(2)
@@ -238,6 +237,49 @@ class RecoverEncryptionKeysTest (BitcoinTestFramework):
             
         self.nodes[3] = start_node(3, self.options.tmpdir, self.extra_args[3])
             
+        time.sleep(1)
+        self.connect_nodes()
+        self.sync_all()
+        self.nodes[3].dumpkycpubkeys(kycpubkeysfile)
+        nmine, dum1, dum2=self.get_nmine(kycpubkeysfile)
+        assert(nmine == nkeys)
+
+
+        #Reset wallet and restart the node - keys will not be recovered yet 
+        self.stop_node(3)
+        time.sleep(2)
+        bConnected=True
+        try:
+            self.nodes[3].getblockcount()
+        except ConnectionRefusedError as e:
+            bConnected=False
+        assert_equal(bConnected, False)
+
+        shutil.copyfile(self.wlwalletpath,self.dest3)
+
+        self.nodes[3] = start_node(3, self.options.tmpdir, self.extra_args[3])
+
+        time.sleep(1)
+        self.connect_nodes()
+        self.sync_all()
+        self.nodes[3].dumpkycpubkeys(kycpubkeysfile)
+        nmine, dum1, dum2=self.get_nmine(kycpubkeysfile)
+        assert(nmine == 0)
+
+        #Restart the node with the recoverwhitelistkeys flag - keys will be recovered
+        self.stop_node(3)
+        time.sleep(2)
+        bConnected=True
+        try:
+            self.nodes[3].getblockcount()
+        except ConnectionRefusedError as e:
+            bConnected=False
+        assert_equal(bConnected, False)
+
+        self.extra_args[3].append("-recoverwhitelistkeys=1")
+        
+        self.nodes[3] = start_node(3, self.options.tmpdir, self.extra_args[3])
+
         time.sleep(1)
         self.connect_nodes()
         self.sync_all()

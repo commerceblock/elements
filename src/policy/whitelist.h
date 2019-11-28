@@ -143,13 +143,11 @@ public:
  	virtual void add_unassigned_kyc(const CPubKey& pubKey){
  		;
  	}
-
-	virtual void get_kycpubkeys(std::set<CPubKey>& keys){
-		keys=_kycUnassignedSet;
-	}
-
   	virtual bool is_unassigned_kyc(const CPubKey& pubKey);
 
+  	bool recover_kyc_keys(uint32_t ngap);
+
+  	bool recover_encryption_key(const CPubKey& pubKey, const uint32_t& maxGen);
 
 protected:
 	std::set<CTxDestination> _myPending;

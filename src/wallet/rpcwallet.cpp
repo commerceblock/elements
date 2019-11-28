@@ -1199,15 +1199,9 @@ UniValue recoverkyckeys(const JSONRPCRequest& request){
     if(ngap <= 0)
          throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter maxngen: must be greater than 0");
 
-    std::set<CPubKey> kycPubKeys;
-    addressWhitelist->get_kycpubkeys(kycPubKeys);
 
-    for (auto key: kycPubKeys){
-        if(!RecoverEncryptionKey(key, ngap).get_bool())
-            return false;
-    }
+    return addressWhitelist->recover_kyc_keys(ngap);
 
-    return true;
 }
 
 UniValue recoverencryptionkey(const JSONRPCRequest& request){
@@ -1245,21 +1239,7 @@ UniValue recoverencryptionkey(const JSONRPCRequest& request){
     if(ngen <= 0)
          throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter maxngen: must be greater than 0");
 
-    return RecoverEncryptionKey(pubKey, ngen);
-}
-
-UniValue RecoverEncryptionKey(const CPubKey& pubKey, const uint32_t& maxGen){
-    uint32_t nGen=0;
-    CKeyID id = pubKey.GetID();
-    while(!pwalletMain->HaveKey(id)){
-      if(nGen >= maxGen){
-        return false;
-      } else {
-        pwalletMain->GenerateNewKey(true);
-        ++nGen;
-      }
-    }
-    return true;
+    return addressWhitelist->recover_encryption_key(pubKey, ngen);
 }
 
 UniValue RemoveKYCPubKey(const CPubKey& kycPubKey){

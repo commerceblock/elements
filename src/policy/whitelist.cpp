@@ -102,7 +102,42 @@ bool CWhiteList::Load(CCoinsView *view)
       pcursor->Next();
     }
 
-  return true;
+    bool fSuccess=true;
+
+    if (fRecoverWhitelistKeys){
+      fSuccess = recover_kyc_keys(MAX_KYCPUBKEY_GAP);
+    }
+
+  return fSuccess;
+}
+
+bool CWhiteList::recover_kyc_keys(uint32_t ngap){
+    for (auto key: _kycUnassignedSet){
+        if(!recover_encryption_key(key, ngap))
+            return false;
+    }
+    return true;
+}
+
+bool CWhiteList::recover_encryption_key(const CPubKey& pubKey, const uint32_t& maxGen){
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+    #ifdef ENABLE_WALLET
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    EnsureWalletIsUnlocked();
+    
+    uint32_t nGen=0;
+    CKeyID id = pubKey.GetID();
+    while(!pwalletMain->HaveKey(id)){
+      if(nGen >= maxGen){
+        return false;
+      } else {
+        pwalletMain->GenerateNewKey(true);
+        ++nGen;
+      }
+    }
+    return true;
+    #endif
+    return false;
 }
 
 void CWhiteList::add_destination(const CTxDestination& dest){

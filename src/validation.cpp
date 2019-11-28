@@ -87,6 +87,7 @@ bool fRequireStandard = DEFAULT_REQUIRE_STANDARD;
 bool fContractInTx = DEFAULT_CONTRACT_IN_TX;
 bool fContractInKYCFile = DEFAULT_CONTRACT_IN_KYCFILE;
 bool fRequireWhitelistCheck = DEFAULT_WHITELIST_CHECK;
+bool fRecoverWhitelistKeys = DEFAULT_RECOVER_WHITELIST_KEYS;
 bool fScanWhitelist = DEFAULT_SCAN_WHITELIST;
 bool fWhitelistEncrypt = DEFAULT_WHITELIST_ENCRYPT;
 bool fEnableBurnlistCheck = DEFAULT_BURNLIST_CHECK;

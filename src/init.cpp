@@ -387,6 +387,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-permitbaremultisig", strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
     strUsage += HelpMessageOpt("-pkhwhitelist-encrypt", strprintf(_("Encrypted address whitelisting. (default: %u)"), DEFAULT_WHITELIST_ENCRYPT));
     strUsage += HelpMessageOpt("-pkhwhitelist", strprintf(_("Enable node mempool address whitelisting (default: %u)"), DEFAULT_WHITELIST_CHECK));
+    strUsage += HelpMessageOpt("-recoverwhitelistkeys", strprintf(_("Call the recoverwhitelistkeys RPC on startup (default: %u)"), DEFAULT_RECOVER_WHITELIST_KEYS));
     strUsage += HelpMessageOpt("-pkhwhitelist-scan", strprintf(_("Keep local whitelist updated with own wallet's whitelisted addresses (default: %u)"), DEFAULT_SCAN_WHITELIST));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>", strprintf(_("Listen for connections on <port> (default: %u)"), defaultChainParams->GetDefaultPort()));
@@ -1122,6 +1123,7 @@ bool AppInitParameterInteraction()
 #endif
     //address whitelisting
     fRequireWhitelistCheck = GetBoolArg("-pkhwhitelist", DEFAULT_WHITELIST_CHECK);
+    fRecoverWhitelistKeys = GetBoolArg("-recoverwhitelistkeys", DEFAULT_RECOVER_WHITELIST_KEYS);
     fScanWhitelist = GetBoolArg("-pkhwhitelist-scan", DEFAULT_SCAN_WHITELIST);
     fWhitelistEncrypt = GetBoolArg("-pkhwhitelist-encrypt", DEFAULT_WHITELIST_ENCRYPT);
     if(fWhitelistEncrypt &! (fRequireWhitelistCheck || fScanWhitelist))
@@ -1130,6 +1132,9 @@ bool AppInitParameterInteraction()
         return InitError("-pkhwhitelist-scan requires -pkhwhitelist-encrypt");
     if(fScanWhitelist && fRequireWhitelistCheck)
         return InitError("cannot enable both -pkhwhitelist and -pkhwhitelist-scan");
+    if(fRecoverWhitelistKeys &! (fRequireWhitelistCheck || fScanWhitelist)){
+        return InitError("frecoverwhitelistkeys requires either -pkhwhitelist or -pkhwhitelist-scan");
+    }
 
     fRequireFreezelistCheck = GetBoolArg("-freezelist", DEFAULT_FREEZELIST_CHECK);
     fEnableBurnlistCheck = GetBoolArg("-burnlist", DEFAULT_BURNLIST_CHECK);

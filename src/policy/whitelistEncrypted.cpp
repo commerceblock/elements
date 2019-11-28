@@ -11,6 +11,7 @@
 #include "policy/policy.h"
 #include "rpc/server.h"
 
+
 CWhiteListEncrypted::CWhiteListEncrypted(){
   _asset=whitelistAsset;
   //The written code behaviour expects nMultisigSize to be of length 1 at the moment. If it is changed in the future the code needs to be adjusted accordingly.
@@ -66,6 +67,11 @@ bool CWhiteListEncrypted::Load(CCoinsView *view)
       }
     pcursor->Next();
     }
+
+    if(fRecoverWhitelistKeys){
+      recover_kyc_keys(MAX_KYCPUBKEY_GAP);
+    }
+
   return true;
 }
 
