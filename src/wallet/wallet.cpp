@@ -146,14 +146,14 @@ CPubKey CWallet::GenerateNewKey(bool bEncryption)
 
 
 void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, CHDChain& chain,
-    const char* chainName,  const uint32_t& iExternal){
+    const std::string& chainName,  const uint32_t& iExternal){
 
     // for now we use a fixed keypath scheme of m/0'/0'/k
     CKey key;                      //master key seed (256bit)
     CExtKey masterKey;             //hd master key
     CExtKey accountKey;            //key at m/0'
-    CExtKey externalChainChildKey; //key at m/0'/iEncryption'
-    CExtKey childKey;              //key at m/0'/iEncryption'/<n>'
+    CExtKey externalChainChildKey; //key at m/0'/iExternal'
+    CExtKey childKey;              //key at m/0'/iExternal'/<n>'
 
     // try to get the master key
     if (!GetKey(chain.masterKeyID, key))
@@ -192,12 +192,12 @@ void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, CHDChain& 
 
 void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret)
 {
-    DeriveNewChildKey(metadata, secret, hdChain, "hdchain", 0);
+    DeriveNewChildKey(metadata, secret, hdChain, std::string("hdchain"), 0);
 }
 
 void CWallet::DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret)
 {
-    DeriveNewChildKey(metadata, secret, hdEncryptionChain, "encryptionhdchain", 2);
+    DeriveNewChildKey(metadata, secret, hdEncryptionChain, std::string("encryptionhdchain"), 2);
 }
 
 bool CWallet::AddKeyPubKey(const CKey& secret, const CPubKey &pubkey)

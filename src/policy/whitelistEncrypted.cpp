@@ -69,7 +69,7 @@ bool CWhiteListEncrypted::Load(CCoinsView *view)
     }
 
     if(fRecoverWhitelistKeys){
-      recover_kyc_keys(MAX_KYCPUBKEY_GAP);
+      return recover_kyc_keys(MAX_KYCPUBKEY_GAP);
     }
 
   return true;

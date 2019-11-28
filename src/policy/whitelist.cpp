@@ -102,13 +102,11 @@ bool CWhiteList::Load(CCoinsView *view)
       pcursor->Next();
     }
 
-    bool fSuccess=true;
-
     if (fRecoverWhitelistKeys){
-      fSuccess = recover_kyc_keys(MAX_KYCPUBKEY_GAP);
+      return recover_kyc_keys(MAX_KYCPUBKEY_GAP);
     }
 
-  return fSuccess;
+  return true;
 }
 
 bool CWhiteList::recover_kyc_keys(uint32_t ngap){

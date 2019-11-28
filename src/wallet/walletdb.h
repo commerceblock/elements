@@ -187,7 +187,7 @@ public:
     bool WriteHDEncryptionChain(const CHDChain& chain);
 
     //! write the HD chain model with the given name 
-    bool WriteHDChain(const CHDChain& chain, std::string chainName);
+    bool WriteHDChain(const CHDChain& chain, const std::string& chainName);
 
     static void IncrementUpdateCounter();
     static unsigned int GetUpdateCounter();

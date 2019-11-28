@@ -811,7 +811,7 @@ public:
     void DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret);
     void DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret);
     void DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, CHDChain& chain,
-    const char* chainName,  const uint32_t& iExternal);
+    const std::string& chainName,  const uint32_t& iExternal);
 
     //! Adds a key to the store, and saves it to disk.
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey) override;
