@@ -137,6 +137,7 @@ static const int64_t MAX_FEE_ESTIMATION_TIP_AGE = 3 * 60 * 60;
 
 static const bool DEFAULT_WHITELIST_ENCRYPT = false;
 static const bool DEFAULT_WHITELIST_CHECK = false;
+static const bool DEFAULT_RECOVER_WHITELIST_KEYS = false;
 static const bool DEFAULT_SCAN_WHITELIST = false;
 static const bool DEFAULT_BLOCK_ISSUANCE = false;
 static const bool DEFAULT_BURNLIST_CHECK = false;
@@ -219,6 +220,7 @@ extern bool fTxIndex;
 extern bool fIsBareMultisigStd;
 extern bool fWhitelistEncrypt;
 extern bool fRequireWhitelistCheck;
+extern bool fRecoverWhitelistKeys;
 extern bool fScanWhitelist;
 extern bool fRequireFreezelistCheck;
 extern bool fRequireRequestListCheck;

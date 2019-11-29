@@ -102,46 +102,41 @@ bool CWhiteList::Load(CCoinsView *view)
       pcursor->Next();
     }
 
-  sync_whitelist_wallet();
+    if (fRecoverWhitelistKeys){
+      return recover_kyc_keys(MAX_KYCPUBKEY_GAP);
+    }
 
   return true;
 }
 
-//Modifies a vector of the kyc public keys whose private keys were not found in the wallet.
-void CWhiteList::sync_whitelist_wallet(std::vector<CPubKey>& keysNotFound){
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
-  #ifdef ENABLE_WALLET
-  LOCK2(cs_main, pwalletMain->cs_wallet);
-  EnsureWalletIsUnlocked();
-  keysNotFound.clear();
-  int nTries = 0;
-  int nKeys = _kycUnassignedSet.size();
-  int nTriesMax = MAX_KYCPUBKEY_GAP + nKeys;
-  bool bKeyFound = true;
-  for(auto key : _kycUnassignedSet){
-    bKeyFound=true;
-    CKeyID kycKey=key.GetID();
-    CKey privKey;
-    while(!pwalletMain->GetKey(kycKey, privKey)){
-      pwalletMain->GenerateNewKey(true);
-      if(++nTries > nTriesMax){
-        keysNotFound.push_back(key);
-        bKeyFound=false;
-        break;
-      }
+bool CWhiteList::recover_kyc_keys(uint32_t ngap){
+    for (auto key: _kycUnassignedSet){
+        if(!recover_encryption_key(key, ngap))
+            return false;
     }
-    //Reset the gap if a key was found.
-    if(bKeyFound) nTries=std::min(nTries, nKeys);
-  }
-  #endif //#ifdef ENABLE_WALLET
+    return true;
 }
 
-void CWhiteList::sync_whitelist_wallet(){
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
-  std::vector<CPubKey> keysNotFound;
-  sync_whitelist_wallet(keysNotFound);
+bool CWhiteList::recover_encryption_key(const CPubKey& pubKey, const uint32_t& maxGen){
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+    #ifdef ENABLE_WALLET
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    EnsureWalletIsUnlocked();
+    
+    uint32_t nGen=0;
+    CKeyID id = pubKey.GetID();
+    while(!pwalletMain->HaveKey(id)){
+      if(nGen >= maxGen){
+        return false;
+      } else {
+        pwalletMain->GenerateNewKey(true);
+        ++nGen;
+      }
+    }
+    return true;
+    #endif
+    return false;
 }
-  
 
 void CWhiteList::add_destination(const CTxDestination& dest){
     boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  

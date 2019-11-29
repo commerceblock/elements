@@ -183,6 +183,12 @@ public:
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
 
+    //! write the hdencryptionchain model (external chain child index counter)
+    bool WriteHDEncryptionChain(const CHDChain& chain);
+
+    //! write the HD chain model with the given name 
+    bool WriteHDChain(const CHDChain& chain, const std::string& chainName);
+
     static void IncrementUpdateCounter();
     static unsigned int GetUpdateCounter();
 private:

@@ -116,6 +116,7 @@ testScripts = [
     'onboard_cit.py',
     'onboardmanual.py',
     'onboardmanual_cit.py',
+    'recoverencryptionkeys.py',
     'fixedfee.py',
     # Accounts not supported
     #'wallet-accounts.py',

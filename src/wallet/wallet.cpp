@@ -120,11 +120,11 @@ CPubKey CWallet::GenerateNewKey(bool bEncryption)
     CPubKey pubKeyPreTweak = secret.GetPubKey();
     metadata.derivedPubKey = pubKeyPreTweak;
 
-    if (Params().EmbedContract() &! bEncryption) {
-        // use the active block contract hash to generate keys - if this is not available use the local contract
+
+    if (!Params().ContractInTx() && Params().EmbedContract() &! bEncryption) {
         uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash(); // for BIP-175
-        if (!contract.IsNull() && !Params().ContractInTx())
-        {
+        if(!contract.IsNull()){
+            // use the active block contract hash to generate keys - if this is not available use the local contract
             pubKeyPreTweak.AddTweakToPubKey((unsigned char*)contract.begin()); //tweak pubkey for reverse testing
             secret.AddTweakToPrivKey((unsigned char*)contract.begin()); //do actual tweaking of private key
         }
@@ -145,17 +145,18 @@ CPubKey CWallet::GenerateNewKey(bool bEncryption)
 }
 
 
-void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, unsigned int nExternalChain)
-{
+void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, CHDChain& chain,
+    const std::string& chainName,  const uint32_t& iExternal){
+
     // for now we use a fixed keypath scheme of m/0'/0'/k
     CKey key;                      //master key seed (256bit)
     CExtKey masterKey;             //hd master key
     CExtKey accountKey;            //key at m/0'
-    CExtKey externalChainChildKey; //key at m/0'/0'
-    CExtKey childKey;              //key at m/0'/0'/<n>'
+    CExtKey externalChainChildKey; //key at m/0'/iExternal'
+    CExtKey childKey;              //key at m/0'/iExternal'/<n>'
 
     // try to get the master key
-    if (!GetKey(hdChain.masterKeyID, key))
+    if (!GetKey(chain.masterKeyID, key))
         throw std::runtime_error(std::string(__func__) + ": Master key not found");
 
     masterKey.SetMaster(key.begin(), key.size());
@@ -164,25 +165,39 @@ void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, unsigned i
     // use hardened derivation (child keys >= 0x80000000 are hardened after bip32)
     masterKey.Derive(accountKey, BIP32_HARDENED_KEY_LIMIT);
 
-    // derive m/0'/0'
-    accountKey.Derive(externalChainChildKey, BIP32_HARDENED_KEY_LIMIT + nExternalChain);
+
+
+    // derive m/0'/iEncryption'
+    accountKey.Derive(externalChainChildKey, iExternal | BIP32_HARDENED_KEY_LIMIT );
 
     // derive child key at next index, skip keys already known to the wallet
     do {
         // always derive hardened keys
         // childIndex | BIP32_HARDENED_KEY_LIMIT = derive childIndex in hardened child-index-range
         // example: 1 | BIP32_HARDENED_KEY_LIMIT == 0x80000001 == 2147483649
-        externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounter | BIP32_HARDENED_KEY_LIMIT);
-        metadata.hdKeypath = "m/0'/0'/" + std::to_string(hdChain.nExternalChainCounter) + "'";
-        metadata.hdMasterKeyID = hdChain.masterKeyID;
+        externalChainChildKey.Derive(childKey, chain.nExternalChainCounter | BIP32_HARDENED_KEY_LIMIT);
+        metadata.hdKeypath = "m/0'/" + std::to_string(iExternal) + "'/" + 
+            std::to_string(chain.nExternalChainCounter) + "'";
+        metadata.hdMasterKeyID = chain.masterKeyID;
         // increment childkey index
-        hdChain.nExternalChainCounter++;
+        chain.nExternalChainCounter++;
     } while (HaveKey(childKey.key.GetPubKey().GetID()));
     secret = childKey.key;
 
     // update the chain model in the database
-    if (!CWalletDB(strWalletFile).WriteHDChain(hdChain))
-        throw std::runtime_error(std::string(__func__) + ": Writing HD chain model failed");
+    if (!CWalletDB(strWalletFile).WriteHDChain(chain, chainName))
+        throw std::runtime_error(std::string(__func__) + ": Writing HD encryption chain model failed");
+
+}
+
+void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret)
+{
+    DeriveNewChildKey(metadata, secret, hdChain, std::string("hdchain"), 0);
+}
+
+void CWallet::DeriveNewEncryptionChildKey(CKeyMetadata& metadata, CKey& secret)
+{
+    DeriveNewChildKey(metadata, secret, hdEncryptionChain, std::string("encryptionhdchain"), 2);
 }
 
 bool CWallet::AddKeyPubKey(const CKey& secret, const CPubKey &pubkey)
@@ -1149,7 +1164,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
 
 void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
 {
-    LOCK2(cs_main, cs_wallet);
+    LOCK(cs_wallet);
 
     int conflictconfirms = 0;
     if (mapBlockIndex.count(hashBlock)) {
@@ -1401,6 +1416,10 @@ bool CWallet::SetHDMasterKey(const CPubKey& pubkey)
     CHDChain newHdChain;
     newHdChain.masterKeyID = pubkey.GetID();
     SetHDChain(newHdChain, false);
+ 
+    CHDChain newHdEncryptionChain;
+    newHdEncryptionChain.masterKeyID = pubkey.GetID();
+    SetHDEncryptionChain(newHdEncryptionChain, false);
 
     return true;
 }
@@ -1415,9 +1434,24 @@ bool CWallet::SetHDChain(const CHDChain& chain, bool memonly)
     return true;
 }
 
+bool CWallet::SetHDEncryptionChain(const CHDChain& chain, bool memonly)
+{
+    LOCK(cs_wallet);
+    if (!memonly && !CWalletDB(strWalletFile).WriteHDEncryptionChain(chain))
+        throw runtime_error(std::string(__func__) + ": writing encryption chain failed");
+
+    hdEncryptionChain = chain;
+    return true;
+}
+
 bool CWallet::IsHDEnabled()
 {
     return !hdChain.masterKeyID.IsNull();
+}
+
+bool CWallet::IsEncryptionHDEnabled()
+{
+    return !hdEncryptionChain.masterKeyID.IsNull();
 }
 
 int64_t CWalletTx::GetTxTime() const
@@ -3930,9 +3964,6 @@ CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarge
     return nFeeNeeded;
 }
 
-
-
-
 DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 {
     if (!fFileBacked)
@@ -3949,6 +3980,14 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
             // User will be prompted to unlock wallet the next operation
             // that requires a new key.
         }
+    }
+
+    // If the HD chain is set but the encryption HD chain is not, initialize the 
+    // encryption chain to the same seed
+    if (IsHDEnabled() && !IsEncryptionHDEnabled()){
+            CHDChain newHdEncryptionChain;
+            newHdEncryptionChain.masterKeyID = hdChain.masterKeyID;
+            SetHDEncryptionChain(newHdEncryptionChain, false);
     }
 
     if (nLoadWalletRet != DB_LOAD_OK)
@@ -4121,6 +4160,7 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
             setKeyPool.insert(nEnd);
             LogPrintf("keypool added key %d, size=%u\n", nEnd, setKeyPool.size());
         }
+
     }
     return true;
 }
