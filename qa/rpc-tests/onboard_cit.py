@@ -36,7 +36,7 @@ class OnboardTest (BitcoinTestFramework):
         self.extra_args[1].append("-pkhwhitelist-encrypt=0")
         self.extra_args[1].append("-keypool=100")
         self.extra_args[1].append("-freezelist=1")
-        self.extra_args[1].append("-burnlistist=1")
+        self.extra_args[1].append("-burnlist=1")
         self.extra_args[1].append("-initialfreecoins=2100000000000000")
         self.extra_args[1].append("-policycoins=50000000000000")
         self.extra_args[1].append("-initialfreecoinsdestination=76a914b87ed64e2613422571747f5d968fff29a466e24e88ac")

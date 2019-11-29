@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(util_DateTimeStrFormat)
 
 BOOST_AUTO_TEST_CASE(util_ParseParameters)
 {
-    const char *argv_test[] = {"-ignored", "-a", "-b", "-ccc=argument", "-ccc=multiple", "f", "-d=e"};
+    const char *argv_test[] = {"-ignored", "-par", "-pid=argument", "-pid=multiple"};
 
     ParseParameters(0, (char**)argv_test);
     BOOST_CHECK(mapArgs.empty() && mapMultiArgs.empty());
@@ -110,18 +110,40 @@ BOOST_AUTO_TEST_CASE(util_ParseParameters)
     ParseParameters(1, (char**)argv_test);
     BOOST_CHECK(mapArgs.empty() && mapMultiArgs.empty());
 
-    ParseParameters(5, (char**)argv_test);
+    ParseParameters(4, (char**)argv_test);
     // expectation: -ignored is ignored (program name argument),
-    // -a, -b and -ccc end up in map, -d ignored because it is after
-    // a non-option argument (non-GNU option parsing)
-    BOOST_CHECK(mapArgs.size() == 3 && mapMultiArgs.size() == 3);
-    BOOST_CHECK(IsArgSet("-a") && IsArgSet("-b") && IsArgSet("-ccc")
-                && !IsArgSet("f") && !IsArgSet("-d"));
-    BOOST_CHECK(mapMultiArgs.count("-a") && mapMultiArgs.count("-b") && mapMultiArgs.count("-ccc")
-                && !mapMultiArgs.count("f") && !mapMultiArgs.count("-d"));
+    // -par and -pid end up in mapArgs and mapMultiArgs
+    BOOST_CHECK(mapArgs.size() == 2 && mapMultiArgs.size() == 2);
+    BOOST_CHECK(IsArgSet("-par") && IsArgSet("-pid"));
+    BOOST_CHECK(mapMultiArgs.count("-par") && mapMultiArgs.count("-pid"));
+    // "multiple" in mapArgs, "multiple" and "argument" in mapMultiArgs
+    BOOST_CHECK(mapArgs["-pid"] == "multiple");
+    BOOST_CHECK(mapMultiArgs.at("-pid").size() == 2);
 
-    BOOST_CHECK(mapArgs["-a"] == "" && mapArgs["-ccc"] == "multiple");
-    BOOST_CHECK(mapMultiArgs.at("-ccc").size() == 2);
+    // Throw error for incorrectly spelt param
+    *argv_test = {"-pur"};
+    try {
+        ParseParameters(2,(char**)argv_test);
+    }
+    catch (const std::runtime_error& e) {
+        BOOST_CHECK_EQUAL(e.what(), "Argument -pur not recognised.");
+    }
+    // Throw error for ommitance of '-'
+    *argv_test = {"par"};
+    try {
+        ParseParameters(2,(char**)argv_test);
+    }
+    catch (const std::runtime_error& e) {
+        BOOST_CHECK_EQUAL(e.what(), "Argument par not recognised.");
+    }
+    // Throw error for invalid arg
+    *argv_test = {"-invalidarg"};
+    try {
+        ParseParameters(2,(char**)argv_test);
+    }
+    catch (const std::runtime_error& e) {
+        BOOST_CHECK_EQUAL(e.what(), "Argument -invalidarg not recognised.");
+    }
 }
 
 BOOST_AUTO_TEST_CASE(util_GetArg)

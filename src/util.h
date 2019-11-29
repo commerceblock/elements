@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
@@ -43,6 +44,7 @@ public:
 };
 
 extern const std::map<std::string, std::vector<std::string> >& mapMultiArgs;
+extern const std::unordered_set<std::string> availableArgs;
 extern bool fDebug;
 extern bool fPrintToConsole;
 extern bool fPrintToAll;
@@ -73,6 +75,9 @@ bool SetupNetworking();
 
 /** Return true if log accepts specified category */
 bool LogAcceptCategory(const char* category);
+/** Return true if argument is in availbleArgs set. Used to prevent
+mispelt or bad input argument causing unintended behaviour */
+bool IsArgKnown(const std::string &str);
 /** Send a string to the log output */
 int DebugLogPrintStr(const std::string &str);
 /** Send a string to the audit log output */

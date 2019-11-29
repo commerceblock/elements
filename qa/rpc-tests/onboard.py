@@ -35,7 +35,7 @@ class OnboardTest (BitcoinTestFramework):
         self.extra_args[1].append("-pkhwhitelist-encrypt=0")
         self.extra_args[1].append("-keypool=100")
         self.extra_args[1].append("-freezelist=1")
-        self.extra_args[1].append("-burnlistist=1")
+        self.extra_args[1].append("-burnlist=1")
         self.extra_args[1].append("-initialfreecoins=2100000000000000")
         self.extra_args[1].append("-policycoins=50000000000000")
         self.extra_args[1].append("-initialfreecoinsdestination=76a914b87ed64e2613422571747f5d968fff29a466e24e88ac")
@@ -202,7 +202,7 @@ class OnboardTest (BitcoinTestFramework):
         for addr in valkyc["addresses"]:
             assert(self.nodes[1].validateaddress(addr)["ismine"] == True)
             assert(self.nodes[1].querywhitelist(addr) == False)
-            
+
         kycfile_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile_plain.dat"))
         self.nodes[0].readkycfile(kycfile, kycfile_plain)
 
@@ -212,7 +212,7 @@ class OnboardTest (BitcoinTestFramework):
         #And some whitespace to kycfile
         with open(kycfile, 'a') as f:
             f.write('\r\n\n\f\t\v ')
-        
+
         balance_1=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         self.nodes[0].onboarduser(kycfile)
         time.sleep(5)
@@ -226,8 +226,8 @@ class OnboardTest (BitcoinTestFramework):
         for addr in valkyc["addresses"]:
             assert(self.nodes[1].validateaddress(addr)["ismine"] == True)
             assert(self.nodes[1].querywhitelist(addr) == True)
-        
-        
+
+
         balance_2=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         #Make sure the onboard transaction fee was zero
         assert((balance_1-balance_2) == 0)

@@ -17,6 +17,7 @@
 #include "utiltime.h"
 
 #include <stdarg.h>
+#include <stdexcept>
 
 #if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
 #include <pthread.h>
@@ -112,6 +113,25 @@ CCriticalSection cs_args;
 map<string, string> mapArgs;
 static map<string, vector<string> > _mapMultiArgs;
 const map<string, vector<string> >& mapMultiArgs = _mapMultiArgs;
+const unordered_set<string> availableArgs = {
+"-disablesafemode","-help-debug","-?","-version","-alertnotify","-blocknotify","-blocksonly","-assumevalid","-conf","-daemon","-datadir","-dbcache","-feefilter","-loadblock","-maxorphantx","-maxmempool","-mempoolexpiry","-blockreconstructionextratxn",
+"-par","-pid","-prune","-reindex-chainstate","-sysperms","-addnode","-banscore","-bantime","-bind","-burnlist","-connect","-discover","-dns","-dnsseed","-externalip","-forcednsseed","-freezelist","-issuanceblock","-listenonion","-maxconnections","-maxreceivebuffer",
+"-maxsendbuffer","-maxtimeadjustment","-onion","-proxy","-onlynet","-permitbaremultisig","-pkhwhitelist","-peerbloomfilters","-port","-proxyrandomize","-requestlist","-rpcserialversion","-seednode","-timeout","-torcontrol","-torpassword","-txindex","-upnp",
+"-whitebind","-whitelistrelay","-whitelistforcerelay","-maxuploadtarget","-zmqpubhashblock","-zmqpubhashtx","-zmqpubrawblock","-zmqpubrawtx","-uacomment","-checkblocks","-checklevel","-checkblockindex","-checkmempool","-checkpoints","-testsafemode",
+"-dropmessagestest","-fuzzmessagestest","-stopafterblockimport","-limitancestorcount","-limitancestorsize","-limitdescendantcount","-limitdescendantsize","-bip9params","-assetdir","-debug","-nodebug","-logips","-logtimestamps","-logtimemicros","-mocktime",
+"-limitfreerelay","-relaypriority","-maxsigcachesize","-maxtipage","-feeasset","-minrelaytxfee","-maxtxfee","-fixedtxfee","-printtoconsole","-printtoall","-printpriority","-shrinkdebugfile","-acceptnonstdtxn","-incrementalrelayfee","-dustrelayfee",
+"-bytespersigop","-registeraddress","-registeraddresssize","-datacarrier","-datacarriersize","-attestationhash","-blockmaxweight","-blockmaxsize","-blockprioritysize","-blockmintxfee","-blockversion","-embedcontract","-embedmapping","-issuecontrolscript",
+"-recordinflation","-contractintx","-contractinkycfile","-server","-rest","-rpcbind","-rpccookiefile","-rpcuser","-rpcauth","-rpcport","-rpcallowip","-rpcthreads","-rpcworkqueue","-rpcservertimeout","-fedpegscript","-signblockscript",
+"-fedpegaddress","-parentcontract","-peginconfirmationdepth","-initialfreecoins","-policycoins","-genesistimestamp","-initialfreecoinsdestination","-freezelistcoinsdestination","-burnlistcoinsdestination","-whitelistcoinsdestination",
+"-challengecoinsdestination","-permissioncoinsdestination","-issuancecoinsdestination","-validatepegin","-mainchainrpchost","-rpcpassword","-mainchainrpcport","-mainchainrpcuser","-mainchainrpcpassword","-mainchainrpccookiefile",
+"-listen","-debugnet","-socks","-tor","-benchmark","-whitelistalwaysrelay","-blockminsize","-freezelistcoinsdestination","-burnlistcoinsdestination","-whitelistcoinsdestination","-challengecoinsdestination","-permissioncoinsdestination"
+"-issuancecoinsdestination","-whitelist","-reindex","-rescan","-pkhwhitelist-encrypt","-pkhwhitelist-scan","-chain","-regtest","-testnet","-rpcconnect","-rpcwait","-rpcclienttimeout","-stdin","-h","-help","-version","-rpcssl","-named","-create","-json","-txid",
+"-disablewallet","-wallet","-salvagewallet","-walletnotify","-limitancestorcount","-limitdescendantcount","-walletrejectlongchains","-limitancestorsize","-limitdescendantsize","-keypool","-disablect","-fallbackfee","-mintxfee","-paytxfee","-sendfreetransactions",
+"-spendzeroconfchange","-txconfirmtarget","-usehd","-upgradewallet","-walletbroadcast","-zapwallettxes","-dblogsize","-flushwallet","privdb","-blocksonly","-sysperms","-prune","-minrelaytxfee","-maxtxfee","-limitfreerelay","-allowselfsignedrootcertificates",
+"-choosedatadir","-lang","-min","-rootcertificates","-splash","-resetguisettings","-uiplatform","-rpcssl","-benchmark","-socks","-debugnet","-walletprematurewitness","-prematurewitness","-promiscuousmempoolflags","-con_fpowallowmindifficultyblocks",
+"-con_fpownoretargeting","-con_nsubsidyhalvinginterval","-con_bip34height","-con_bip65height","-con_bip66height","-con_npowtargettimespan","-con_npowtargetspacing","-con_nrulechangeactivationthreshold","-con_nminerconfirmationwindow","-con_powlimit",
+"-con_parentpowlimit","-con_bip34hash","-con_nminimumchainwork","-con_defaultassumevalid","-parentgenesisblockhash","-ndefaultport","-npruneafterheight","-fdefaultconsistencychecks","-frequirestandard","-fmineblocksondemand","-ct_bits","-ct_exponent",
+"-anyonecanspendaremine","-fminingrequirespeers","-con_mandatorycoinbase"}; // last items included for tests
 bool fDebug = false;
 bool fPrintToConsole = false;
 bool fPrintToAll = false;
@@ -299,6 +319,14 @@ bool LogAcceptCategory(const char* category)
     return true;
 }
 
+// Check if input arg exists against set of all arg strings (witout '-' prefix)
+bool IsArgKnown(const std::string &str)
+{
+    if (availableArgs.find(str) != availableArgs.end())
+        return true;
+    return false;
+}
+
 /**
  * fStartedNewLine is a state variable held by the calling context that will
  * suppress printing of the timestamp when multiple calls are made that don't
@@ -447,6 +475,12 @@ void ParseParameters(int argc, const char* const argv[])
         if (str.length() > 1 && str[1] == '-')
             str = str.substr(1);
         InterpretNegativeSetting(str, strValue);
+
+        // Check arg exists, if not throw error
+        if (!IsArgKnown(str))
+        {
+            throw std::runtime_error(strprintf("Argument %s not recognised.", str));
+        }
 
         mapArgs[str] = strValue;
         _mapMultiArgs[str].push_back(strValue);
@@ -637,10 +671,17 @@ void ReadConfigFile(const std::string& confPath)
 
         for (boost::program_options::detail::config_file_iterator it(streamConfig, setOptions), end; it != end; ++it)
         {
-            // Don't overwrite existing settings so command line settings override bitcoin.conf
             string strKey = string("-") + it->string_key;
             string strValue = it->value[0];
             InterpretNegativeSetting(strKey, strValue);
+
+            // Check parameter exists, if not throw error
+            if (!IsArgKnown(strKey))
+            {
+                throw std::runtime_error(strprintf("Config parameter %s not recognised.", strKey.substr(1)));
+            }
+
+            // Don't overwrite existing settings so command line settings override bitcoin.conf
             if (mapArgs.count(strKey) == 0)
                 mapArgs[strKey] = strValue;
             _mapMultiArgs[strKey].push_back(strValue);
