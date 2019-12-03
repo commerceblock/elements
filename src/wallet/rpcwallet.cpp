@@ -768,7 +768,7 @@ static void SendOnboardTx(const CScript& script,  CWalletTx& wtxNew){
     coinControl->nFeeRate=CFeeRate(0);
     coinControl->fAllowOtherInputs=false;
 
-    int nMinDepth=6;
+    int nMinDepth=1;
     int nMaxDepth=9999999;
 
     vector<COutput> vecOutputs;
