@@ -1574,7 +1574,6 @@ UniValue getsidechaininfo(const JSONRPCRequest& request)
     AddrPrefixes.push_back(Pair("SECRET_KEY", Params().Base58Prefix(CChainParams::SECRET_KEY)[0]));
     AddrPrefixes.push_back(Pair("SCRIPT_ADDRESS", Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)[0]));
 
-
     obj.push_back(Pair("addr_prefixes", AddrPrefixes));
 
     return obj;
