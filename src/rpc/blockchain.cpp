@@ -33,8 +33,6 @@
 #include <boost/thread/thread.hpp> // boost::thread::interrupt
 #include <boost/algorithm/string.hpp>
 
-#include <typeinfo>
-
 #include <mutex>
 #include <condition_variable>
 using namespace std;
