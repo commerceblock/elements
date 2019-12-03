@@ -214,7 +214,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         assert(wltx_signed["complete"])
         wltx_send = self.nodes[0].sendrawtransaction(wltx_signed["hex"])
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         assert_equal(self.nodes[0].getnunassignedkycpubkeys(), 1)
@@ -261,7 +261,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh, True)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
 
@@ -275,7 +274,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
@@ -292,7 +291,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
@@ -305,7 +304,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
@@ -320,7 +319,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh, True)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
 
@@ -333,7 +331,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
@@ -350,7 +348,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
@@ -363,7 +361,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
@@ -405,11 +403,10 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal, True)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
 
@@ -437,7 +434,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
@@ -450,7 +447,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
@@ -463,7 +460,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
@@ -482,11 +479,10 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh, True)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 1)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         #Test invalid parameters
@@ -505,7 +501,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh)
@@ -527,7 +523,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig, True)
-        print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
 
@@ -537,7 +532,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
@@ -550,7 +545,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
@@ -563,7 +558,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
@@ -690,7 +685,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
@@ -704,7 +699,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
@@ -717,7 +712,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
@@ -798,7 +793,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == nAddresses)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         try:
@@ -821,7 +816,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == nAddresses)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         try:
@@ -831,7 +826,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         #Check that the TX size > MAX_SCRIPT_SIZE
@@ -851,7 +846,6 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
-            print("Validating kycfile: " + str(file))
             valkyc=self.nodes[0].validatekycfile(file, True)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
@@ -859,7 +853,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         #Add some more kycpubkeys
         self.nodes[0].topupkycpubkeys(100)
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         assert_equal(self.nodes[0].getnunassignedkycpubkeys(),100)
