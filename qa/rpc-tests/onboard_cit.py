@@ -572,7 +572,7 @@ class OnboardTest (BitcoinTestFramework):
         nlines4=self.linecount(wl1file_4)
 
         self.nodes[0].blacklistuser(kycfile)
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         wl1_bl_file=self.initfile(os.path.join(self.options.tmpdir,"wl1_bl.dat"))
@@ -590,7 +590,7 @@ class OnboardTest (BitcoinTestFramework):
         #Re-whitelist node1 wallet
         self.nodes[0].onboarduser(kycfile)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(6)
         self.sync_all()
 
         wl1file_rwl=self.initfile(os.path.join(self.options.tmpdir,"wl1_rwl.dat"))
