@@ -261,6 +261,10 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh, True)
+<<<<<<< HEAD
+=======
+        print(valkyc)
+>>>>>>> update tests for validatekycfile
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
 
@@ -319,6 +323,10 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh, True)
+<<<<<<< HEAD
+=======
+        print(valkyc)
+>>>>>>> update tests for validatekycfile
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
 
@@ -403,6 +411,10 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal, True)
+<<<<<<< HEAD
+=======
+        print(valkyc)
+>>>>>>> update tests for validatekycfile
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
         
@@ -479,6 +491,10 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh, True)
+<<<<<<< HEAD
+=======
+        print(valkyc)
+>>>>>>> update tests for validatekycfile
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 1)
         
@@ -523,6 +539,10 @@ class OnboardManualCITTest (BitcoinTestFramework):
             assert(False)
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig, True)
+<<<<<<< HEAD
+=======
+        print(valkyc)
+>>>>>>> update tests for validatekycfile
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
         
@@ -846,6 +866,10 @@ class OnboardManualCITTest (BitcoinTestFramework):
         
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
+<<<<<<< HEAD
+=======
+            print("Validating kycfile: " + str(file))
+>>>>>>> update tests for validatekycfile
             valkyc=self.nodes[0].validatekycfile(file, True)
             if len(valkyc["addresses"]) > 0:
                 assert(valkyc["iswhitelisted"] == True)
