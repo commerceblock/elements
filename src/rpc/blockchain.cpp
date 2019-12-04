@@ -1569,10 +1569,10 @@ UniValue getsidechaininfo(const JSONRPCRequest& request)
     obj.push_back(Pair("parent_blockhash", parent_blockhash.GetHex()));
 
     UniValue AddrPrefixes(UniValue::VOBJ);
-    AddrPrefixes.push_back(Pair("PUBKEY_ADDRESS", CChainParams::PUBKEY_ADDRESS));
-    AddrPrefixes.push_back(Pair("BLINDED_ADDRESS", CChainParams::BLINDED_ADDRESS));
-    AddrPrefixes.push_back(Pair("SECRET_KEY", CChainParams::SECRET_KEY));
-    AddrPrefixes.push_back(Pair("SCRIPT_ADDRESS", CChainParams::SCRIPT_ADDRESS));
+    AddrPrefixes.push_back(Pair("PUBKEY_ADDRESS",Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS)[0]));
+    AddrPrefixes.push_back(Pair("BLINDED_ADDRESS", Params().Base58Prefix(CChainParams::BLINDED_ADDRESS)[0]));
+    AddrPrefixes.push_back(Pair("SECRET_KEY", Params().Base58Prefix(CChainParams::SECRET_KEY)[0]));
+    AddrPrefixes.push_back(Pair("SCRIPT_ADDRESS", Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)[0]));
 
     obj.push_back(Pair("addr_prefixes", AddrPrefixes));
 
