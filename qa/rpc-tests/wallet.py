@@ -3,8 +3,13 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+import hashlib
+
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
+from test_framework.address import key_to_p2pkh_version, script_to_p2sh_version, byte_to_base58
+from test_framework.script import CScript, OP_TRUE
+from test_framework.key import CECKey
 
 class WalletTest (BitcoinTestFramework):
 
@@ -102,7 +107,6 @@ class WalletTest (BitcoinTestFramework):
         assert_equal(txout1v0['confirmations'], 0)
         assert(not txout1v0['coinbase'])
         #assert_equal(amountcommit1, txout1v0['amountcommitment'])
-
 
         txid2 = self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 10)
         txout2v0 = self.nodes[0].gettxout(txid2, 0)
@@ -234,7 +238,39 @@ class WalletTest (BitcoinTestFramework):
         mempool1 = self.nodes[1].getrawmempool()
         assert_equal(mempool1[0],asset_tx)
 
+        # Test address prefix values returned by getsidechaininfo rpc
+        addr_prefixes = self.nodes[0].getsidechaininfo()["addr_prefixes"]
+        print(addr_prefixes)
+        for prefix in addr_prefixes:
+            assert_greater_than_or_equal(int(addr_prefixes[prefix]), 0)
+            assert_greater_than(255, int(addr_prefixes[prefix]))
+
+        # Test address reconstruction using address prefixes
+        addr = self.nodes[0].getnewaddress()
+        pubkey = self.nodes[0].validateaddress(addr)
+        assert_equal(addr,key_to_p2pkh_version(pubkey['pubkey'], addr_prefixes['PUBKEY_ADDRESS']))
+
+        p2sh = script_to_p2sh_version(CScript([OP_TRUE]), addr_prefixes['SCRIPT_ADDRESS'])
+        assert(self.nodes[0].validateaddress(p2sh)['isvalid'])
+
+        k = CECKey() # gen priv key
+        k.set_compressed(True)
+        pk_bytes = hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).digest()
+        pk_bytes = pk_bytes + b'\x01'
+        k.set_secretbytes(pk_bytes)
+        key = byte_to_base58(pk_bytes, 239)
+        assert_equal(self.nodes[0].importprivkey(key), None) # ensure imports is successful
+
+
+
+######################################################################
+########### TEMPORARY END OF TESTS ###################################
+######################################################################
+
+
+
         return #TODO fix the rest
+
         txoutv0 = self.nodes[0].gettxout(txid, 0)
         assert_equal(txoutv0['confirmations'], 1)
         assert(not txoutv0['coinbase'])
@@ -413,6 +449,7 @@ class WalletTest (BitcoinTestFramework):
                            {"address": address_to_import},
                            {"spendable": False})
 
+
         # 5. Import private key of the previously imported address on node1
         priv_key = self.nodes[2].dumpprivkey(address_to_import)
         self.nodes[1].importprivkey(priv_key)
@@ -529,17 +566,6 @@ class WalletTest (BitcoinTestFramework):
         # Verify nothing new in wallet
         assert_equal(total_txs, len(self.nodes[0].listtransactions("*",99999)))
 
-        # Test address prefix values returned by getsidechaininfo rpc
-        addr_prefixes = self.nodes[0].getsidechaininfo()["addr_prefixes"]
-        for prefix in addr_prefixes:
-            assert_greater_than_or_equal(prefix, 0)
-            assert_greater_than(255, prefix)
-
-        # Test address reconstruction using address prefixes
-        addr = self.nodes[0].getnewaddress()
-        pubkey = self.nodes[0].validateaddress(addr)
-        assert_equal(addr,address.key_to_p2pkh_version(pubkey, addr_prefixes[PUBKEY_ADDRESS]))
-        assert_equal(addr,address.key_to_p2psh_version(pubkey, addr_prefixes[SCRIPT_ADDRESS]))
 
 if __name__ == '__main__':
     WalletTest().main()

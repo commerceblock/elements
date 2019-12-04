@@ -90,10 +90,11 @@ class BlockchainTest(BitcoinTestFramework):
         node = self.nodes[0]
         info = node.getsidechaininfo()
 
+        # expect defaults
         assert_equal(int(info['fedpegscript']), 51)
         assert_is_hex_string(info['pegged_asset'])
         assert_is_hex_string(info['min_peg_diff'])
-        assert_is_hex_string(info['parent_blockhash'])
+        assert_is_hash_string(info['parent_blockhash'])
         assert_equal(int(info['addr_prefixes']['PUBKEY_ADDRESS']),235)
         assert_equal(int(info['addr_prefixes']['BLINDED_ADDRESS']),4)
         assert_equal(int(info['addr_prefixes']['SECRET_KEY']),239)

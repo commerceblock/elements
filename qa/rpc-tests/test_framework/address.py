@@ -45,9 +45,18 @@ def key_to_p2pkh(key, main = False):
     key = check_key(key)
     return keyhash_to_p2pkh(hash160(key), main)
 
+def key_to_p2pkh_version(key, version):
+    key = check_key(key)
+    return byte_to_base58(hash160(key), version)
+
 def script_to_p2sh(script, main = False):
     script = check_script(script)
     return scripthash_to_p2sh(hash160(script), main)
+
+def script_to_p2sh_version(script, version):
+    script = check_script(script)
+    return byte_to_base58(hash160(script), version)
+
 
 def key_to_p2sh_p2wpkh(key, main = False):
     key = check_key(key)
