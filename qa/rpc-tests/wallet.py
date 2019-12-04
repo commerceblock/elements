@@ -529,5 +529,17 @@ class WalletTest (BitcoinTestFramework):
         # Verify nothing new in wallet
         assert_equal(total_txs, len(self.nodes[0].listtransactions("*",99999)))
 
+        # Test address prefix values returned by getsidechaininfo rpc
+        addr_prefixes = self.nodes[0].getsidechaininfo()["addr_prefixes"]
+        for prefix in addr_prefixes:
+            assert_greater_than_or_equal(prefix, 0)
+            assert_greater_than(255, prefix)
+
+        # Test address reconstruction using address prefixes
+        addr = self.nodes[0].getnewaddress()
+        pubkey = self.nodes[0].validateaddress(addr)
+        assert_equal(addr,address.key_to_p2pkh_version(pubkey, addr_prefixes[PUBKEY_ADDRESS]))
+        assert_equal(addr,address.key_to_p2psh_version(pubkey, addr_prefixes[SCRIPT_ADDRESS]))
+
 if __name__ == '__main__':
     WalletTest().main()

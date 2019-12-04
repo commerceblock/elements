@@ -57,7 +57,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         connect_nodes_bi(self.nodes,1,2)
         connect_nodes_bi(self.nodes,0,2)
         connect_nodes_bi(self.nodes,2,3)
-        
+
     def setup_network(self, split=False):
         self.nodes = start_nodes(4, self.options.tmpdir, self.extra_args[:4])
         self.connect_nodes()
@@ -100,7 +100,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.connect_nodes()
         self.is_network_split=False
         self.sync_all()
-        
+
     def linecount(self, file):
         nlines=0
         with open(file) as f:
@@ -118,7 +118,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             self.files.remove(filename)
         if(os.path.isfile(filename)):
             os.remove(filename)
-        
+
 
     def cleanup_files(self):
         for file in self.files:
@@ -141,7 +141,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
                         nmine=nmine+1
         return nmine, kycpk_address, kycpk
 
-            
+
     def run_test (self):
         keypool=1
 
@@ -174,7 +174,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         wb0_1=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         coin=float(1e8)
         assert_equal(wb0_1*coin,float(50000000000000))
-                    
+
         #Whitelist node 0 addresses
         self.nodes[0].dumpderivedkeys("keys.main")
         self.nodes[0].readwhitelist("keys.main")
@@ -230,7 +230,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         self.sync_all()
         assert_equal(self.nodes[0].getnunassignedkycpubkeys(), 1)
         assert_equal(self.nodes[1].getnunassignedkycpubkeys(), 1)
-        
+
         #Onboard node1
         kycfile=self.initfile(os.path.join(self.options.tmpdir,"kycfile.dat"))
         kycfile_normal=self.initfile(os.path.join(self.options.tmpdir,"kycfile_normal.dat"))
@@ -252,7 +252,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         multisigAddress2=self.nodes[1].createmultisig(2,[onboardAddress3['address'],onboardAddress4['address'],onboardAddress5['address']])['address'];
 
         witnessAddress1=self.nodes[1].addwitnessaddress(self.nodes[1].getnewaddress())
-        
+
         #P2SH
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2sh, [{"address":multisigAddress1},{"address":multisigAddress2},{"address":witnessAddress1}],[]);
@@ -267,7 +267,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         assert(self.nodes[0].querywhitelist(multisigAddress1) == False)
         assert(self.nodes[0].querywhitelist(multisigAddress2) == False)
         assert(self.nodes[0].querywhitelist(witnessAddress1) == False)
-        
+
         try:
             self.nodes[0].onboarduser(kycfile_p2sh)
         except JSONRPCException as e:
@@ -324,7 +324,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         assert(self.nodes[0].querywhitelist(onboardAddress4['address']) == False)
         assert(self.nodes[0].querywhitelist(onboardAddress5['address']) == False)
-        
+
         try:
             self.nodes[0].onboarduser(kycfile_p2pkh)
         except JSONRPCException as e:
@@ -367,8 +367,8 @@ class OnboardManualCITTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_p2pkh)
         assert(valkyc["iswhitelisted"] == False)
 
-            
-        
+
+
         #Test invalid parameters
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test,None, None);
@@ -377,7 +377,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         except JSONRPCException as e:
             message=e.error['message']
             assert("Invalid parameters, arguments 2 and 3 can't both be null" in message)
-        
+
         #Create empty file and check validity
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_empty,[], []);
@@ -391,12 +391,12 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert('no address data in file' in e.error['message'])
 
-            
+
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_normal, [{"address":onboardAddress1['address'],"pubkey":onboardAddress1['derivedpubkey']},{"address":onboardAddress2['address'],
-                "pubkey":onboardAddress2['derivedpubkey']}], 
+                "pubkey":onboardAddress2['derivedpubkey']}],
                 []);
         except JSONRPCException as e:
             print(e.error['message'])
@@ -405,7 +405,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_normal, True)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
-        
+
         self.nodes[0].generate(1)
         self.sync_all()
 
@@ -465,14 +465,14 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         valkyc=self.nodes[0].validatekycfile(kycfile_normal)
         assert(valkyc["iswhitelisted"] == True)
-        
+
 
         #P2SH
         onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         multisigAddress1=self.nodes[1].createmultisig(2,[onboardAddress1['address'],onboardAddress2['address'],onboardAddress3['address']])['address'];
-                                                      
+
         try:
-            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2sh, [{"address":multisigAddress1}], 
+            userOnboardPubKey=self.nodes[1].createkycfile(kycfile_p2sh, [{"address":multisigAddress1}],
                 []);
         except JSONRPCException as e:
             print(e.error['message'])
@@ -481,7 +481,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_p2sh, True)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 1)
-        
+
         self.nodes[0].generate(1)
         self.sync_all()
 
@@ -525,7 +525,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig, True)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
-        
+
         try:
             self.nodes[0].onboarduser(kycfile_multisig)
         except JSONRPCException as e:
@@ -563,8 +563,8 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig)
         assert(valkyc["iswhitelisted"] == True)
-        
-        
+
+
 
 
         #Test invalid parameters
@@ -583,7 +583,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         except JSONRPCException as e:
             message=e.error['message']
             assert("pubkeys missing in multisiglist" in message)
-                    
+
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test, [], [{"nmultisig":2.1,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}]);
             #expect an exception
@@ -591,7 +591,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         except JSONRPCException as e:
             message=e.error['message']
             assert("JSON integer out of range" in message)
-        
+
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test, [], [{"nmultisig":16,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}]);
             #expect an exception
@@ -607,7 +607,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         except JSONRPCException as e:
             message=e.error['message']
             assert("nmultisig must be an integer between 1 and 15")
-    
+
 
         invalidPubkeys=['myInvalidPubKey',onboardAddress2['derivedpubkey'],onboardAddress3['derivedpubkey']]
 
@@ -618,7 +618,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         except JSONRPCException as e:
             message=e.error['message']
             assert("Invalid pubkey in multisiglist: " in message)
-        
+
 
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
@@ -673,7 +673,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             sline=line.split(' ')
             if len(sline) == 3 and sline[0] == okey:
                 discard.add(line)
-                
+
         different=different.difference(discard)
 
         assert(len(different) == 0)
@@ -684,7 +684,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
-        
+
         self.nodes[0].generate(1)
         self.sync_all()
 
@@ -717,9 +717,9 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         valkyc=self.nodes[0].validatekycfile(kycfile)
         assert(valkyc["iswhitelisted"] == True)
-        
 
-        
+
+
         balance_2=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         #Make sure the onboard transaction fee was zero
         assert((balance_1-balance_2) == 0)
@@ -782,7 +782,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
             nAddresses+=1
             if nBytesAddress > MAX_SCRIPT_SIZE:
                 break
-            
+
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_oversize, [], pkeys)
         except JSONRPCException as e:
@@ -792,7 +792,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_oversize, True)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == nAddresses)
-        
+
         self.nodes[0].generate(1)
         self.sync_all()
 
@@ -805,7 +805,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         pkeysLarge=pkeys[:-1]
         nAddresses-=1
-        
+
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_large, [], pkeysLarge)
         except JSONRPCException as e:
@@ -815,7 +815,7 @@ class OnboardManualCITTest (BitcoinTestFramework):
         valkyc=self.nodes[0].validatekycfile(kycfile_large, True)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == nAddresses)
-        
+
         self.nodes[0].generate(1)
         self.sync_all()
 
@@ -825,13 +825,13 @@ class OnboardManualCITTest (BitcoinTestFramework):
             print(e.error['message'])
             assert(False)
 
-            
+
         self.nodes[0].generate(1)
         self.sync_all()
 
         #Check that the TX size > MAX_SCRIPT_SIZE
         rawtx=self.nodes[0].getrawtransaction(onboardtx)
-        
+
         vouts=self.nodes[0].decoderawtransaction(rawtx)['vout']
 
         nchars=0
@@ -842,8 +842,8 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
         valkyc=self.nodes[0].validatekycfile(kycfile_large)
         assert(valkyc["iswhitelisted"] == True)
-        
-        
+
+
         #Check that all the addresses in the kycfiles are whitelisted
         for file in self.files:
             valkyc=self.nodes[0].validatekycfile(file, True)
@@ -892,5 +892,3 @@ class OnboardManualCITTest (BitcoinTestFramework):
 
 if __name__ == '__main__':
  OnboardManualCITTest().main()
-
-
