@@ -69,7 +69,7 @@ class OnboardManualTest (BitcoinTestFramework):
     def cleanup_files(self):
         for file in self.files:
             self.removefileifexists(file)
-        
+
     def run_test (self):
         keypool=1
 
@@ -102,7 +102,7 @@ class OnboardManualTest (BitcoinTestFramework):
         wb0_1=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         coin=float(1e8)
         assert_equal(wb0_1*coin,float(50000000000000))
-                    
+
         #Whitelist node 0 addresses
         self.nodes[0].dumpderivedkeys("keys.main")
         self.nodes[0].readwhitelist("keys.main")
@@ -117,7 +117,7 @@ class OnboardManualTest (BitcoinTestFramework):
         except JSONRPCException as e:
             message=e.error['message']
             assert('No unassigned KYC public keys available.' in message)
-        
+
         #Register a KYC public key
         policyaddr=self.nodes[0].getnewaddress()
         assert(self.nodes[0].querywhitelist(policyaddr))
@@ -162,7 +162,7 @@ class OnboardManualTest (BitcoinTestFramework):
         except JSONRPCException as e:
             message=e.error['message']
             assert("Invalid parameters, arguments 2 and 3 can't both be null" in message)
-        
+
         #Create empty file and check validity
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_empty,[], []);
@@ -177,24 +177,24 @@ class OnboardManualTest (BitcoinTestFramework):
             assert('no address data in file' in e.error['message'])
 
         os.remove(kycfile_empty)
-            
+
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_normal, [{"address":onboardAddress1['address'],"pubkey":onboardAddress1['derivedpubkey']},{"address":onboardAddress2['address'],
-                "pubkey":onboardAddress2['derivedpubkey']}], 
+                "pubkey":onboardAddress2['derivedpubkey']}],
                 []);
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
 
         self.nodes[0].readkycfile(kycfile_normal, kycfile_normal_plain)
-            
+
         valkyc=self.nodes[0].validatekycfile(kycfile_normal, True)
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 2)
-        
+
         self.nodes[0].generate(1)
         self.sync_all()
 
@@ -270,7 +270,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         print(valkyc)
         assert(valkyc["iswhitelisted"] == False)
         assert(len(valkyc["addresses"]) == 3)
-        
+
         try:
             self.nodes[0].onboarduser(kycfile_multisig)
         except JSONRPCException as e:
@@ -280,7 +280,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         self.nodes[0].generate(1)
         self.sync_all()
 
-        
+
         valkyc=self.nodes[0].validatekycfile(kycfile_multisig, True)
         print(valkyc)
 
@@ -312,7 +312,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             message=e.error['message']
             print(message)
             assert("pubkeys missing in multisiglist" in message)
-                    
+
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test, [], [{"nmultisig":2.1,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}]);
             #expect an exception
@@ -321,7 +321,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             message=e.error['message']
             print(message)
             assert("JSON integer out of range" in message)
-        
+
         try:
             userOnboardPubKey=self.nodes[1].createkycfile(kycfile_test, [], [{"nmultisig":16,"pubkeys":untweakedPubkeys},{"nmultisig":2,"pubkeys":untweakedPubkeys2},{"nmultisig":2,"pubkeys":untweakedPubkeys3}]);
             #expect an exception
@@ -338,7 +338,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         except JSONRPCException as e:
             message=e.error['message']
             assert("nmultisig must be an integer between 1 and 15")
-    
+
 
         invalidPubkeys=['myInvalidPubKey',onboardAddress2['derivedpubkey'],onboardAddress3['derivedpubkey']]
 
@@ -350,7 +350,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             message=e.error['message']
             print(message)
             assert("Invalid pubkey in multisiglist: " in message)
-                
+
         onboardAddress1=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress2=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
         onboardAddress3=self.nodes[1].validateaddress(self.nodes[1].getnewaddress())
@@ -377,11 +377,11 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         assert(len(valkyc["addresses"]) == 5)
         assert(valkyc["iswhitelisted"] == False)
 
-        kycfile_plain="kycfile_plain.dat"
+        kycfile_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile_plain.dat"))
         self.nodes[0].readkycfile(kycfile,kycfile_plain)
 
-        kycfile_fromstr="kycfile_fromstr.dat"
-        kycfile_fromstr_plain="kycfile_fromstr_plain.dat"
+        kycfile_fromstr=self.initfile(os.path.join(self.options.tmpdir,"kycfile_fromstr.dat"))
+        kycfile_fromstr_plain=self.initfile(os.path.join(self.options.tmpdir,"kycfile_fromstr_plain.dat"))
 
         with open(kycfile_fromstr, "w") as f:
             f.write(kycstring)
@@ -404,7 +404,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
             sline=line.split(' ')
             if len(sline) == 3 and sline[0] == okey:
                 discard.add(line)
-                
+
         different=different.difference(discard)
 
         assert(len(different) == 0)
@@ -415,7 +415,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         except JSONRPCException as e:
             print(e.error['message'])
             assert(False)
-        
+
         self.nodes[0].generate(1)
         self.sync_all()
 
@@ -425,7 +425,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
 
         os.remove(kycfile)
 
-        
+
         balance_2=self.nodes[0].getwalletinfo()["balance"]["WHITELIST"]
         #Make sure the onboard transaction fee was zero
         assert((balance_1-balance_2) == 0)
@@ -472,7 +472,7 @@ ey']},{"address":onboardAddress2['address'],"pubkey":onboardAddress2['derivedpub
         #Test that txs do not send WHITELIST tokens
         wb0_2=float(self.nodes[0].getbalance("", 1, False, "WHITELIST"))
         assert_equal(wb0_1-float(wlvalue), wb0_2)
-        
+
         self.cleanup_files()
         return
 

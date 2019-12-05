@@ -21,7 +21,7 @@ const unsigned int CWhiteList::_minDataSize=CWhiteList::addrSize;
 const CTxDestination CWhiteList::_noDest = CNoDestination();
 
 CWhiteList::CWhiteList(){
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
   _asset=whitelistAsset;
   //The written code behaviour expects nMultisigSize to be of length 1 at the moment. If it is changed in the future the code needs to be adjusted accordingly.
   assert(nMultisigSize == 1);
@@ -30,7 +30,7 @@ CWhiteList::CWhiteList(){
 CWhiteList::~CWhiteList(){;}
 
 void CWhiteList::init_defaults(){
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
   if (fRequireWhitelistCheck || fScanWhitelist) {
     const CChainParams& chainparams = Params();
     if (chainparams.GetConsensus().mandatory_coinbase_destination != CScript()){
@@ -38,7 +38,7 @@ void CWhiteList::init_defaults(){
       if(ExtractDestination(chainparams.GetConsensus().mandatory_coinbase_destination, man_con_dest)){
 	if(!is_whitelisted(man_con_dest)){
 	    try{
-	      add_destination(man_con_dest); 
+	      add_destination(man_con_dest);
 	    } catch (std::invalid_argument e){
 	      LogPrintf(std::string("Error adding coinbase destination to whitelist: ") + std::string(e.what()) + "\n");
 	    }
@@ -50,63 +50,60 @@ void CWhiteList::init_defaults(){
 
 bool CWhiteList::Load(CCoinsView *view)
 {
-    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
-    CCoinsViewCache coins(view);
-    std::unique_ptr<CCoinsViewCursor> pcursor(coins.Cursor());
-    LOCK(cs_main);
-
-      //main loop over coins (transactions with > 0 unspent outputs
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
+    std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
+    //main loop over coins (transactions with > 0 unspent outputs
     while (pcursor->Valid()) {
-      boost::this_thread::interruption_point();
-      uint256 key;
-      CCoins coins;
-      if ( !(pcursor->GetKey(key) && pcursor->GetValue(coins)) ){
-        pcursor->Next();
-        continue;
-      }
-
-      //loop over all vouts within a single transaction
-      for (unsigned int i=0; i<coins.vout.size(); i++) {
-        const CTxOut &out = coins.vout[i];
-        
-        if(!check_asset_type(out)) continue;
-          
-        std::vector<std::vector<unsigned char> > vSolutions;
-        txnouttype whichType;
-        
-        if (!Solver(out.scriptPubKey, whichType, vSolutions)) 
-          continue;
-              
-        // extract address from second multisig public key and add to the freezelist
-        // encoding: 33 byte public key: address is encoded in the last 20 bytes (i.e. byte 14 to 33)
-        if (whichType == TX_MULTISIG && vSolutions.size() == 4){
-          std::vector<unsigned char> vKycPub(vSolutions[2].begin(), vSolutions[2].begin() + 33);
-          //The last bytes of the KYC public key are
-          //in reverse to prevent spending, 
-            std::reverse(vKycPub.begin() + 3, vKycPub.end());
-            CPubKey kycPubKey(vKycPub.begin(), vKycPub.end());
-            if (!kycPubKey.IsFullyValid()) {
-              //  LogPrintf("POLICY: not adding invalid KYC pub key"+HexStr(kycPubKey.begin(), kycPubKey.end())+"\n");
-            } else {
-              //LogPrintf("POLICY: added unassigned KYC pub key "+HexStr(kycPubKey.begin(), kycPubKey.end())+"\n");
-              COutPoint outPoint(key, i);
-              add_unassigned_kyc(kycPubKey, outPoint);
-            }
-          } else if(whichType == TX_REGISTERADDRESS_V1 ||
-                    whichType == TX_REGISTERADDRESS_V0 || 
-                    whichType == TX_DEREGISTERADDRESS_V1 ||
-                    whichType == TX_DEREGISTERADDRESS_V0) {
-              ParseRegisterAddressOutput(whichType, vSolutions);
-            } 
+        boost::this_thread::interruption_point();
+        uint256 key;
+        CCoins coins;
+        if ( !(pcursor->GetKey(key) && pcursor->GetValue(coins)) ){
+            return error("%s: unable to read value", __func__);
         }
-      pcursor->Next();
+
+        //loop over all vouts within a single transaction
+        for (unsigned int i=0; i<coins.vout.size(); i++) {
+            const CTxOut &out = coins.vout[i];
+
+            if(!check_asset_type(out)) continue;
+
+            std::vector<std::vector<unsigned char> > vSolutions;
+            txnouttype whichType;
+
+            if (!Solver(out.scriptPubKey, whichType, vSolutions))
+                continue;
+
+            // extract address from second multisig public key and add to the freezelist
+            // encoding: 33 byte public key: address is encoded in the last 20 bytes (i.e. byte 14 to 33)
+            if (whichType == TX_MULTISIG && vSolutions.size() == 4) {
+                std::vector<unsigned char> vKycPub(vSolutions[2].begin(), vSolutions[2].begin() + 33);
+                //The last bytes of the KYC public key are
+                //in reverse to prevent spending,
+                std::reverse(vKycPub.begin() + 3, vKycPub.end());
+                CPubKey kycPubKey(vKycPub.begin(), vKycPub.end());
+                if (!kycPubKey.IsFullyValid()) {
+                    //LogPrintf("POLICY: not adding invalid KYC pub key" +
+                        //HexStr(kycPubKey.begin(), kycPubKey.end())+"\n");
+                } else {
+                  //LogPrintf("POLICY: added unassigned KYC pub key "+HexStr(kycPubKey.begin(), kycPubKey.end())+"\n");
+                    COutPoint outPoint(key, i);
+                    add_unassigned_kyc(kycPubKey, outPoint);
+                }
+            } else if (whichType == TX_REGISTERADDRESS_V1 ||
+                        whichType == TX_REGISTERADDRESS_V0 ||
+                        whichType == TX_DEREGISTERADDRESS_V1 ||
+                        whichType == TX_DEREGISTERADDRESS_V0) {
+                ParseRegisterAddressOutput(whichType, vSolutions);
+            }
+        }
+        pcursor->Next();
     }
 
     if (fRecoverWhitelistKeys){
-      return recover_kyc_keys(MAX_KYCPUBKEY_GAP);
+        return recover_kyc_keys(MAX_KYCPUBKEY_GAP);
     }
 
-  return true;
+    return true;
 }
 
 bool CWhiteList::recover_kyc_keys(uint32_t ngap){
@@ -118,11 +115,11 @@ bool CWhiteList::recover_kyc_keys(uint32_t ngap){
 }
 
 bool CWhiteList::recover_encryption_key(const CPubKey& pubKey, const uint32_t& maxGen){
-    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     #ifdef ENABLE_WALLET
     LOCK2(cs_main, pwalletMain->cs_wallet);
     EnsureWalletIsUnlocked();
-    
+
     uint32_t nGen=0;
     CKeyID id = pubKey.GetID();
     while(!pwalletMain->HaveKey(id)){
@@ -139,17 +136,17 @@ bool CWhiteList::recover_encryption_key(const CPubKey& pubKey, const uint32_t& m
 }
 
 void CWhiteList::add_destination(const CTxDestination& dest){
-    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     if (dest.which() == ((CTxDestination)CNoDestination()).which()){
-        throw std::invalid_argument(std::string(std::string(__func__) + 
+        throw std::invalid_argument(std::string(std::string(__func__) +
         ": invalid destination"));
-    }   
+    }
     add_sorted(dest);
 }
 
-void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubKey, 
+void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubKey,
         const std::unique_ptr<CPubKey>& kycPubKey){
-    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     add_derived(address, pubKey);
 }
 
@@ -162,9 +159,9 @@ void CWhiteList::add_derived(const CBitcoinAddress& address, const CPubKey& pubK
   add_sorted(dat.GetDest());
 }
 
-void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPubKey, 
+void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPubKey,
         const std::string& sKYCPubKey){
-    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);    
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     add_derived(sAddress, sPubKey);
 }
 
@@ -172,9 +169,9 @@ void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPu
     boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     CBitcoinAddress address;
   if (!address.SetString(sAddress))
-    throw std::invalid_argument(std::string(std::string(__func__) + 
+    throw std::invalid_argument(std::string(std::string(__func__) +
       ": invalid Bitcoin address: ") + sAddress);
-  
+
   std::vector<unsigned char> pubKeyData(ParseHex(sPubKey));
   CPubKey pubKey = CPubKey(pubKeyData.begin(), pubKeyData.end());
 
@@ -182,13 +179,13 @@ void CWhiteList::add_derived(const std::string& sAddress, const std::string& sPu
   add_derived(address, pubKey);
 }
 
-void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys, 
+void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys,
         const std::unique_ptr<CPubKey>& kycPubKey, const uint8_t nMultisig){
-    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     add_multisig_whitelist(address, pubKeys, nMultisig);
 }
 
-void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys, 
+void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const std::vector<CPubKey>& pubKeys,
   const uint8_t m){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
 
@@ -202,19 +199,19 @@ void CWhiteList::add_multisig_whitelist(const CBitcoinAddress& address, const st
   add_sorted(dat.GetDest());
 }
 
-void CWhiteList::add_multisig_whitelist(const std::string& addressIn, const UniValue& keys, 
+void CWhiteList::add_multisig_whitelist(const std::string& addressIn, const UniValue& keys,
         const std::string& sKYCAddress, const uint8_t nMultisig){
-    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+    boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
     add_multisig_whitelist(addressIn, keys, nMultisig);
 }
 
-void CWhiteList::add_multisig_whitelist(const std::string& sAddress, const UniValue& sPubKeys, 
+void CWhiteList::add_multisig_whitelist(const std::string& sAddress, const UniValue& sPubKeys,
   const uint8_t mMultisig){
 
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
   CBitcoinAddress address;
   if (!address.SetString(sAddress))
-    throw std::invalid_argument(std::string(std::string(__func__) + 
+    throw std::invalid_argument(std::string(std::string(__func__) +
     ": invalid Bitcoin address: ") + sAddress);
 
   std::vector<CPubKey> pubKeyVec;
@@ -243,7 +240,7 @@ bool CWhiteList::RegisterAddress(const CTransaction& tx, const CBlockIndex* pind
 bool CWhiteList::RegisterAddress(const CTransaction& tx, const CCoinsViewCache& mapInputs){
   #ifdef ENABLE_WALLET
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-  if(!mapInputs.HaveInputs(tx)) 
+  if(!mapInputs.HaveInputs(tx))
     return false; // No inputs for tx in cache
 
   if (tx.IsCoinBase())
@@ -273,7 +270,7 @@ bool CWhiteList::RegisterAddress(const std::vector<CTxOut>& vout){
     std::vector<std::vector<unsigned char> > vSolutions;
     if (!Solver(txout.scriptPubKey, whichType, vSolutions)) return false;
     if(whichType == TX_REGISTERADDRESS_V1 ||
-      whichType == TX_REGISTERADDRESS_V0 || 
+      whichType == TX_REGISTERADDRESS_V0 ||
       whichType == TX_DEREGISTERADDRESS_V1 ||
       whichType == TX_DEREGISTERADDRESS_V0) {
       return ParseRegisterAddressOutput(whichType, vSolutions);
@@ -323,7 +320,7 @@ bool CWhiteList::RegisterDecryptedAddresses(const txnouttype& whichType, const s
   } else {
     return false;
   }
-    
+
   while( (dat = fact->GetNext()) != nullptr){
     vDat.push_back(dat);
   }
@@ -350,13 +347,13 @@ bool CWhiteList::RegisterDecryptedAddresses(const txnouttype& whichType, const s
 }
 
 void CWhiteList::add(CRegisterAddressData* d){
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
   CTxDestination dest = d->GetDest();
   if(!(dest == _noDest)) CPolicyList::add_sorted(dest);
 }
 
 void CWhiteList::remove(CRegisterAddressData* d){
-  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);  
+  boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
   CPolicyList::remove(d->GetDest());
 }
 
@@ -380,15 +377,15 @@ bool CWhiteList::Update(const CTransaction& tx, const CCoinsViewCache& mapInputs
 
         // extract address from second multisig public key and remove from whitelist
         // bytes 0-32: KYC public key assigned by the server, bytes reversed
-        
+
         if (whichType == TX_MULTISIG && vSolutions.size() == 4)
         {
             std::vector<unsigned char> vKycPub(vSolutions[2].begin(), vSolutions[2].begin() + 33);
             //The last bytes of the KYC public key are
-            //in reverse to prevent spending, 
+            //in reverse to prevent spending,
             std::reverse(vKycPub.begin()+3, vKycPub.end());
             CPubKey kycPubKey(vKycPub.begin(), vKycPub.end());
-            
+
             if (!kycPubKey.IsFullyValid()) {
               LogPrintf("POLICY: not removing invalid KYC pub key"+HexStr(kycPubKey.begin(), kycPubKey.end())+"\n");
             }
@@ -413,14 +410,14 @@ bool CWhiteList::Update(const CTransaction& tx, const CCoinsViewCache& mapInputs
         {
             std::vector<unsigned char> vKycPub(vSolutions[2].begin(), vSolutions[2].begin() + 33);
             //The last bytes of the KYC public key are
-            //in reverse to prevent spending, 
+            //in reverse to prevent spending,
             std::reverse(vKycPub.begin() + 3, vKycPub.end());
             CPubKey kycPubKey(vKycPub.begin(), vKycPub.end());
             if (!kycPubKey.IsFullyValid()) {
                 LogPrintf("POLICY: not adding invalid KYC pub key"+HexStr(kycPubKey.begin(), kycPubKey.end())+"\n");
             } else {
                 COutPoint outPoint(tx.GetHash(), i);
-                add_unassigned_kyc(kycPubKey, outPoint);    
+                add_unassigned_kyc(kycPubKey, outPoint);
                 LogPrintf("POLICY: added KYC pub key "+HexStr(kycPubKey.begin(), kycPubKey.end())+"\n");
             }
         }
@@ -454,7 +451,7 @@ bool CWhiteList::is_unassigned_kyc(const CPubKey& kycPubKey){
 
 void CWhiteList::add_unassigned_kyc(const CPubKey& kycPubKey, const COutPoint& outPoint){
     boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
-    CKeyID kycKey=kycPubKey.GetID();    
+    CKeyID kycKey=kycPubKey.GetID();
     _kycPubkeyOutPointMap[kycKey]=outPoint;
     _kycUnassignedSet.insert(kycPubKey);
 }
@@ -480,7 +477,7 @@ void CWhiteList::dump_unassigned_kyc(std::ofstream& fStream){
         bool bMine = false;
         #ifdef ENABLE_WALLET
         isminetype mine = pwalletMain ? IsMine(*pwalletMain, keyid) : ISMINE_NO;
-        if (mine != ISMINE_NO && address.IsBlinded() && address.GetBlindingKey() 
+        if (mine != ISMINE_NO && address.IsBlinded() && address.GetBlindingKey()
             != pwalletMain->GetBlindingPubKey(GetScriptForDestination(keyid))) {
             // Note: this will fail to return ismine for deprecated static blinded addresses.
             mine = ISMINE_NO;
@@ -515,7 +512,7 @@ void CWhiteList::remove_my_pending(const CTxDestination id){
 bool CWhiteList::is_my_pending(const CTxDestination id){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
   return (_myPending.find(id) != _myPending.end());
-} 
+}
 
 unsigned int CWhiteList::n_my_pending(){
   boost::recursive_mutex::scoped_lock scoped_lock(_mtx);
@@ -554,11 +551,11 @@ CMultisigData* CRegisterAddressDataFactory::GetNextMultisig(){
 
   MarkReset();
 
-  ucvec_it cursor = _cursor; 
+  ucvec_it cursor = _cursor;
   if(!AdvanceCursor(cursor, CWhiteList::nMultisigSize)){
     return nullptr;
   }
-  
+
   std::vector<unsigned char> mMultisigChars(_cursor,cursor);
 
   uint8_t mMultisig = mMultisigChars[0];
@@ -580,7 +577,7 @@ CMultisigData* CRegisterAddressDataFactory::GetNextMultisig(){
     delete data;
     return nullptr;
   }
-      
+
   std::vector<unsigned char> nMultisigChars(_cursor,cursor);
 
   uint8_t nMultisig = nMultisigChars[0];
@@ -597,7 +594,7 @@ CMultisigData* CRegisterAddressDataFactory::GetNextMultisig(){
 
   //Try and set the multisig dest
   try{
-    data->SetDest(CScriptID(uint160(addrChars))); 
+    data->SetDest(CScriptID(uint160(addrChars)));
   } catch (std::invalid_argument e) {
     ResetCursor();
     delete data;
@@ -625,7 +622,7 @@ CMultisigData* CRegisterAddressDataFactory::GetNextMultisig(){
       return nullptr;
     }
 
-    _cursor=cursor;      
+    _cursor=cursor;
   }
 
   try{
@@ -655,7 +652,7 @@ CDerivedData* CRegisterAddressDataFactory::GetNextDerived(){
 
   std::vector<unsigned char> addrChars(_cursor,cursor);
   CTxDestination addr = CKeyID(uint160(addrChars));
-            
+
   _cursor = cursor;
 
   if(!AdvanceCursor(cursor, _pubkeySize)){
@@ -689,7 +686,7 @@ CRegisterAddressData* CRegisterAddressDataFactory_v1::GetNext(){
     return nullptr;
   switch(nAddrType){
     case CWhiteList::AddrType::MULTI:
-      return GetNextMultisig(); 
+      return GetNextMultisig();
     case CWhiteList::AddrType::DERIVED:
       return GetNextDerived();
     case CWhiteList::AddrType::P2SH:
@@ -724,7 +721,7 @@ CP2PKHData* CRegisterAddressDataFactory_v1::GetNextP2PKH(){
 
   std::vector<unsigned char> addrChars(_cursor,cursor);
   CTxDestination addr = CKeyID(uint160(addrChars));
-            
+
    try{
     data->Set(addr);
     } catch (std::invalid_argument e) {
@@ -753,7 +750,7 @@ CP2SHData* CRegisterAddressDataFactory_v1::GetNextP2SH(){
 
   std::vector<unsigned char> addrChars(_cursor,cursor);
   CTxDestination addr = CScriptID(uint160(addrChars));
-            
+
    try{
     data->Set(addr);
     } catch (std::invalid_argument e) {
@@ -769,19 +766,19 @@ CP2SHData* CRegisterAddressDataFactory_v1::GetNextP2SH(){
 
 void CDerivedData::Set(const pubKeyPair& pair){
     pubKeyPair p = pair;
-      if (!p.second.IsFullyValid()) 
-          throw std::invalid_argument(std::string(std::string(__func__) + 
+      if (!p.second.IsFullyValid())
+          throw std::invalid_argument(std::string(std::string(__func__) +
             ": invalid public key"));
 
 
       CBitcoinAddress addr(p.first);
       if(!addr.IsValid())
-        throw std::invalid_argument(std::string(std::string(__func__) + 
+        throw std::invalid_argument(std::string(std::string(__func__) +
           ": invalid base58check address\n"));
 
-       if(!Params().ContractInTx() && 
+       if(!Params().ContractInTx() &&
         !::Consensus::CheckValidTweakedAddress(p))
-          throw std::invalid_argument(std::string(std::string(__func__) + 
+          throw std::invalid_argument(std::string(std::string(__func__) +
             ": address does not derive from public key when tweaked with contract hash"));
 
         _pubKeyPair = p;
@@ -792,13 +789,13 @@ void CMultisigData::TryValid(const uint8_t& n){
 
   //Check m-of-n validity
   if (_m > n ||  n > MAX_P2SH_SIGOPS || n == 0){
-    throw std::invalid_argument(std::string(std::string(__func__) + 
+    throw std::invalid_argument(std::string(std::string(__func__) +
     ": invalid m-of-n\n"));
   }
 
   //Check dest built from pubkeys, m, n
   if(!Params().ContractInTx() && !::Consensus::CheckValidTweakedAddress(_dest, _pubKeys, _m)){
-    throw std::invalid_argument(std::string(std::string(__func__) + 
+    throw std::invalid_argument(std::string(std::string(__func__) +
       ": address does not derive from public keys when tweaked with contract hash\n"));
   }
 }

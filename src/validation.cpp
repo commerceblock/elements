@@ -1879,14 +1879,14 @@ bool CheckValidTweakedAddress(const CTxDestination& keyID, const std::vector<CPu
 
     return addressFromDest.IsScript() && addressFromDest == addressFromPubkeys;
 
-//    if(!CBitcoinAddress(multiKeyId).IsScript() || 
+//    if(!CBitcoinAddress(multiKeyId).IsScript() ||
 //        !CBitcoinAddress(destCopy).IsScript())
 //        return false;
 
 //    if (!(boost::get<CScriptID>(multiKeyId) == boost::get<CScriptID>(destCopy)))
 //        return false;
 
-    
+
 
 
 //    return true;
@@ -3021,29 +3021,29 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
 
         //Don't update policy lists if this just a validity check.
-        if(!fJustCheck){
+        if (!fJustCheck) {
             LogPrintf("Updating Policy Lists\n");
             int64_t nStart = GetTimeMillis();
-            if(fRequireFreezelistCheck) {
-                if(tx.vout[0].nAsset.GetAsset() == freezelistAsset) UpdateFreezeList(tx,view);
+            if (fRequireFreezelistCheck) {
+                if(tx.vout[0].nAsset.GetAsset() == freezelistAsset) UpdateFreezeList(tx, view);
             }
-            if(fEnableBurnlistCheck) {
-                if(tx.vout[0].nAsset.GetAsset() == burnlistAsset) UpdateBurnList(tx,view);
+            if (fEnableBurnlistCheck) {
+                if(tx.vout[0].nAsset.GetAsset() == burnlistAsset) UpdateBurnList(tx, view);
             }
-            if(fRequireWhitelistCheck || fScanWhitelist){
-                if(!addressWhitelist->RegisterAddress(tx, view)){
-                    addressWhitelist->Update(tx,view);
+            if (fRequireWhitelistCheck || fScanWhitelist) {
+                if (!addressWhitelist->RegisterAddress(tx, view)) {
+                    addressWhitelist->Update(tx, view);
                 }
             }
 
-            if(fRecordInflation) {
+            if (fRecordInflation) {
                 UpdateAssetMap(tx);
-                UpdateFreezeHistory(tx,chainActive.Height()+1);
+                UpdateFreezeHistory(tx, chainActive.Height() + 1);
             }
 
            if (fRequestList) {
-                if(tx.vout[0].nAsset.GetAsset() == permissionAsset) UpdateRequestList(tx,chainActive.Height());
-                else UpdateRequestBidList(tx,chainActive.Height());
+                if(tx.vout[0].nAsset.GetAsset() == permissionAsset) UpdateRequestList(tx, chainActive.Height());
+                else UpdateRequestBidList(tx, chainActive.Height());
             }
             LogPrintf(" policy lists update %15dms\n", GetTimeMillis() - nStart);
         }
