@@ -11,6 +11,7 @@
 
 from .script import hash256, hash160, sha256, CScript, OP_0
 from .util import bytes_to_hex_str, hex_str_to_bytes
+from binascii import unhexlify
 
 chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 
@@ -29,7 +30,23 @@ def byte_to_base58(b, version):
         str = str[2:]
     return result
 
-# TODO: def base58_decode
+def base58_to_bytes(s):
+    result = 0
+    for c in s:
+        result *= 58
+        if c not in chars:
+            raise InvalidBase58Error('Character %r is not a valid base58 character' % c)
+        digit = chars.index(c)
+        result += digit
+
+    # Convert the integer to bytes
+    bytes = '%x' % result
+    if len(bytes) % 2:
+        bytes = '0' + bytes
+
+    # remove checksum
+    return bytes[:-8]
+
 
 def keyhash_to_p2pkh(hash, main = False):
     assert (len(hash) == 20)
@@ -45,18 +62,9 @@ def key_to_p2pkh(key, main = False):
     key = check_key(key)
     return keyhash_to_p2pkh(hash160(key), main)
 
-def key_to_p2pkh_version(key, version):
-    key = check_key(key)
-    return byte_to_base58(hash160(key), version)
-
 def script_to_p2sh(script, main = False):
     script = check_script(script)
     return scripthash_to_p2sh(hash160(script), main)
-
-def script_to_p2sh_version(script, version):
-    script = check_script(script)
-    return byte_to_base58(hash160(script), version)
-
 
 def key_to_p2sh_p2wpkh(key, main = False):
     key = check_key(key)

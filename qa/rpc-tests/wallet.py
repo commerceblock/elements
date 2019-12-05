@@ -7,8 +7,8 @@ import hashlib
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
-from test_framework.address import key_to_p2pkh_version, script_to_p2sh_version, byte_to_base58
-from test_framework.script import CScript, OP_TRUE
+from test_framework.address import byte_to_base58, base58_to_bytes
+from test_framework.script import CScript, OP_TRUE, hash160
 from test_framework.key import CECKey
 
 class WalletTest (BitcoinTestFramework):
@@ -33,6 +33,7 @@ class WalletTest (BitcoinTestFramework):
         self.extra_args[2].append("-txindex")
         self.extra_args[2].append("-policycoins=50000000000000")
         self.extra_args[2].append("-issuancecoinsdestination=76a914bc835aff853179fa88f2900f9003bb674e17ed4288ac")
+        self.extra_args[2].append('-disablect=0')
 
     def setup_network(self, split=False):
         self.nodes = start_nodes(3, self.options.tmpdir, self.extra_args[:3])
@@ -240,31 +241,47 @@ class WalletTest (BitcoinTestFramework):
 
         # Test address prefix values returned by getsidechaininfo rpc
         addr_prefixes = self.nodes[0].getsidechaininfo()["addr_prefixes"]
-        print(addr_prefixes)
         for prefix in addr_prefixes:
             assert_greater_than_or_equal(int(addr_prefixes[prefix]), 0)
             assert_greater_than(255, int(addr_prefixes[prefix]))
 
         # Test address reconstruction using address prefixes
+        # p2pkh address correctly formed
         addr = self.nodes[0].getnewaddress()
-        pubkey = self.nodes[0].validateaddress(addr)
-        assert_equal(addr,key_to_p2pkh_version(pubkey['pubkey'], addr_prefixes['PUBKEY_ADDRESS']))
-
-        p2sh = script_to_p2sh_version(CScript([OP_TRUE]), addr_prefixes['SCRIPT_ADDRESS'])
+        pubkey = self.nodes[0].validateaddress(addr)['pubkey']
+        pubkey = hex_str_to_bytes(pubkey)
+        assert_equal(addr,byte_to_base58(hash160(pubkey), addr_prefixes['PUBKEY_ADDRESS']))
+        # p2sh address isvalid?
+        p2sh = byte_to_base58(hash160(CScript([OP_TRUE])), addr_prefixes['SCRIPT_ADDRESS'])
         assert(self.nodes[0].validateaddress(p2sh)['isvalid'])
-
-        k = CECKey() # gen priv key
+        # priv key = generate new and test if import successful with SECRET_KEY prefix
+        k = CECKey()
         k.set_compressed(True)
         pk_bytes = hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).digest()
         pk_bytes = pk_bytes + b'\x01'
         k.set_secretbytes(pk_bytes)
-        key = byte_to_base58(pk_bytes, 239)
-        assert_equal(self.nodes[0].importprivkey(key), None) # ensure imports is successful
+        key = byte_to_base58(pk_bytes, addr_prefixes['SECRET_KEY'])
+        assert_equal(self.nodes[0].importprivkey(key), None) # ensure import is successful
+        # test blind prefix - construct expected createblindedaddress() return value and compare
+        multisig_addr = self.nodes[2].createmultisig(2,["0222c31615e457119c2cb33821c150585c8b6a571a511d3cd07d27e7571e02c76e", "039bac374a8cd040ed137d0ce837708864e70012ad5766030aee1eb2f067b43d7f"])['address']
+        # blinding pubkey
+        blinded_pubkey = self.nodes[2].validateaddress(self.nodes[2].getnewaddress())['pubkey']
+        blinded_addr = self.nodes[2].createblindedaddress(multisig_addr,blinded_pubkey)
 
+        conf_addr_prefix = hex(addr_prefixes['BLINDED_ADDRESS'])[2:] if len(hex(addr_prefixes['BLINDED_ADDRESS'])[2:]) == 2 else '0' + str(hex(addr_prefixes['BLINDED_ADDRESS'])[2:])
+        secret_key_prefix = hex(addr_prefixes['SCRIPT_ADDRESS'])[2:] if len(hex(addr_prefixes['SCRIPT_ADDRESS'])[2:]) == 2 else '0' + str(hex(addr_prefixes['SCRIPT_ADDRESS'])[:2])
+        # construct expected createblindedaddress() return value
+        expected_addr_bytes = \
+            str(conf_addr_prefix) + \
+            str(secret_key_prefix) + \
+            str(blinded_pubkey) + \
+            base58_to_bytes(multisig_addr)[2:]
+
+        assert_equal(expected_addr_bytes,base58_to_bytes(blinded_addr))
 
 
 ######################################################################
-########### TEMPORARY END OF TESTS ###################################
+####################  END OF WORKING TESTS ###########################
 ######################################################################
 
 
