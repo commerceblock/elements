@@ -11,7 +11,6 @@
 
 from .script import hash256, hash160, sha256, CScript, OP_0
 from .util import bytes_to_hex_str, hex_str_to_bytes
-from binascii import unhexlify
 
 chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 
