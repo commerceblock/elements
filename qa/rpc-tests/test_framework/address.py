@@ -29,7 +29,23 @@ def byte_to_base58(b, version):
         str = str[2:]
     return result
 
-# TODO: def base58_decode
+def base58_to_bytes(s):
+    result = 0
+    for c in s:
+        result *= 58
+        if c not in chars:
+            raise InvalidBase58Error('Character %r is not a valid base58 character' % c)
+        digit = chars.index(c)
+        result += digit
+
+    # Convert the integer to bytes
+    bytes = '%x' % result
+    if len(bytes) % 2:
+        bytes = '0' + bytes
+
+    # remove checksum
+    return bytes[:-8]
+
 
 def keyhash_to_p2pkh(hash, main = False):
     assert (len(hash) == 20)
