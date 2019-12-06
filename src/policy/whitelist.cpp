@@ -99,7 +99,7 @@ bool CWhiteList::Load(CCoinsView *view)
         pcursor->Next();
     }
 
-    if (fRecoverWhitelistKeys){
+    if (fRecoverWhitelistKeys) {
         return recover_kyc_keys(MAX_KYCPUBKEY_GAP);
     }
 
@@ -107,8 +107,8 @@ bool CWhiteList::Load(CCoinsView *view)
 }
 
 bool CWhiteList::recover_kyc_keys(uint32_t ngap){
-    for (auto key: _kycUnassignedSet){
-        if(!recover_encryption_key(key, ngap))
+    for (auto key: _kycUnassignedSet) {
+        if (!recover_encryption_key(key, ngap))
             return false;
     }
     return true;
@@ -122,17 +122,17 @@ bool CWhiteList::recover_encryption_key(const CPubKey& pubKey, const uint32_t& m
 
     uint32_t nGen=0;
     CKeyID id = pubKey.GetID();
-    while(!pwalletMain->HaveKey(id)){
-      if(nGen >= maxGen){
-        return false;
-      } else {
-        pwalletMain->GenerateNewKey(true);
-        ++nGen;
-      }
+    while (!pwalletMain->HaveKey(id)) {
+        if (nGen >= maxGen) {
+            return error("POLICY: %s: max kycpubkey gap exceeded", __func__);
+        } else {
+            pwalletMain->GenerateNewKey(true);
+            ++nGen;
+        }
     }
     return true;
     #endif
-    return false;
+    return error("POLICY: %s: wallet not enabled", __func__);
 }
 
 void CWhiteList::add_destination(const CTxDestination& dest){
