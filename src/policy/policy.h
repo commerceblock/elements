@@ -220,7 +220,7 @@ bool LoadFreezeList(CCoinsView *view);
 bool LoadBurnList(CCoinsView *view);
 
 //function to add new issuance data (token and entropy) to the asset map
-bool UpdateAssetMap(const CTransaction& tx);
+void UpdateAssetMap(const CTransaction& tx);
 
 //function to track the history of frozen outputs
 void UpdateFreezeHistory(const CTransaction& tx, uint32_t bheight);

@@ -1734,15 +1734,27 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if(chainActive.Height() > 1) {
         LogPrintf("Loading Policy Lists:\n");
         nStart = GetTimeMillis();
-        LogPrintf("freezelist...\n");
-        if (fRequireFreezelistCheck) LoadFreezeList(pcoinsTip);
-        LogPrintf("burnlist...\n");
-        if (fEnableBurnlistCheck) LoadBurnList(pcoinsTip);
-        LogPrintf("whitelist.\n");
-        if (fRequireWhitelistCheck || fScanWhitelist) {
-	       addressWhitelist->Load(pcoinsTip);
-	    }
-        if (fRequestList) requestList.Load(pcoinsTip, chainActive.Height());
+        if (fRequireFreezelistCheck) {
+            LogPrintf("freezelist...\n");
+            if (!LoadFreezeList(pcoinsTip))
+                return InitError("Error loading freezelist");
+        }
+        if (fEnableBurnlistCheck) {
+            LogPrintf("burnlist...\n");
+            if (!LoadBurnList(pcoinsTip))
+                return InitError("Error loading burnlist");
+        }
+        if ((fRequireWhitelistCheck || fScanWhitelist)) {
+            LogPrintf("whitelist...\n");
+            if (!addressWhitelist->Load(pcoinsTip)) {
+                return InitError("Error loading whitelist");
+            }
+        }
+        if (fRequestList) {
+            LogPrintf("requestlist...\n");
+            if (!requestList.Load(pcoinsTip, chainActive.Height()))
+                return InitError("Error loading requestlist");
+        }
         LogPrintf(" policy lists load %15dms\n", GetTimeMillis() - nStart);
     }
 
