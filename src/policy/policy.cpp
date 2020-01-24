@@ -211,6 +211,54 @@ bool IsPolicy(const CAsset& asset){
     return false;
 }
 
+void SetPolicy(uint32_t nHeight) {
+    if(Params().GetConsensus().freezelistasset_change.size() > 0) {
+        uint32_t maxFP = 4294967295;  //max int
+        for(auto iter = Params().GetConsensus().freezelistasset_change.rbegin(); iter != Params().GetConsensus().freezelistasset_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                freezelistAsset = iter->second;
+            }
+            maxFP = iter->first;
+        }
+    }
+    if(Params().GetConsensus().burnlistasset_change.size() > 0) {
+        uint32_t maxFP = 4294967295;  //max int
+        for(auto iter = Params().GetConsensus().burnlistasset_change.rbegin(); iter != Params().GetConsensus().burnlistasset_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                burnlistAsset = iter->second;
+            }
+            maxFP = iter->first;
+        }
+    }
+    if(Params().GetConsensus().whitelistasset_change.size() > 0) {
+        uint32_t maxFP = 4294967295;  //max int
+        for(auto iter = Params().GetConsensus().whitelistasset_change.rbegin(); iter != Params().GetConsensus().whitelistasset_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                whitelistAsset = iter->second;
+            }
+            maxFP = iter->first;
+        }
+    }
+    if(Params().GetConsensus().issuanceasset_change.size() > 0) {
+        uint32_t maxFP = 4294967295;  //max int
+        for(auto iter = Params().GetConsensus().issuanceasset_change.rbegin(); iter != Params().GetConsensus().issuanceasset_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                issuanceAsset = iter->second;
+            }
+            maxFP = iter->first;
+        }
+    }
+    if(Params().GetConsensus().challengeasset_change.size() > 0) {
+        uint32_t maxFP = 4294967295;  //max int
+        for(auto iter = Params().GetConsensus().challengeasset_change.rbegin(); iter != Params().GetConsensus().challengeasset_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                challengeAsset = iter->second;
+            }
+            maxFP = iter->first;
+        }
+    }
+}
+
 bool IsContractInTx(CTransaction const &tx) {
   txnouttype whichType;
   uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();

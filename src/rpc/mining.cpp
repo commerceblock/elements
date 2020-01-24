@@ -120,7 +120,22 @@ UniValue generate(const JSONRPCRequest& request)
 
     LOCK(cs_main);
 
-    CScript coinbaseDest(Params().GetConsensus().mandatory_coinbase_destination);
+    uint32_t nHeight = chainActive.Height() + 1;
+    CScript coinbaseDest;
+    if(Params().GetConsensus().coinbase_change.size() > 0) {
+        uint32_t maxFP = 4294967295;  //max int
+        for(auto iter = Params().GetConsensus().coinbase_change.rbegin(); iter != Params().GetConsensus().coinbase_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                coinbaseDest = iter->second;
+            }
+            maxFP = iter->first;
+        }
+        coinbaseDest = Params().GetConsensus().mandatory_coinbase_destination;
+    }
+    else {
+        coinbaseDest = Params().GetConsensus().mandatory_coinbase_destination;
+    }
+
     if (coinbaseDest == CScript()) {
         coinbaseDest = CScript() << OP_TRUE;
 #ifdef ENABLE_WALLET
@@ -179,7 +194,22 @@ UniValue getnewblockhex(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMS, "required_wait must be non-negative.");
     }
 
-    CScript feeDestinationScript = Params().GetConsensus().mandatory_coinbase_destination;
+    uint32_t nHeight = chainActive.Height() + 1;
+    CScript feeDestinationScript;
+    if(Params().GetConsensus().coinbase_change.size() > 0) {
+        uint32_t maxFP = 4294967295;  //max int
+        for(auto iter = Params().GetConsensus().coinbase_change.rbegin(); iter != Params().GetConsensus().coinbase_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                feeDestinationScript = iter->second;
+            }
+            maxFP = iter->first;
+        }
+        feeDestinationScript = Params().GetConsensus().mandatory_coinbase_destination;
+    }
+    else {
+        feeDestinationScript = Params().GetConsensus().mandatory_coinbase_destination;
+    }
+
     if (feeDestinationScript == CScript()) feeDestinationScript = CScript() << OP_TRUE;
     std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(feeDestinationScript, true, required_wait));
     if (!pblocktemplate.get())
