@@ -1794,7 +1794,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     SetRPCWarmupFinished();
 
-    CScheduler::Function f2 = boost::bind(&BitcoindRPCCheck, false);
+    CScheduler::Function f2 = boost::bind(&GethRPCCheck, false);
     scheduler.scheduleEvery(f2, 120);
 
     uiInterface.InitMessage(_("Awaiting bitcoind RPC warmup"));
