@@ -195,19 +195,16 @@ UniValue getnewblockhex(const JSONRPCRequest& request)
     }
 
     uint32_t nHeight = chainActive.Height() + 1;
-    CScript feeDestinationScript;
+    CScript feeDestinationScript = Params().GetConsensus().mandatory_coinbase_destination;
     if(Params().GetConsensus().coinbase_change.size() > 0) {
         uint32_t maxFP = 4294967295;  //max int
         for(auto iter = Params().GetConsensus().coinbase_change.rbegin(); iter != Params().GetConsensus().coinbase_change.rend(); ++iter) {
             if(nHeight >= iter->first && nHeight < maxFP) {
+                std:
                 feeDestinationScript = iter->second;
             }
             maxFP = iter->first;
         }
-        feeDestinationScript = Params().GetConsensus().mandatory_coinbase_destination;
-    }
-    else {
-        feeDestinationScript = Params().GetConsensus().mandatory_coinbase_destination;
     }
 
     if (feeDestinationScript == CScript()) feeDestinationScript = CScript() << OP_TRUE;
@@ -223,7 +220,7 @@ UniValue getnewblockhex(const JSONRPCRequest& request)
 
     CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
     ssBlock << pblocktemplate->block;
-    return HexStr(ssBlock.begin(), ssBlock.end());
+    return (HexStr(ssBlock.begin(), ssBlock.end()));
 }
 
 UniValue combineblocksigs(const JSONRPCRequest& request)

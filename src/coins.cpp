@@ -6,6 +6,7 @@
 
 #include "memusage.h"
 #include "random.h"
+#include "chainparams.h"
 
 #include <assert.h>
 

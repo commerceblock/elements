@@ -218,8 +218,8 @@ protected:
                 consensus.challengeasset_change.insert(std::make_pair(height,casset));
             }
         }
-        if (mapMultiArgs.count("-disabledoutputs")) {
-            BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-disabledoutputs"))
+        if (mapMultiArgs.count("-disabledoutput")) {
+            BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-disabledoutput"))
             {
                 int delim = assetch.find(':');
                 uint256 txid;
@@ -228,7 +228,7 @@ protected:
                 COutPoint outp(txid,vout);
                 consensus.disabled_outputs.push_back(outp);
             }
-        }        
+        }
 
         // eth mainnet is the parent genesis blockhash by default
         parentGenesisBlockHash = uint256S(GetArg("-parentgenesisblockhash", "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"));

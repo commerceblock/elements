@@ -1903,6 +1903,11 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
         for (unsigned int i = 0; i < tx.vin.size(); i++)
         {
             const COutPoint &prevout = tx.vin[i].prevout;
+            for(auto iter : Params().disabled_outputs) {
+                if(iter.hash == prevout.hash && iter.n == prevout.n) {
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-disabled");
+                }
+            }
             if (tx.vin[i].m_is_pegin) {
                 // Check existence and validity of pegin witness
                 if (tx.wit.vtxinwit.size() <= i || !IsValidEthPeginWitness(tx.wit.vtxinwit[i].m_pegin_witness, prevout)) {
@@ -2874,7 +2879,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck))
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
 
-    CScript coinbase_dest;
+    CScript coinbase_dest = chainparams.GetConsensus().mandatory_coinbase_destination;
     if(chainparams.GetConsensus().coinbase_change.size() > 0) {
         uint32_t maxFP = 4294967295;  //max int
         for(auto iter = chainparams.GetConsensus().coinbase_change.rbegin(); iter != chainparams.GetConsensus().coinbase_change.rend(); ++iter) {
@@ -2883,10 +2888,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             }
             maxFP = iter->first;
         }
-        coinbase_dest = chainparams.GetConsensus().mandatory_coinbase_destination;
-    }
-    else {
-        coinbase_dest = chainparams.GetConsensus().mandatory_coinbase_destination;
     }
 
     // Check that all non-zero coinbase outputs pay to the required destination
