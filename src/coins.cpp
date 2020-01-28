@@ -9,6 +9,7 @@
 #include "chainparams.h"
 
 #include <assert.h>
+#include <iostream>
 
 /**
  * calculate number of bytes for the bitmask, and its number of non-zero bytes
@@ -336,6 +337,9 @@ bool CCoinsViewCache::HaveInputs(const CTransaction& tx) const
             }
             const COutPoint &prevout = tx.vin[i].prevout;
             const CCoins* coins = AccessCoins(prevout.hash);
+            for(auto iter : Params().GetConsensus().disabled_outputs) {
+                if(iter.hash == prevout.hash && iter.n == prevout.n) return false;
+            }
             if (!coins || !coins->IsAvailable(prevout.n)) {
                 return false;
             }

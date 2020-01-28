@@ -1903,11 +1903,6 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
         for (unsigned int i = 0; i < tx.vin.size(); i++)
         {
             const COutPoint &prevout = tx.vin[i].prevout;
-            for(auto iter : Params().disabled_outputs) {
-                if(iter.hash == prevout.hash && iter.n == prevout.n) {
-                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-disabled");
-                }
-            }
             if (tx.vin[i].m_is_pegin) {
                 // Check existence and validity of pegin witness
                 if (tx.wit.vtxinwit.size() <= i || !IsValidEthPeginWitness(tx.wit.vtxinwit[i].m_pegin_witness, prevout)) {

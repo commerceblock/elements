@@ -893,6 +893,13 @@ static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
             for (unsigned int i=0; i<coins.vout.size(); i++) {
 	        const CTxOut &out = coins.vout[i];
 
+            //skip disabled
+//            for(auto iter : Params().GetConsensus().disabled_outputs) {
+//                if(iter.hash == prevout.hash && iter.n == prevout.n) {
+//                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-disabled");
+//                }
+//            }
+
                 //null vouts are spent
 		if (!out.IsNull()) {
 		    ss << VARINT(i+1);
