@@ -1732,6 +1732,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     if(chainActive.Height() > 1) {
+        LOCK(cs_main);
         LogPrintf("Loading Policy Lists:\n");
         nStart = GetTimeMillis();
         if (fRequireFreezelistCheck) {
