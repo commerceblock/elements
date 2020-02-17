@@ -159,35 +159,36 @@ BOOST_AUTO_TEST_CASE(eth_witness_valid)
     CScriptWitness witness;
     witness.stack = witness_stack_eth;
 
-    BOOST_CHECK(IsValidEthPeginWitness(witness, prevout_eth));
+    string strFailReason;
+    BOOST_CHECK(IsValidEthPeginWitness(witness, prevout_eth, strFailReason));
 
     // Missing byte on each field to make claim ill-formatted
     // This will break deserialization and other data-matching checks
     for (unsigned int i = 0; i < witness.stack.size(); i++) {
         witness.stack[i].pop_back();
         // Does not affect claim script (i=3) as it is not currently used for tweaking
-        BOOST_CHECK(!IsValidEthPeginWitness(witness, prevout_eth) || i == 3);
+        BOOST_CHECK(!IsValidEthPeginWitness(witness, prevout_eth, strFailReason) || i == 3);
         witness.stack = witness_stack_eth;
-        BOOST_CHECK(IsValidEthPeginWitness(witness, prevout_eth));
+        BOOST_CHECK(IsValidEthPeginWitness(witness, prevout_eth, strFailReason));
     }
 
     // Test mistmatched but valid txid
     COutPoint fake_prevout = prevout_eth;
     fake_prevout = prevout_eth;
     fake_prevout.hash = uint256S("2f103ee04a5649eecb932b4da4ca9977f53a12bbe04d9d1eb5ccc0f4a06334");
-    BOOST_CHECK(!IsValidEthPeginWitness(witness, fake_prevout));
+    BOOST_CHECK(!IsValidEthPeginWitness(witness, fake_prevout, strFailReason));
 
     // Ensure that all witness stack sizes are handled
-    BOOST_CHECK(IsValidEthPeginWitness(witness, prevout_eth));
+    BOOST_CHECK(IsValidEthPeginWitness(witness, prevout_eth, strFailReason));
     for (unsigned int i = 0; i < witness.stack.size(); i++) {
         witness.stack.pop_back();
-        BOOST_CHECK(!IsValidEthPeginWitness(witness, prevout_eth));
+        BOOST_CHECK(!IsValidEthPeginWitness(witness, prevout_eth, strFailReason));
     }
     witness.stack = witness_stack_eth;
 
     // Extra element causes failure
     witness.stack.push_back(witness.stack.back());
-    BOOST_CHECK(!IsValidEthPeginWitness(witness, prevout_eth));
+    BOOST_CHECK(!IsValidEthPeginWitness(witness, prevout_eth, strFailReason));
     witness.stack = witness_stack_eth;
 
     // Check validation of peg-in transaction's inputs and balance
@@ -202,7 +203,7 @@ BOOST_AUTO_TEST_CASE(eth_witness_valid)
     BOOST_CHECK(tx.vin[0].m_is_pegin);
     // Check that serialization doesn't cause issuance to become non-null
     BOOST_CHECK(tx.vin[0].assetIssuance.IsNull());
-    BOOST_CHECK(IsValidEthPeginWitness(tx.wit.vtxinwit[0].m_pegin_witness, prevout_eth));
+    BOOST_CHECK(IsValidEthPeginWitness(tx.wit.vtxinwit[0].m_pegin_witness, prevout_eth, strFailReason));
 
     std::set<std::pair<uint256, COutPoint> > setPeginsSpent;
     CValidationState state;

@@ -518,7 +518,9 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
 
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
-        if (tx.vin[i].m_is_pegin && (tx.wit.vtxinwit.size() <= i || !IsValidEthPeginWitness(tx.wit.vtxinwit[i].m_pegin_witness, tx.vin[i].prevout))) {
+        string strFailReason;
+        if (tx.vin[i].m_is_pegin && (tx.wit.vtxinwit.size() <= i ||
+            !IsValidEthPeginWitness(tx.wit.vtxinwit[i].m_pegin_witness, tx.vin[i].prevout, strFailReason))) {
             continue;
         }
         const CTxOut &prevout = tx.vin[i].m_is_pegin ? GetPeginOutputFromWitness(tx.wit.vtxinwit[i].m_pegin_witness) : inputs.GetOutputFor(tx.vin[i]);
@@ -1905,8 +1907,9 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
             const COutPoint &prevout = tx.vin[i].prevout;
             if (tx.vin[i].m_is_pegin) {
                 // Check existence and validity of pegin witness
-                if (tx.wit.vtxinwit.size() <= i || !IsValidEthPeginWitness(tx.wit.vtxinwit[i].m_pegin_witness, prevout)) {
-                    return state.DoS(0, false, REJECT_PEGIN, "bad-pegin-witness", true);
+                string strFailReason;
+                if (tx.wit.vtxinwit.size() <= i || !IsValidEthPeginWitness(tx.wit.vtxinwit[i].m_pegin_witness, prevout, strFailReason)) {
+                    return state.DoS(0, false, REJECT_PEGIN, "bad-pegin-witness", true, strFailReason);
                 }
                 std::pair<uint256, COutPoint> pegin = std::make_pair(uint256(tx.wit.vtxinwit[i].m_pegin_witness.stack[2]), prevout);
                 if (inputs.IsWithdrawSpent(pegin)) {
@@ -2131,8 +2134,9 @@ bool ApplyTxInUndo(const CTxInUndo& undo, CCoinsViewCache& view, const COutPoint
             coins->vout.resize(out.n+1);
         coins->vout[out.n] = undo.txout;
     } else {
-        if (!IsValidEthPeginWitness(pegin_witness, txin.prevout)) {
-            fClean = fClean && error("%s: peg-in occurred without proof", __func__);
+        string strFailReason;
+        if (!IsValidEthPeginWitness(pegin_witness, txin.prevout, strFailReason)) {
+            fClean = fClean && error("%s: peg-in occurred without proof. %s", __func__, strFailReason);
         } else {
             std::pair<uint256, COutPoint> outpoint = std::make_pair(uint256(pegin_witness.stack[2]), txin.prevout);
             bool fSpent = view.IsWithdrawSpent(outpoint);
@@ -2691,7 +2695,7 @@ bool IsValidPeginWitness(const CScriptWitness& pegin_witness, const COutPoint& p
     return true;
 }
 
-bool IsValidEthPeginWitness(const CScriptWitness& pegin_witness, const COutPoint& prevout, bool check_tx)
+bool IsValidEthPeginWitness(const CScriptWitness& pegin_witness, const COutPoint& prevout, string &strFailReason, bool check_tx)
 {
     // Format on stack is as follows:
     // 1) value - the value of the pegin output
