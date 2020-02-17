@@ -2765,7 +2765,6 @@ bool IsValidEthPeginWitness(const CScriptWitness& pegin_witness, const COutPoint
 
     // Finally, validate peg-in via rpc call
     if (check_tx && GetBoolArg("-validatepegin", DEFAULT_VALIDATE_PEGIN)) {
-        std::string strFailReason;
         const auto &tx = GetEthTransaction(txid);
         claim_pubkey.Decompress(); // eth addresses require full pubkey
         return IsValidEthPegin(tx, value, claim_pubkey, strFailReason) && IsConfirmedEthPegin(tx, strFailReason);
