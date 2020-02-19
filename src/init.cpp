@@ -554,7 +554,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-whitelistassetchange", strprintf(_("Hard-fork changes to the whitelist asset (asset:blockheight)")));
         strUsage += HelpMessageOpt("-issuanceassetchange", strprintf(_("Hard-fork changes to the issuance asset (asset:blockheight)")));
         strUsage += HelpMessageOpt("-challengeassetchange", strprintf(_("Hard-fork changes to the challenge asset (asset:blockheight)")));
-        strUsage += HelpMessageOpt("-disabledoutputs", strprintf(_("Hard-fork changes to disable outputs")));
+        strUsage += HelpMessageOpt("-disabledoutput", strprintf(_("Hard-fork changes to disable outputs")));
     }
     strUsage += HelpMessageOpt("-validatepegin", strprintf(_("Validate pegin claims. All functionaries must run this. (default: %u)"), DEFAULT_VALIDATE_PEGIN));
     strUsage += HelpMessageOpt("-mainchainrpchost=<addr>", strprintf("The address which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
