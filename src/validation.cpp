@@ -3033,6 +3033,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
         //Don't update policy lists if this just a validity check.
         if (!fJustCheck) {
+            //update policy assets if configured
+            SetPolicy(block.nHeight);
             LogPrintf("Updating Policy Lists\n");
             int64_t nStart = GetTimeMillis();
             if (fRequireFreezelistCheck) {
@@ -3057,9 +3059,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 else UpdateRequestBidList(tx, chainActive.Height());
             }
             LogPrintf(" policy lists update %15dms\n", GetTimeMillis() - nStart);
-
-            //update policy assets if configured
-            SetPolicy(block.nHeight);
         }
 
         // GetTransactionSigOpCost counts 3 types of sigops:
