@@ -333,7 +333,8 @@ bool GethRPCCheck(bool init);
 /** Checks pegin witness for validity */
 bool IsValidPeginWitness(const CScriptWitness& pegin_witness, const COutPoint& prevout, bool check_depth = true);
 /** Checks eth pegin witness for validity */
-bool IsValidEthPeginWitness(const CScriptWitness& pegin_witness, const COutPoint& prevout, bool check_tx = true);
+bool IsValidEthPeginWitness(const CScriptWitness& pegin_witness, const COutPoint& prevout,
+                            string &strFailReason, bool check_tx = true);
 /** Checks eth pegin transaction (in JSON format) for validity */
 bool IsValidEthPegin(const UniValue& tx, const CAmount& nAmount, const CPubKey& pubKey, std::string& strFailReason);
 /** Checks eth pegin transaction (in JSON format) confirmation */

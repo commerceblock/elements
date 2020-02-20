@@ -5233,8 +5233,9 @@ UniValue createrawethpegin(const JSONRPCRequest& request)
     stack.push_back(std::vector<unsigned char>(ethHash.begin(), ethHash.end()));
 
     // Check peg-in witness is valid without checking the actual tx
-    if (!IsValidEthPeginWitness(pegin_witness, mtx.vin[0].prevout)) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Constructed peg-in witness is invalid.");
+    string strFailReason;
+    if (!IsValidEthPeginWitness(pegin_witness, mtx.vin[0].prevout, strFailReason)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Constructed peg-in witness is invalid. %s", strFailReason));
     }
 
     // Put input witness in transaction

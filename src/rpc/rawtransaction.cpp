@@ -1909,11 +1909,13 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
     for (unsigned int i = 0; i < mergedTx.vin.size(); i++) {
         CTxIn& txin = mergedTx.vin[i];
         const CCoins* coins = view.AccessCoins(txin.prevout.hash);
+        string strFailReason;
         if (!txin.m_is_pegin && (coins == NULL || !coins->IsAvailable(txin.prevout.n))) {
             TxInErrorToJSON(txin, vErrors, "Input not found or already spent");
             continue;
-        } else if (txin.m_is_pegin && (txConst.wit.vtxinwit.size() <= i || !IsValidEthPeginWitness(txConst.wit.vtxinwit[i].m_pegin_witness, txin.prevout))) {
-            TxInErrorToJSON(txin, vErrors, "Peg-in input has invalid proof.");
+        } else if (txin.m_is_pegin && (txConst.wit.vtxinwit.size() <= i ||
+            !IsValidEthPeginWitness(txConst.wit.vtxinwit[i].m_pegin_witness, txin.prevout, strFailReason))) {
+            TxInErrorToJSON(txin, vErrors, strprintf("Peg-in input has invalid proof. %s", strFailReason));
             continue;
         }
         const CScript& prevPubKey = txin.m_is_pegin ? GetPeginOutputFromWitness(txConst.wit.vtxinwit[i].m_pegin_witness).scriptPubKey : coins->vout[txin.prevout.n].scriptPubKey;
