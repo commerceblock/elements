@@ -2876,7 +2876,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     CScript coinbase_dest = chainparams.GetConsensus().mandatory_coinbase_destination;
     if(chainparams.GetConsensus().coinbase_change.size() > 0) {
-        uint32_t maxFP = 4294967295;  //max int
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
         for(auto iter = chainparams.GetConsensus().coinbase_change.rbegin(); iter != chainparams.GetConsensus().coinbase_change.rend(); ++iter) {
             if(block.nHeight >= iter->first && block.nHeight < maxFP) {
                 coinbase_dest = iter->second;

@@ -121,19 +121,16 @@ UniValue generate(const JSONRPCRequest& request)
     LOCK(cs_main);
 
     uint32_t nHeight = chainActive.Height() + 1;
-    CScript coinbaseDest;
+    CScript coinbaseDest = Params().GetConsensus().mandatory_coinbase_destination;
     if(Params().GetConsensus().coinbase_change.size() > 0) {
-        uint32_t maxFP = 4294967295;  //max int
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
         for(auto iter = Params().GetConsensus().coinbase_change.rbegin(); iter != Params().GetConsensus().coinbase_change.rend(); ++iter) {
             if(nHeight >= iter->first && nHeight < maxFP) {
                 coinbaseDest = iter->second;
+                break;
             }
             maxFP = iter->first;
         }
-        coinbaseDest = Params().GetConsensus().mandatory_coinbase_destination;
-    }
-    else {
-        coinbaseDest = Params().GetConsensus().mandatory_coinbase_destination;
     }
 
     if (coinbaseDest == CScript()) {
@@ -197,10 +194,9 @@ UniValue getnewblockhex(const JSONRPCRequest& request)
     uint32_t nHeight = chainActive.Height() + 1;
     CScript feeDestinationScript = Params().GetConsensus().mandatory_coinbase_destination;
     if(Params().GetConsensus().coinbase_change.size() > 0) {
-        uint32_t maxFP = 4294967295;  //max int
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
         for(auto iter = Params().GetConsensus().coinbase_change.rbegin(); iter != Params().GetConsensus().coinbase_change.rend(); ++iter) {
             if(nHeight >= iter->first && nHeight < maxFP) {
-                std:
                 feeDestinationScript = iter->second;
             }
             maxFP = iter->first;

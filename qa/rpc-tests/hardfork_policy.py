@@ -217,7 +217,7 @@ class HardforkPolicy (BitcoinTestFramework):
         self.sync_all()
         self.nodes[0].generate(10)
 
-        #check that the freezelist is updated with the new policy asset
+        #check that the freezelist is not updated with the invalid policy asset
         assert_equal(self.nodes[0].queryfreezelist(newaddr2), False)        
 
         return

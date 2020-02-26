@@ -226,7 +226,7 @@ protected:
                 txid.SetHex(assetch.substr(0,delim));
                 uint32_t vout = std::stoi(assetch.substr(delim+1));
                 COutPoint outp(txid,vout);
-                consensus.disabled_outputs.push_back(outp);
+                consensus.disabled_outputs.insert(outp);
             }
         }
 

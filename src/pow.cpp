@@ -32,7 +32,7 @@ CScript CombineBlockSignatures(const CBlockHeader& header, const CScript& script
 bool CheckChallenge(const CBlockHeader& block, const CBlockIndex& indexLast, const Consensus::Params& params)
 {
     if(params.signblockscript_change.size() > 0) {
-        uint32_t maxFP = 4294967295;  //max int
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
         for(auto iter = params.signblockscript_change.rbegin(); iter != params.signblockscript_change.rend(); ++iter) {
             if(block.nHeight >= iter->first && block.nHeight < maxFP) {
                 return block.proof.challenge == iter->second;
@@ -50,7 +50,7 @@ void ResetChallenge(CBlockHeader& block, const CBlockIndex& indexLast, const Con
 {
     uint32_t nHeight = indexLast.nHeight + 1;
     if(params.signblockscript_change.size() > 0) {
-        uint32_t maxFP = 4294967295;  //max int
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
         for(auto iter = params.signblockscript_change.rbegin(); iter != params.signblockscript_change.rend(); ++iter) {
             if(nHeight >= iter->first && block.nHeight < maxFP) {
                 block.proof.challenge = iter->second;

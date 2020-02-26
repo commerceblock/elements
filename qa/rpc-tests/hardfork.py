@@ -99,7 +99,7 @@ class Hardfork (BitcoinTestFramework):
 
         block = self.nodes[0].getblock(self.nodes[0].getblockhash(2))
 
-        assert_equal(round(self.nodes[1].getbalance("", 0, False, "CBT")), round(20999999.99915520))
+        assert_equal(self.nodes[1].getbalance("", 0, False, "CBT"), Decimal("20999999.99915520"))
         assert_equal(self.nodes[0].getbalance("", 0, False, "CBT"), 0)
         assert_equal(self.nodes[2].getbalance("", 0, False, "CBT"), 0)
 
@@ -131,7 +131,6 @@ class Hardfork (BitcoinTestFramework):
         assert_equal(block["bits"],script["asm"])
 
         coinbase = self.nodes[0].getrawtransaction(block["tx"][0],1)
-        print(self.nodes[0].getrawmempool())
         assert_equal(coinbase["vout"][0]["scriptPubKey"]["hex"],coinbase2)
 
         #mine 5 blocks
@@ -167,9 +166,19 @@ class Hardfork (BitcoinTestFramework):
         assert_equal(block["bits"],script["asm"])
 
         coinbase = self.nodes[0].getrawtransaction(block["tx"][0],1)
-        print(coinbase)
-        print(self.nodes[0].getrawmempool())
-        assert_equal(coinbase["vout"][0]["scriptPubKey"]["hex"],coinbase3)      
+        assert_equal(coinbase["vout"][0]["scriptPubKey"]["hex"],coinbase3)
+
+        #mine 15 blocks
+        for it in range(15):
+            newblock = self.nodes[0].getnewblockhex()
+            blocksig = self.nodes[0].signblock(newblock)
+            signedblock = self.nodes[0].combineblocksigs(newblock,[blocksig])
+            self.nodes[0].submitblock(signedblock["hex"])
+            self.sync_all()
+
+        block = self.nodes[0].getblock(self.nodes[0].getblockhash(35))
+        script = self.nodes[0].decodescript(script3)
+        assert_equal(block["bits"],script["asm"])
 
         return
 

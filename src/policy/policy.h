@@ -140,6 +140,11 @@ bool IsPermissionAsset(CAsset const &asset);
 bool IsPolicy(const CTransaction& tx);
 
 /**
+ * Change a specific policy asset
+ */
+void SetPolicyAsset(uint32_t nHeight,const std::map<uint32_t, CAsset> &policyasset_change, CAsset &polAsset);
+
+/**
  * Change the policy assets at specified block heights if configured
  */
 void SetPolicy(uint32_t nHeight);

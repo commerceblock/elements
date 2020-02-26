@@ -1081,20 +1081,6 @@ bool AppInitParameterInteraction()
         issuanceAsset = CAsset(uint256S(chainparams.GetConsensus().issuance_asset.GetHex()));
     }
 
-    if (mapMultiArgs.count("-coinbasechange")) {
-        LogPrintf("cbc count\n");
-        LogPrintf(std::to_string(chainparams.GetConsensus().coinbase_change.size()));
-        LogPrintf("\n");
-        for(auto const& itr : chainparams.GetConsensus().coinbase_change) {
-//        auto it = chainparams.GetConsensus().coinbase_change.begin();
-//        while(it != chainparams.GetConsensus().coinbase_change.end())
-//        {
-            LogPrintf(HexStr(itr.second.begin(),itr.second.end()));
-            LogPrintf("\n");
-            LogPrintf(std::to_string(itr.first));
-            LogPrintf("\n");
-        }
-    }
     if (mapMultiArgs.count("-freezelistassetchange")) {
         LogPrintf("flac count\n");
         LogPrintf(std::to_string(chainparams.GetConsensus().freezelistasset_change.size()));

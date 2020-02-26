@@ -88,7 +88,7 @@ struct Params {
     std::map<uint32_t, CAsset> whitelistasset_change;
     std::map<uint32_t, CAsset> challengeasset_change;
     std::map<uint32_t, CAsset> issuanceasset_change;
-    std::vector<COutPoint> disabled_outputs;
+    std::set<COutPoint> disabled_outputs;
 };
 } // namespace Consensus
 
