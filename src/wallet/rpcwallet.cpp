@@ -6142,7 +6142,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "claimethpegin",            &claimethpegin,             true,   {"txid", "amount", "claim_pubkey"}},
     { "wallet",             "createrawethpegin",        &createrawethpegin,         true,   {"txid", "amount", "claim_pubkey"}},
     { "wallet",             "claimpegin",               &claimpegin,                false,  {"bitcoinT", "txoutproof", "claim_script"} },
-    { "wallet",             "createanytoaddress",       &createanytoaddress,        false,  {"address", "amount", "ignoreblindfail", "splitlargetxs", "balancesorttype"}},
+    { "wallet",             "createanytoaddress",       &createanytoaddress,        false,  {"address", "amount", "ignoreblindfail", "splitlargetxs", "balancesorttype", "allowwatchonly"}},
     { "wallet",             "createrawpegin",           &createrawpegin,            false,  {"bitcoinT", "txoutproof", "claim_script"} },
     { "wallet",             "getaccountaddress",        &getaccountaddress,         true,   {"account"} },
     { "wallet",             "getaccount",               &getaccount,                true,   {"address"} },
