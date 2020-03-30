@@ -50,6 +50,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "sendaddmultitowhitelisttx", 2, "nmultisig"},
     { "createkycfile", 1, "pubkeylist"},
     { "createkycfile", 2, "multisiglist"},
+    { "validatekycfile", 1, "verbose"},
     { "settxfee", 0, "amount" },
     { "sendtoaddress", 6, "ignoreblindfail" },
     { "getreceivedbyaddress", 1, "minconf" },
