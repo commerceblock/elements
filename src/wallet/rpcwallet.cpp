@@ -670,7 +670,7 @@ static vector<CWalletTx> SendAnyMoney(const CScript& scriptPubKey, CAmount nValu
     }
     vChangeKeys.push_back(vChangeKey);
 
-    std::map<CAsset, std::vector<COutput>>* mAvailableInputs = nullptr;
+    std::map<CAsset, std::vector<COutput>>* mAvailableInputs = new std::map<CAsset, std::vector<COutput>>();
     std::vector<CWalletTx> vecRes = pwalletMain->CreateTransaction(vecSend, wtxNew, vChangeKeys, nFeeRequired,
         nChangePosRet, strError, coinControl, fSign, NULL, true, NULL, NULL, NULL, CAsset(), fIgnoreBlindFail,
         fSplitTransactions, std::vector<COutput>(), true, mAvailableInputs, metadataStr);
