@@ -183,5 +183,18 @@ class SendAnyTest (BitcoinTestFramework):
         self.nodes[3].generate(1)
         self.sync_all()
 
+        # test sendanytoaddress metadata tag
+        metadata = 'ec45a16ce1a3eb5784df3dfa196aad6bd57f6c2f6969e97d1eb5402ccd39d627'
+        txid = self.nodes[0].sendanytoaddress(addr1, 0.5, "", "", True, False,1,metadata)
+        assert(txid in self.nodes[0].getrawmempool())
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+        tx = self.nodes[0].getrawtransaction(txid,True)
+        or_md = False
+        for outpt in tx["vout"]:
+            if outpt["scriptPubKey"]["hex"] == '6a20' + metadata: or_md = True
+        assert(or_md)
+
 if __name__ == '__main__':
     SendAnyTest().main()

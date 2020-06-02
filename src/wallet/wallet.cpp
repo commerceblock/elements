@@ -2778,7 +2778,7 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
     std::string& strFailReason, const CCoinControl* coinControl, bool sign, std::vector<CAmount> *outAmounts,
     bool fBlindIssuances, const uint256* issuanceEntropy, const CAsset* reissuanceAsset,
     const CAsset* reissuanceToken, CAsset feeAsset, bool fIgnoreBlindFail, bool fSplitTransactions,
-    std::vector<COutput> vInputPool, bool fFindFeeAsset, std::map<CAsset, std::vector<COutput>>* mAvailableInputs)
+    std::vector<COutput> vInputPool, bool fFindFeeAsset, std::map<CAsset, std::vector<COutput>>* mAvailableInputs, std::string metadataStr)
 {
     // original unchanged recipient vector
     const vector<CRecipient> vecSendOriginal = vecSend;
@@ -3550,6 +3550,16 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
             scriptPubKey << std::vector<unsigned char>(contract.begin(), contract.end());
             CTxOut txoutcontract(feeAsset,0,scriptPubKey);
             txNew.vout.push_back(txoutcontract);
+        }
+
+        //add metadata as OP_RETURN if present
+        if (!metadataStr.empty()) {
+            std::vector<unsigned char> scriptData = ParseHex(metadataStr);
+            CScript scriptPubKey;
+            scriptPubKey << OP_RETURN;
+            scriptPubKey << scriptData;
+            CTxOut metadata(feeAsset,0,scriptPubKey);
+            txNew.vout.push_back(metadata);
         }
 
         // TODO Do actual blinding/caching here to allow for amount adjustments until end
