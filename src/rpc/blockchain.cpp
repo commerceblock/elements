@@ -914,6 +914,19 @@ static bool GetAssetStats(CCoinsView *view, std::map<CAsset,CAssetStats> &stats)
 	}
 	pcursor->Next();
     }
+    // remove disabled output and values
+    for(auto iter : Params().GetConsensus().disabled_outputs) {
+        CTransactionRef tx;
+        uint256 hashBlock;
+        if (!GetTransaction(iter.hash, tx, Params().GetConsensus(), hashBlock, true))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Use -txindex to enable blockchain transaction queries");
+
+        const CTxOut &txout = tx->vout[iter.n];
+        stats[txout.nAsset.GetAsset()].nSpendableOutputs--;
+        if (txout.nValue.IsExplicit())
+                stats[txout.nAsset.GetAsset()].nSpendableAmount -= txout.nValue.GetAmount();
+
+    }
     return true;
 }
 

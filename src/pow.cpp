@@ -16,6 +16,7 @@
 #include "script/generic.hpp"
 #include "script/standard.h"
 #include "uint256.h"
+#include "util.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -30,12 +31,39 @@ CScript CombineBlockSignatures(const CBlockHeader& header, const CScript& script
 
 bool CheckChallenge(const CBlockHeader& block, const CBlockIndex& indexLast, const Consensus::Params& params)
 {
-    return block.proof.challenge == indexLast.proof.challenge;
+    if(params.signblockscript_change.size() > 0) {
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
+        for(auto iter = params.signblockscript_change.rbegin(); iter != params.signblockscript_change.rend(); ++iter) {
+            if(block.nHeight >= iter->first && block.nHeight < maxFP) {
+                return block.proof.challenge == iter->second;
+            }
+            maxFP = iter->first;
+        }
+        return block.proof.challenge == indexLast.proof.challenge;
+    }
+    else {
+        return block.proof.challenge == indexLast.proof.challenge;
+    }
 }
 
 void ResetChallenge(CBlockHeader& block, const CBlockIndex& indexLast, const Consensus::Params& params)
 {
-    block.proof.challenge = indexLast.proof.challenge;
+    uint32_t nHeight = indexLast.nHeight + 1;
+    if(params.signblockscript_change.size() > 0) {
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
+        for(auto iter = params.signblockscript_change.rbegin(); iter != params.signblockscript_change.rend(); ++iter) {
+            if(nHeight >= iter->first && block.nHeight < maxFP) {
+                block.proof.challenge = iter->second;
+                return;
+            }
+            maxFP = iter->first;
+        }
+        block.proof.challenge = indexLast.proof.challenge;
+        return;
+    }
+    else {
+        block.proof.challenge = indexLast.proof.challenge;
+    }
 }
 
 bool CheckBitcoinProof(uint256 hash, unsigned int nBits)

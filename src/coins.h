@@ -12,6 +12,7 @@
 #include "memusage.h"
 #include "serialize.h"
 #include "uint256.h"
+#include "consensus/params.h"
 
 #include <assert.h>
 #include <stdint.h>

@@ -211,6 +211,26 @@ bool IsPolicy(const CAsset& asset){
     return false;
 }
 
+void SetPolicyAsset(uint32_t nHeight,const std::map<uint32_t, CAsset> &policyasset_change, CAsset &polAsset) {
+    if(policyasset_change.size() > 0) {
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
+        for(auto iter = policyasset_change.rbegin(); iter != policyasset_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                polAsset = iter->second;
+            }
+            maxFP = iter->first;
+        }
+    }  
+}
+
+void SetPolicy(uint32_t nHeight) {
+    SetPolicyAsset(nHeight, Params().GetConsensus().freezelistasset_change, freezelistAsset);
+    SetPolicyAsset(nHeight, Params().GetConsensus().burnlistasset_change, burnlistAsset);
+    SetPolicyAsset(nHeight, Params().GetConsensus().whitelistasset_change, whitelistAsset);
+    SetPolicyAsset(nHeight, Params().GetConsensus().issuanceasset_change, issuanceAsset);
+    SetPolicyAsset(nHeight, Params().GetConsensus().challengeasset_change, challengeAsset);
+}
+
 bool IsContractInTx(CTransaction const &tx) {
   txnouttype whichType;
   uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();

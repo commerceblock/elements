@@ -547,6 +547,14 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-challengecoinsdestination", strprintf(_("The destination of the tokens for issuing guardnode challenges. (default: %d)"), 0));
         strUsage += HelpMessageOpt("-permissioncoinsdestination", strprintf(_("The destination of the tokens for permitting request creation. (default: %d)"), 0));
         strUsage += HelpMessageOpt("-issuancecoinsdestination", strprintf(_("The destination of the issued tokens. (default: %d)"), 0));
+        strUsage += HelpMessageOpt("-coinbasechange", strprintf(_("Hard-fork changes to the coinbase payment address (script:blockheight)")));
+        strUsage += HelpMessageOpt("-signblockscriptchange", strprintf(_("Hard-fork changes to the signblockscriptchange (script:blockheight)")));
+        strUsage += HelpMessageOpt("-freezelistassetchange", strprintf(_("Hard-fork changes to the freezelist asset (asset:blockheight)")));
+        strUsage += HelpMessageOpt("-burnlistassetchange", strprintf(_("Hard-fork changes to the burnlist asset (asset:blockheight)")));
+        strUsage += HelpMessageOpt("-whitelistassetchange", strprintf(_("Hard-fork changes to the whitelist asset (asset:blockheight)")));
+        strUsage += HelpMessageOpt("-issuanceassetchange", strprintf(_("Hard-fork changes to the issuance asset (asset:blockheight)")));
+        strUsage += HelpMessageOpt("-challengeassetchange", strprintf(_("Hard-fork changes to the challenge asset (asset:blockheight)")));
+        strUsage += HelpMessageOpt("-disabledoutput", strprintf(_("Hard-fork changes to disable outputs")));
     }
     strUsage += HelpMessageOpt("-validatepegin", strprintf(_("Validate pegin claims. All functionaries must run this. (default: %u)"), DEFAULT_VALIDATE_PEGIN));
     strUsage += HelpMessageOpt("-mainchainrpchost=<addr>", strprintf("The address which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
@@ -1071,6 +1079,29 @@ bool AppInitParameterInteraction()
     }
     if (GetArg("-issuancecoinsdestination", "").size() > 0) {
         issuanceAsset = CAsset(uint256S(chainparams.GetConsensus().issuance_asset.GetHex()));
+    }
+
+    if (mapMultiArgs.count("-freezelistassetchange")) {
+        LogPrintf("flac count\n");
+        LogPrintf(std::to_string(chainparams.GetConsensus().freezelistasset_change.size()));
+        LogPrintf("\n");
+        for(auto const& itr : chainparams.GetConsensus().freezelistasset_change) {
+//        auto it = chainparams.GetConsensus().coinbase_change.begin();
+//        while(it != chainparams.GetConsensus().coinbase_change.end())
+//        {
+            LogPrintf(itr.second.GetHex());
+            LogPrintf("\n");
+            LogPrintf(std::to_string(itr.first));
+            LogPrintf("\n");
+        }
+//        auto it = chainparams.GetConsensus().freezelistasset_change.begin();
+//        while(it != chainparams.GetConsensus().freezelistasset_change.end())
+//        {
+//            LogPrintf(it.second.GetHex());
+//            LogPrintf("\n");
+//            LogPrintf(std::to_string(it.first));
+//            LogPrintf("\n");
+//        }   
     }
 
     fixedTxFee = GetArg("-fixedtxfee", 0);

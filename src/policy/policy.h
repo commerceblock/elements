@@ -6,6 +6,8 @@
 #ifndef BITCOIN_POLICY_POLICY_H
 #define BITCOIN_POLICY_POLICY_H
 
+#include "chainparams.h"
+#include "consensus/params.h"
 #include "consensus/consensus.h"
 #include "script/interpreter.h"
 #include "script/standard.h"
@@ -136,6 +138,16 @@ bool IsPermissionAsset(CAsset const &asset);
  * Check if a transaction has outputs that are of a policy asset type
  */
 bool IsPolicy(const CTransaction& tx);
+
+/**
+ * Change a specific policy asset
+ */
+void SetPolicyAsset(uint32_t nHeight,const std::map<uint32_t, CAsset> &policyasset_change, CAsset &polAsset);
+
+/**
+ * Change the policy assets at specified block heights if configured
+ */
+void SetPolicy(uint32_t nHeight);
 
 /**
  * Check if all outputs of a transaction are of a policy asset type

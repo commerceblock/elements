@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <vector>
+#include <boost/foreach.hpp>
 
 struct CDNSSeedData {
     std::string name, host;

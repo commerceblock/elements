@@ -120,7 +120,19 @@ UniValue generate(const JSONRPCRequest& request)
 
     LOCK(cs_main);
 
-    CScript coinbaseDest(Params().GetConsensus().mandatory_coinbase_destination);
+    uint32_t nHeight = chainActive.Height() + 1;
+    CScript coinbaseDest = Params().GetConsensus().mandatory_coinbase_destination;
+    if(Params().GetConsensus().coinbase_change.size() > 0) {
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
+        for(auto iter = Params().GetConsensus().coinbase_change.rbegin(); iter != Params().GetConsensus().coinbase_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                coinbaseDest = iter->second;
+                break;
+            }
+            maxFP = iter->first;
+        }
+    }
+
     if (coinbaseDest == CScript()) {
         coinbaseDest = CScript() << OP_TRUE;
 #ifdef ENABLE_WALLET
@@ -179,7 +191,18 @@ UniValue getnewblockhex(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMS, "required_wait must be non-negative.");
     }
 
+    uint32_t nHeight = chainActive.Height() + 1;
     CScript feeDestinationScript = Params().GetConsensus().mandatory_coinbase_destination;
+    if(Params().GetConsensus().coinbase_change.size() > 0) {
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
+        for(auto iter = Params().GetConsensus().coinbase_change.rbegin(); iter != Params().GetConsensus().coinbase_change.rend(); ++iter) {
+            if(nHeight >= iter->first && nHeight < maxFP) {
+                feeDestinationScript = iter->second;
+            }
+            maxFP = iter->first;
+        }
+    }
+
     if (feeDestinationScript == CScript()) feeDestinationScript = CScript() << OP_TRUE;
     std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(feeDestinationScript, true, required_wait));
     if (!pblocktemplate.get())
@@ -193,7 +216,7 @@ UniValue getnewblockhex(const JSONRPCRequest& request)
 
     CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
     ssBlock << pblocktemplate->block;
-    return HexStr(ssBlock.begin(), ssBlock.end());
+    return (HexStr(ssBlock.begin(), ssBlock.end()));
 }
 
 UniValue combineblocksigs(const JSONRPCRequest& request)

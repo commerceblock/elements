@@ -2877,10 +2877,21 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck))
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
 
+    CScript coinbase_dest = chainparams.GetConsensus().mandatory_coinbase_destination;
+    if(chainparams.GetConsensus().coinbase_change.size() > 0) {
+        uint32_t maxFP = std::numeric_limits<uint32_t>::max();
+        for(auto iter = chainparams.GetConsensus().coinbase_change.rbegin(); iter != chainparams.GetConsensus().coinbase_change.rend(); ++iter) {
+            if(block.nHeight >= iter->first && block.nHeight < maxFP) {
+                coinbase_dest = iter->second;
+            }
+            maxFP = iter->first;
+        }
+    }
+
     // Check that all non-zero coinbase outputs pay to the required destination
     if (chainparams.GetConsensus().mandatory_coinbase_destination != CScript()) {
         for (CTxOut const &txout : block.vtx[0]->vout) {
-            if (txout.scriptPubKey != chainparams.GetConsensus().mandatory_coinbase_destination && !(txout.nValue.IsExplicit() && txout.nValue.GetAmount() == 0))
+            if (txout.scriptPubKey != coinbase_dest && !(txout.nValue.IsExplicit() && txout.nValue.GetAmount() == 0))
                 return state.DoS(100, error("ConnectBlock(): Coinbase outputs didnt match required scriptPubKey"),
                                  REJECT_INVALID, "bad-coinbase-txos");
         }
@@ -3025,6 +3036,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
         //Don't update policy lists if this just a validity check.
         if (!fJustCheck) {
+            //update policy assets if configured
+            SetPolicy(block.nHeight);
             LogPrintf("Updating Policy Lists\n");
             int64_t nStart = GetTimeMillis();
             if (fRequireFreezelistCheck) {

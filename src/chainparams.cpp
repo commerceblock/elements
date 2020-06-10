@@ -149,6 +149,87 @@ protected:
         consensus.defaultAssumeValid = uint256S(GetArg("-con_defaultassumevalid", "0x00"));
         consensus.pegin_min_depth = GetArg("-peginconfirmationdepth", DEFAULT_PEGIN_CONFIRMATION_DEPTH);
         consensus.mandatory_coinbase_destination = StrHexToScriptWithDefault(GetArg("-con_mandatorycoinbase", ""), CScript()); // Blank script allows any coinbase destination
+
+        if (mapMultiArgs.count("-coinbasechange")) {
+            BOOST_FOREACH(std::string cbc, mapMultiArgs.at("-coinbasechange"))
+            {
+                int delim = cbc.find(':');
+                CScript cbdest = StrHexToScriptWithDefault(cbc.substr(0,delim),CScript());
+                int height = std::stoi(cbc.substr(delim+1));
+                consensus.coinbase_change.insert(std::make_pair(height,cbdest));
+            }
+        }
+        if (mapMultiArgs.count("-signblockscriptchange")) {
+            BOOST_FOREACH(std::string sbsc, mapMultiArgs.at("-signblockscriptchange"))
+            {
+                int delim = sbsc.find(':');
+                CScript sbs = StrHexToScriptWithDefault(sbsc.substr(0,delim),CScript());
+                int height = std::stoi(sbsc.substr(delim+1));
+                consensus.signblockscript_change.insert(std::make_pair(height,sbs));
+            }
+        }
+        if (mapMultiArgs.count("-freezelistassetchange")) {
+            BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-freezelistassetchange"))
+            {
+                int delim = assetch.find(':');
+                CAsset casset;
+                casset.SetHex(assetch.substr(0,delim));
+                int height = std::stoi(assetch.substr(delim+1));
+                consensus.freezelistasset_change.insert(std::make_pair(height,casset));
+            }
+        }
+        if (mapMultiArgs.count("-burnlistassetchange")) {
+            BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-burnlistassetchange"))
+            {
+                int delim = assetch.find(':');
+                CAsset casset;
+                casset.SetHex(assetch.substr(0,delim));
+                int height = std::stoi(assetch.substr(delim+1));
+                consensus.freezelistasset_change.insert(std::make_pair(height,casset));
+            }
+        }
+        if (mapMultiArgs.count("-whitelistassetchange")) {
+            BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-whitelistassetchange"))
+            {
+                int delim = assetch.find(':');
+                CAsset casset;
+                casset.SetHex(assetch.substr(0,delim));
+                int height = std::stoi(assetch.substr(delim+1));
+                consensus.whitelistasset_change.insert(std::make_pair(height,casset));
+            }
+        }
+        if (mapMultiArgs.count("-issuanceassetchange")) {
+            BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-issuanceassetchange"))
+            {
+                int delim = assetch.find(':');
+                CAsset casset;
+                casset.SetHex(assetch.substr(0,delim));
+                int height = std::stoi(assetch.substr(delim+1));
+                consensus.issuanceasset_change.insert(std::make_pair(height,casset));
+            }
+        }
+        if (mapMultiArgs.count("-challengeassetchange")) {
+            BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-challengeassetchange"))
+            {
+                int delim = assetch.find(':');
+                CAsset casset;
+                casset.SetHex(assetch.substr(0,delim));
+                int height = std::stoi(assetch.substr(delim+1));
+                consensus.challengeasset_change.insert(std::make_pair(height,casset));
+            }
+        }
+        if (mapMultiArgs.count("-disabledoutput")) {
+            BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-disabledoutput"))
+            {
+                int delim = assetch.find(':');
+                uint256 txid;
+                txid.SetHex(assetch.substr(0,delim));
+                uint32_t vout = std::stoi(assetch.substr(delim+1));
+                COutPoint outp(txid,vout);
+                consensus.disabled_outputs.insert(outp);
+            }
+        }
+
         // eth mainnet is the parent genesis blockhash by default
         parentGenesisBlockHash = uint256S(GetArg("-parentgenesisblockhash", "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"));
         initialFreeCoins = GetArg("-initialfreecoins", 0);

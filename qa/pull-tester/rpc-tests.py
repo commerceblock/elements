@@ -118,6 +118,9 @@ testScripts = [
     'onboardmanual_cit.py',
     'recoverencryptionkeys.py',
     'fixedfee.py',
+    'hardfork.py',
+    'hardfork_disable.py',
+    'hardfork_policy.py',
     # Accounts not supported
     #'wallet-accounts.py',
     # TODO fix mininode
