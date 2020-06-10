@@ -591,7 +591,7 @@ static vector<CWalletTx> SendMoney(const CTxDestination &address, CAmount nValue
 }
 
 static vector<CWalletTx> SendAnyMoney(const CScript& scriptPubKey, CAmount nValue, const CPubKey &confidentiality_key,
-    CWalletTx& wtxNew, bool fIgnoreBlindFail, bool fSplitTransactions = false, int nSortingMethod = 1,
+    CWalletTx& wtxNew, bool fIgnoreBlindFail, bool fSplitTransactions = false, int nSortingMethod = 1, std::string metadataStr = "",
     CCoinControl* coinControl = NULL, bool fSign = true, bool fSend = true)
 {
     // Check amount
@@ -670,9 +670,10 @@ static vector<CWalletTx> SendAnyMoney(const CScript& scriptPubKey, CAmount nValu
     }
     vChangeKeys.push_back(vChangeKey);
 
+    std::map<CAsset, std::vector<COutput>>* mAvailableInputs = new std::map<CAsset, std::vector<COutput>>();
     std::vector<CWalletTx> vecRes = pwalletMain->CreateTransaction(vecSend, wtxNew, vChangeKeys, nFeeRequired,
         nChangePosRet, strError, coinControl, fSign, NULL, true, NULL, NULL, NULL, CAsset(), fIgnoreBlindFail,
-        fSplitTransactions, std::vector<COutput>(), true);
+        fSplitTransactions, std::vector<COutput>(), true, mAvailableInputs, metadataStr);
     if (!(vecRes.size() > 0)) {
         if (nValue + nFeeRequired > totalBalance)
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s",
@@ -694,11 +695,11 @@ static vector<CWalletTx> SendAnyMoney(const CScript& scriptPubKey, CAmount nValu
 }
 
 static vector<CWalletTx> SendAnyMoney(const CTxDestination &address, CAmount nValue, const CPubKey &confidentiality_key,
-    CWalletTx& wtxNew, bool fIgnoreBlindFail, bool fSplitTransactions, int nSortingMethod,
+    CWalletTx& wtxNew, bool fIgnoreBlindFail, bool fSplitTransactions, int nSortingMethod, std::string metadataStr,
     CCoinControl* coinControl = NULL, bool fSign = true, bool fSend = true)
 {
     return SendAnyMoney(GetScriptForDestination(address), nValue, confidentiality_key, wtxNew, fIgnoreBlindFail,
-        fSplitTransactions, nSortingMethod, coinControl, fSign, fSend);
+        fSplitTransactions, nSortingMethod, metadataStr, coinControl, fSign, fSend);
 }
 
 static void SendGenerationTransaction(const CScript& assetScriptPubKey, const CPubKey &assetKey, const CScript& tokenScriptPubKey, const CPubKey &tokenKey, CAmount nAmountAsset, CAmount nTokens, bool fBlindIssuances, uint256& entropy, CAsset& reissuanceAsset, CAsset& reissuanceToken, CWalletTx& wtxNew)
@@ -1870,8 +1871,9 @@ UniValue createanytoaddress(const JSONRPCRequest& request)
     //coinControl.nFeeRate = specificFeeRate;
 
     CWalletTx wtx;
+    std::string metadataStr;
     vector<CWalletTx> wtxs = SendAnyMoney(address.Get(), nAmount, confidentiality_pubkey,
-        wtx, fIgnoreBlindFail, fSplitTransactions, fSortingType, &coinControl, false, false);
+        wtx, fIgnoreBlindFail, fSplitTransactions, fSortingType, metadataStr, &coinControl, false, false);
 
     UniValue arr(UniValue::VARR);
     for (const auto &tx: wtxs) {
@@ -1885,7 +1887,7 @@ UniValue sendanytoaddress(const JSONRPCRequest& request)
     if (!EnsureWalletIsAvailable(request.fHelp))
         return NullUniValue;
 
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 7)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 8)
         throw runtime_error(
             "sendanytoaddress \"bitcoinaddress\" amount ( \"comment\" \"comment-to\" ignoreblindfail splitlargetxs balanceSortType)\n"
             "\nSend an amount to a given address with as many non-policy assets as needed.\n"
@@ -1902,6 +1904,7 @@ UniValue sendanytoaddress(const JSONRPCRequest& request)
             "5. \"ignoreblindfail\"\"   (bool, default=true) Return a transaction even when a blinding attempt fails due to number of blinded inputs/outputs.\n"
             "6. \"splitlargetxs\"\"   (bool, default=false) Split a transaction that goes over the size limit into smaller transactions.\n"
             "7. \"balanceSortType\"\"   (numeric, default=1) Choose which balances should be used first. 1 - descending, 2 - ascending\n"
+            "8. \"metadata\"\"   (string, optional) Add an OP_RETURN output for transaction metadata\n"
             "\nResult:\n"
             "\"txid\"                  (string) The transaction id.\n"
             "\nExamples:\n"
@@ -1952,11 +1955,19 @@ UniValue sendanytoaddress(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid sendany sorting type.");
     }
 
+    string metadataStr;
+    if (request.params.size() > 7) {
+        metadataStr = request.params[7].get_str();
+        if (!IsHex(metadataStr)) {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid metadata: must be hex string");
+        }
+    }      
+
     EnsureWalletIsUnlocked();
 
     CWalletTx wtx;
     vector<CWalletTx> wtxs = SendAnyMoney(address.Get(), nAmount, confidentiality_pubkey,
-        wtx, fIgnoreBlindFail, fSplitTransactions, fSortingType);
+        wtx, fIgnoreBlindFail, fSplitTransactions, fSortingType, metadataStr);
 
     std::string blinds;
     UniValue arr(UniValue::VARR);
