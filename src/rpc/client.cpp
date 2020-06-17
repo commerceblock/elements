@@ -173,6 +173,10 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "testproposedblock", 1, "acceptnonstd" },
     { "sendtomainchain", 2, "subtractfeefromamount"},
     { "getnewblockhex", 0, "required_age"},
+    { "sendanytoaddress", 1, "amount"},
+    { "sendanytoaddress", 4, "ignoreblindfail"}  ,
+    { "sendanytoaddress", 5, "splitlargetxs"}  ,
+    { "sendanytoaddress", 6, "balancesorttype"}  ,    
     // Echo with conversion (For testing only)
     { "echojson", 0, "arg0" },
     { "echojson", 1, "arg1" },
