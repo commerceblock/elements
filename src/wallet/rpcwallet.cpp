@@ -1803,7 +1803,7 @@ UniValue createanytoaddress(const JSONRPCRequest& request)
     if (!EnsureWalletIsAvailable(request.fHelp))
         return NullUniValue;
 
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 6)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 7)
         throw runtime_error(
             "createanytoaddress \"bitcoinaddress\" amount (ignoreblindfail splitlargetxs balancesorttype allowwatchonly)\n"
             "\nCreate a transaction that sends an amount to a given address with as many non-policy assets as needed.\n"
@@ -1816,6 +1816,7 @@ UniValue createanytoaddress(const JSONRPCRequest& request)
             "4. \"splitlargetxs\"\"     (bool, default=false) Split a transaction that goes over the size limit into smaller transactions.\n"
             "5. \"balancesorttype\"\"   (numeric, default=1) Choose which balances should be used first. 1 - descending, 2 - ascending\n"
             "6. \"allowwatchonly\"\"    (bool, default=false) Allow the selection of watch only inputs similar to fundrawtransaction.\n"
+            "7. \"metadata\"\"          (string, optional) Add an OP_RETURN output for transaction metadata\n"
             "\nResult:\n"
             "[                          (array of strings)\n"
             "   \"transaction\"         (string) hex string of the transaction\n"
@@ -1860,6 +1861,14 @@ UniValue createanytoaddress(const JSONRPCRequest& request)
     if (request.params.size() > 5)
         fAllowWatchOnly = request.params[5].get_bool();
 
+    string metadataStr;
+    if (request.params.size() > 6) {
+        metadataStr = request.params[6].get_str();
+        if (!IsHex(metadataStr)) {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid metadata: must be hex string");
+        }
+    }      
+
     EnsureWalletIsUnlocked();
 
     // Similar to fundrawtransaction
@@ -1871,9 +1880,8 @@ UniValue createanytoaddress(const JSONRPCRequest& request)
     //coinControl.nFeeRate = specificFeeRate;
 
     CWalletTx wtx;
-    std::string metadataStr;
     vector<CWalletTx> wtxs = SendAnyMoney(address.Get(), nAmount, confidentiality_pubkey,
-        wtx, fIgnoreBlindFail, fSplitTransactions, fSortingType, metadataStr, &coinControl, false, false);
+        wtx, fIgnoreBlindFail, fSplitTransactions, fSortingType, metadataStr, &coinControl, true, false);
 
     UniValue arr(UniValue::VARR);
     for (const auto &tx: wtxs) {
@@ -6128,6 +6136,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "addwitnessaddress",        &addwitnessaddress,         true,   {"address"} },
     { "wallet",             "backupwallet",             &backupwallet,              true,   {"destination"} },
     { "wallet",             "createkycfile",            &createkycfile,             true,   {"filename","pubkeylist","multisiglist"} },
+    { "wallet",             "createanytoaddress",       &createanytoaddress,        true,   {"address","amount","ignoreblindfail", "splitlargetxs", "balanceSortType", "allowwatchonly","metadata"} },
     { "wallet",             "dumpblindingkey",          &dumpblindingkey,           true,   {} },
     { "wallet",             "dumpassetlabels",          &dumpassetlabels,           true,   {} },
     { "wallet",             "dumpprivkey",              &dumpprivkey,               true,   {"address"}  },
@@ -6196,7 +6205,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "lockunspent",              &lockunspent,               true,   {"unlock","transactions"} },
     { "wallet",             "sendmany",                 &sendmany,                  false,  {"fromaccount","amounts","minconf","comment","subtractfeefrom"} },
     { "wallet",             "sendtoaddress",            &sendtoaddress,             false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
-    { "wallet",             "sendanytoaddress",         &sendanytoaddress,          false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
+    { "wallet",             "sendanytoaddress",         &sendanytoaddress,          false,  {"address","amount","comment","comment_to","ignoreblindfail", "splitlargetxs", "balanceSortType", "metadata"} },
     { "wallet",             "sendaddtowhitelisttx",     &sendaddtowhitelisttx,      false,  {"naddresses", "feeasset"} },
     { "wallet",             "sendaddmultitowhitelisttx",&sendaddmultitowhitelisttx, false,  {"tweakedaddress", "basepubkeys", "nmultisig", "feeasset"} },
     { "wallet",             "setaccount",               &setaccount,                true,   {"address","account"} },
