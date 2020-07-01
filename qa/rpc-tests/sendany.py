@@ -213,6 +213,39 @@ class SendAnyTest (BitcoinTestFramework):
             if outpt["scriptPubKey"]["hex"] == '6a20' + metadata: or_md = True
         assert(or_md)
 
+
+        #issue some assets, send them to node 0, specifying the change address
+        issue = self.nodes[1].issueasset('10.0','0', False)
+        changeAddress = self.nodes[1].getnewaddress()
+        outAddress = self.nodes[0].getnewaddress()
+        print("change address: {}".format(changeAddress))
+        self.nodes[1].generate(1)
+        txid = self.nodes[1].sendanytoaddress(outAddress, 9, "", "", True, False, 2, metadata, changeAddress)
+        self.nodes[1].generate(1)
+        self.sync_all()
+        tx = self.nodes[0].getrawtransaction(txid,True)
+        changeRec = 0
+        outRec=0
+        nAddressChange=0
+
+        outAddresses = set()
+        
+        for outpt in tx ["vout"]:
+            spk=outpt["scriptPubKey"]
+            if "addresses" in spk:
+                addr = outpt["scriptPubKey"]["addresses"][0]
+                if addr == changeAddress:
+                    changeRec = changeRec + outpt["value"]
+                    nAddressChange = nAddressChange+1
+                else:
+                    outAddresses.add(addr)
+                    outRec = outRec + outpt["value"]
+        assert(changeRec > 0)
+        assert_equal(outRec,9)
+        assert_equal(len(outAddresses),1)
+        assert_equal(outAddresses.pop(),outAddress)
+        assert_equal(nAddressChange,1)
 if __name__ == '__main__':
     SendAnyTest().main()
+
 B
