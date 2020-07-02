@@ -1895,7 +1895,7 @@ UniValue sendanytoaddress(const JSONRPCRequest& request)
     if (!EnsureWalletIsAvailable(request.fHelp))
         return NullUniValue;
 
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 8)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 9)
         throw runtime_error(
             "sendanytoaddress \"bitcoinaddress\" amount ( \"comment\" \"comment-to\" ignoreblindfail splitlargetxs balanceSortType)\n"
             "\nSend an amount to a given address with as many non-policy assets as needed.\n"
@@ -1913,6 +1913,7 @@ UniValue sendanytoaddress(const JSONRPCRequest& request)
             "6. \"splitlargetxs\"\"   (bool, default=false) Split a transaction that goes over the size limit into smaller transactions.\n"
             "7. \"balanceSortType\"\"   (numeric, default=1) Choose which balances should be used first. 1 - descending, 2 - ascending\n"
             "8. \"metadata\"\"   (string, optional) Add an OP_RETURN output for transaction metadata\n"
+            "9. \"changeaddress\"          (string, optional) The bitcoin address to send the change to.\n"
             "\nResult:\n"
             "\"txid\"                  (string) The transaction id.\n"
             "\nExamples:\n"
@@ -1971,11 +1972,22 @@ UniValue sendanytoaddress(const JSONRPCRequest& request)
         }
     }      
 
+    
+    CCoinControl* coinControl = NULL;   
+    if (request.params.size() > 8) {
+        CBitcoinAddress changeAddress(request.params[8].get_str());
+        if (!changeAddress.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin change address");
+        coinControl = new CCoinControl();
+        CTxDestination changeDestination = changeAddress.Get();            
+        coinControl->destChange = changeDestination;        
+    }      
+
     EnsureWalletIsUnlocked();
 
     CWalletTx wtx;
     vector<CWalletTx> wtxs = SendAnyMoney(address.Get(), nAmount, confidentiality_pubkey,
-        wtx, fIgnoreBlindFail, fSplitTransactions, fSortingType, metadataStr);
+        wtx, fIgnoreBlindFail, fSplitTransactions, fSortingType, metadataStr, coinControl);
 
     std::string blinds;
     UniValue arr(UniValue::VARR);
