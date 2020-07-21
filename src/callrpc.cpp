@@ -431,12 +431,12 @@ static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
               cert_str, sizeof (cert_str));
 
     if (res == MatchFound) {
-        printf("https server '%s' has this certificate, "
+        LogPrintf("https server '%s' has this certificate, "
                "which looks good to me:\n%s\n",
                host, cert_str);
         return 1;
     } else {
-        printf("Got '%s' for hostname '%s' and certificate:\n%s\n",
+        LogPrintf("Got '%s' for hostname '%s' and certificate:\n%s\n",
                res_str, host, cert_str);
         return 0;
     }
