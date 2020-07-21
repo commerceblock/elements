@@ -9,16 +9,40 @@
 #include "rpc/client.h"
 
 #include <event2/buffer.h>
-#include <event2/bufferevent.h>
-#include <event2/bufferevent_ssl.h>
 #include <event2/keyvalq_struct.h>
-#include <event2/listener.h>
 #include <event2/util.h>
 #include <event2/event.h>
-#include <event2/http.h>
 #include <sstream>
 #include <string>
 
+// Get rid of OSX 10.7 and greater deprecation warnings.
+#if defined(__APPLE__) && defined(__clang__)
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+#include <stdio.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+#define snprintf _snprintf
+#define strcasecmp _stricmp 
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#endif
+
+#include <event2/bufferevent_ssl.h>
+#include <event2/bufferevent.h>
+#include <event2/buffer.h>
+#include <event2/listener.h>
+#include <event2/util.h>
+#include <event2/http.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
@@ -42,6 +66,18 @@ struct HTTPReply
     std::string body;
 };
 
+/** Reply structure for request_done to fill in */
+struct HTTPSReply
+{
+    HTTPSReply(): status(0), error(-1) {}
+
+    int status;
+    int error;
+    std::string body;
+    struct bufferevent* bev;
+};
+
+
 const char *http_errorstring(int code)
 {
     switch(code) {
@@ -62,6 +98,57 @@ const char *http_errorstring(int code)
     default:
         return "unknown";
     }
+}
+
+static void
+https_request_done(struct evhttp_request *req, void *ctx)
+{
+    HTTPSReply *reply = static_cast<HTTPSReply*>(ctx);
+
+    char buffer[1024];
+    int nread, ntotal(0);
+
+    if (!req || !evhttp_request_get_response_code(req)) {
+        /* If req is NULL, it means an error occurred, but
+         * sadly we are mostly left guessing what the error
+         * might have been.  We'll do our best... */
+        struct bufferevent *bev = (struct bufferevent *) reply->bev;
+        unsigned long oslerr;
+        int printed_err = 0;
+        int errcode = EVUTIL_SOCKET_ERROR();
+        fprintf(stderr, "some request failed - no idea which one though!\n");
+        /* Print out the OpenSSL error queue that libevent
+         * squirreled away for us, if any. */
+        while ((oslerr = bufferevent_get_openssl_error(bev))) {
+            ERR_error_string_n(oslerr, buffer, sizeof(buffer));
+            fprintf(stderr, "%s\n", buffer);
+            printed_err = 1;
+        }
+        /* If the OpenSSL error queue was empty, maybe it was a
+         * socket error; let's try printing that. */
+        if (! printed_err)
+            fprintf(stderr, "socket error = %s (%d)\n",
+                evutil_socket_error_to_string(errcode),
+                errcode);
+        return;
+    }
+ 
+    reply->status = evhttp_request_get_response_code(req);
+
+    stringstream ss;
+
+    while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req),
+            buffer, sizeof(buffer)))
+           > 0) {
+        /* These are just arbitrary chunks of 256 bytes.
+         * They are not lines, so we can't treat them as such. */
+//        fwrit, nread, 1, stdout);
+        ss << buffer;
+        ntotal+=nread;
+    }
+    ss << std::endl;
+    reply->body = ss.str().substr(0,ntotal+1);
+
 }
 
 static void http_request_done(struct evhttp_request *req, void *ctx)
@@ -89,6 +176,7 @@ static void http_request_done(struct evhttp_request *req, void *ctx)
     }
 }
 
+
 #if LIBEVENT_VERSION_NUMBER >= 0x02010300
 static void http_error_cb(enum evhttp_request_error err, void *ctx)
 {
@@ -96,71 +184,6 @@ static void http_error_cb(enum evhttp_request_error err, void *ctx)
     reply->error = err;
 }
 #endif
-
-
-/* See http://archives.seul.org/libevent/users/Jan-2013/msg00039.html */
-static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
-{
-        char cert_str[256];
-        const char *host = (const char *) arg;
-        const char *res_str = "X509_verify_cert failed";
-        HostnameValidationResult res = Error;
-
-    /* This is the function that OpenSSL would call if we hadn't called                   
-         * SSL_CTX_set_cert_verify_callback().  Therefore, we are "wrapping"                  
-         * the default functionality, rather than replacing it. */
-        int ok_so_far = 0;
-
-        X509 *server_cert = NULL;
-
-        if (ignore_cert) {
-                return 1;
-        }
-
-        ok_so_far = X509_verify_cert(x509_ctx);
-
-        server_cert = X509_STORE_CTX_get_current_cert(x509_ctx);
-
-        if (ok_so_far) {
-                res = validate_hostname(host, server_cert);
-
-                switch (res) {
-                case MatchFound:
-                        res_str = "MatchFound";
-                        break;
-                case MatchNotFound:
-                        res_str = "MatchNotFound";
-                        break;
-                case NoSANPresent:
-                        res_str = "NoSANPresent";
-                        break;
-                case MalformedCertificate:
-                        res_str = "MalformedCertificate";
-                        break;
-                case Error:
-                        res_str = "Error";
-                        break;
-                default:
-                        res_str = "WTF!";
-                        break;
-                }
-        }
-
-        X509_NAME_oneline(X509_get_subject_name (server_cert),
-                          cert_str, sizeof (cert_str));
-
-        if (res == MatchFound) {
-                printf("https server '%s' has this certificate, "
-                       "which looks good to me:\n%s\n",
-                       host, cert_str);
-                return 1;
-        } else {
-                printf("Got '%s' for hostname '%s' and certificate:\n%s\n",
-                       res_str, host, cert_str);
-                return 0;
-        }
-}
-
 
 UniValue CallRPC_http(const std::string& strMethod, const UniValue& params, bool connectToMainchain) {
     LogPrintf("CallRPC_http\n");
@@ -280,320 +303,6 @@ UniValue CallRPC_http(const std::string& strMethod, const UniValue& params, bool
 }
 
 
-
-UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, bool connectToMainchain) {
-
-    LogPrintf("CallRPC_https\n");
-    struct evhttp_uri *http_uri = NULL;
-    const char *scheme = NULL;
-    const char *host=NULL;
-    const char *path=NULL;
-    const char *query=NULL;
-    string uri;
-    const char *crt = NULL;
-
-    std::string struri = "";
-    std::string strhost = "-rpcconnect";
-    std::string strport = "-rpcport";
-    std::string struser = "-rpcuser";
-    std::string strpassword = "-rpcpassword";
-
-    SSL_CTX *ssl_ctx = NULL;
-    SSL *ssl = NULL;
-    //struct evhttp_connection *evcon = NULL;
-//    struct evhttp_request *req;
-    int retries = 0;
-    int timeout=-1;
-
-
-    enum { HTTP, HTTPS } type = HTTP;
-
-    struct bufferevent *bev;
-
-    LogPrintf("get port\n");
-
-    int port;
-
-    LogPrintf("get params\n");
-    if (connectToMainchain) {
-        struri = "-mainchainrpcuri";
-        strhost = "-mainchainrpchost";
-        strport = "-mainchainrpcport";
-        strpassword = "-mainchainrpcpassword";
-        struser = "-mainchainrpcuser";
-        //port = GetArg(strport, BaseParams().MainchainRPCPort());
-    } else {
-        port = GetArg(strport, BaseParams().RPCPort());
-    }
-
-    LogPrintf("getting uri from arg: %s\n", struri);
-
-    struri = GetArg(struri, "no mainchainrpcuri given");
-
-    LogPrintf("parsing uri: %s\n", struri);
-
-    //Get URI host and scheme
-    http_uri = evhttp_uri_parse(struri.c_str());
-    if (http_uri == NULL) {
-        LogPrintf("malformed url: %s\n", struri);
-        throw std::runtime_error("malformed url");
-    }
-
-    stringstream ss;
-    ss << "getting scheme from http_uri: " << http_uri << std::endl;
-
-    LogPrintf(ss.str());
-
-    scheme = evhttp_uri_get_scheme(http_uri);
-    if (scheme == NULL || (strcasecmp(scheme, "https") != 0 &&
-                               strcasecmp(scheme, "http") != 0)) {
-            LogPrintf("url must be http or https\n");
-            throw std::runtime_error("url must be http or https");
-    }
-
-    LogPrintf("getting host\n");
-
-    host = evhttp_uri_get_host(http_uri);
-    if (host == NULL) {
-        throw std::runtime_error("url must have a host");
-    }
-    
-    LogPrintf("getting port\n");
-
-    port = evhttp_uri_get_port(http_uri);
-    if (port == -1) {
-        port = (strcasecmp(scheme, "http") == 0) ? 80 : 443;
-    }
-
-    LogPrintf("port: %d\n",port);
-
-    path = evhttp_uri_get_path(http_uri);
-        if (strlen(path) == 0) {
-                path = "/";
-    }
-
-    LogPrintf("path: %s\n",path);
-
-    LogPrintf("getting query\n");
-    query = evhttp_uri_get_query(http_uri);
-    ss.str("");
-    if (query == NULL) {
-        LogPrintf("query is null\n");
-        ss << uri << path << std::endl;
-        uri = ss.str().c_str();
-    } else {
-        LogPrintf("query: %s\n", query);
-        ss << uri << path << "?" << query << std::endl;
-        uri = ss.str().c_str();
-    }
-
-    LogPrintf("uri: %s\n",uri);    
-
-
-
-    #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
-        (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
-        // Initialize OpenSSL                                                                 
-        SSL_library_init();
-        ERR_load_crypto_strings();
-        SSL_load_error_strings();
-        OpenSSL_add_all_algorithms();
-    #endif
-
-     /* Create a new OpenSSL context */
-    ssl_ctx = SSL_CTX_new(SSLv23_method());
-    if (!ssl_ctx) {
-        throw std::runtime_error("SSL_CTX_new");
-    }
-
-    if (crt == NULL) {
-                X509_STORE *store;
-                /* Attempt to use the system's trusted root certificates. */
-                store = SSL_CTX_get_cert_store(ssl_ctx);
-#ifdef _WIN32
-                if (add_cert_for_store(store, "CA") < 0 ||
-                    add_cert_for_store(store, "AuthRoot") < 0 ||
-                    add_cert_for_store(store, "ROOT") < 0) {
-                        throw std::runtime_error("error adding cert to store");
-                }
-#else // _WIN32                                                                               
-                if (X509_STORE_set_default_paths(store) != 1) {
-                        throw std::runtime_error("X509_STORE_set_default_paths");
-                }
-#endif // _WIN32                                                                              
-        } else {
-                if (SSL_CTX_load_verify_locations(ssl_ctx, crt, NULL) != 1) {
-                        throw std::runtime_error("SSL_CTX_load_verify_locations");
-                }
-        }
-
-    /* Ask OpenSSL to verify the server certificate.  Note that this                      
-         * does NOT include verifying that the hostname is correct.                           
-         * So, by itself, this means anyone with any legitimate                               
-         * CA-issued certificate for any website, can impersonate any                         
-         * other website in the world.  This is not good.  See "The                           
-         * Most Dangerous Code in the World" article at                                       
-         * https://crypto.stanford.edu/~dabo/pubs/abstracts/ssl-client-bugs.html              
-         */
-        SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
-        /* This is how we solve the problem mentioned in the previous                         
-         * comment.  We "wrap" OpenSSL's validation routine in our                            
-         * own routine, which also validates the hostname by calling                          
-         * the code provided by iSECPartners.  Note that even though                          
-         * the "Everything You've Always Wanted to Know About                                 
-         * Certificate Validation With OpenSSL (But Were Afraid to                            
-         * Ask)" paper from iSECPartners says very explicitly not to                          
-         * call SSL_CTX_set_cert_verify_callback (at the bottom of                            
-         * page 2), what we're doing here is safe because our                                 
-         * cert_verify_callback() calls X509_verify_cert(), which is                          
-         * OpenSSL's built-in routine which would have been called if                         
-         * we hadn't set the callback.  Therefore, we're just                                 
-         * "wrapping" OpenSSL's routine, not replacing it. */
-        SSL_CTX_set_cert_verify_callback(ssl_ctx, cert_verify_callback,
-                                          (void *) host);
-
-        
-    // Obtain event base
-    raii_event_base base = obtain_event_base();
-
-
-    // Create OpenSSL bufferevent and stack evhttp on top of it                           
-    ssl = SSL_new(ssl_ctx);
-    if (ssl == NULL) {
-        throw std::runtime_error("cSSL_new()");
-    }
-
-
-
-    #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        // Set hostname for SNI extension                                                     
-    SSL_set_tlsext_host_name(ssl, host);
-    #endif
-
-   
-        if (strcasecmp(scheme, "http") == 0) {
-            bev = bufferevent_socket_new(base.get(), -1, BEV_OPT_CLOSE_ON_FREE);
-        } else {
-                type = HTTPS;
-                bev = bufferevent_openssl_socket_new(base.get(), -1, ssl,
-                        BUFFEREVENT_SSL_CONNECTING,
-                        BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
-        }
-
-        if (bev == NULL) {
-            throw std::runtime_error("bufferevent_openssl_socket_new() failed\n");
-        }
-
-        bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
-
-        // For simplicity, we let DNS resolution block. Everything else should be             
-        // asynchronous though.   
-
-
-        // Synchronously look up hostname
-        raii_evhttp_connection evcon = obtain_evhttp_connection_base(base.get(), host, port);
-        evhttp_connection_set_timeout(evcon.get(), GetArg("-rpcclienttimeout", DEFAULT_HTTP_CLIENT_TIMEOUT));
-
-        bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
-
-        //HTTPReply response;
-        // Fire off the request                                                               
-        //req = evhttp_request_new(http_request_done, (void*)&response);
-        HTTPReply response;
-        raii_evhttp_request req = obtain_evhttp_request(http_request_done, (void*)&response);
-        if (req == NULL)
-            throw std::runtime_error("create http request failed");
-        #if LIBEVENT_VERSION_NUMBER >= 0x02010300
-            evhttp_request_set_error_cb(req.get(), http_error_cb);
-        #endif
-
-
-        if (req == NULL) {
-            throw std::runtime_error("evhttp_connection_base_bufferevent_new() failed\n");
-        }
-
-        struct evkeyvalq* output_headers = evhttp_request_get_output_headers(req.get());
-        LogPrintf("adding Host to header: %s\n", host);
-        evhttp_add_header(output_headers, "Host", host);
-        evhttp_add_header(output_headers, "Connection", "close");
-        evhttp_add_header(output_headers, "Content-Type", "application/json");
-
-
-
-
-/// from ---
-
-
-    // Attach request data
-    std::string strRequest = JSONRPCRequestObj(strMethod, params, 1).write();
-    struct evbuffer* output_buffer = evhttp_request_get_output_buffer(req.get());
-    assert(output_buffer);
-
-    LogPrintf("port: %d\n", port);
-    LogPrintf("POST request: %s\n",strRequest);
-
-
-    evbuffer_add(output_buffer, strRequest.data(), strRequest.size());
-    size_t bytes = strRequest.size()-1;
-    LogPrintf("output buffer: %s\n", output_buffer);
-
-
-    //Add content length header
-    //char buf[1024];
-    //evutil_snprintf(buf, sizeof(buf)-1, "%lu", (unsigned long)bytes);
-    //evhttp_add_header(output_headers, "Content-Length", buf);
-
-
-    LogPrintf("sending request\n");
-
-    int r = evhttp_make_request(evcon.get(), req.get(), EVHTTP_REQ_POST, uri.c_str());
-    //req.release(); // ownership moved to evcon in above call
-
-    LogPrintf("request result: %d\n", r);
-
-    req->release(); // ownership moved to evcon in above call
-    if (r != 0) {
-        throw CConnectionFailed("send http request failed");
-    }
-
-    LogPrintf("event_base_dispatch\n");
-    event_base_dispatch(base.get());
-    LogPrintf("dispatched -checking response\n");
-    ss.str("");
-    ss << "checking response - body: " << response.body << " status: " << response.status << " error: " << response.error << std::endl;
-    LogPrintf(ss.str());
-
-    LogPrintf("checked response\n");
-
-    if (response.status == 0){
-        LogPrintf("connect to server failed\n");
-        throw CConnectionFailed(strprintf("couldn't connect to server: %s (code %d)\n(make sure server is running and you are connecting to the correct RPC port)", http_errorstring(response.error), response.error));
-    }
-    else if (response.status == HTTP_UNAUTHORIZED)
-        if (connectToMainchain)
-            throw std::runtime_error("incorrect mainchainrpcuser or mainchainrpcpassword (authorization failed)");
-        else
-            throw std::runtime_error("incorrect rpcuser or rpcpassword (authorization failed)");
-    else if (response.status >= 400 && response.status != HTTP_BAD_REQUEST && response.status != HTTP_NOT_FOUND && response.status != HTTP_INTERNAL_SERVER_ERROR)
-        throw std::runtime_error(strprintf("server returned HTTP error %d", response.status));
-    else if (response.body.empty())
-        throw std::runtime_error("no response from server");
-
-    LogPrintf("parsing reply");
-    // Parse reply
-    UniValue valReply(UniValue::VSTR);
-    if (!valReply.read(response.body))
-        throw std::runtime_error("couldn't parse reply from server");
-    const UniValue& reply = valReply.get_obj();
-    if (reply.empty())
-        throw std::runtime_error("expected reply to have result, error and id properties");
-
-    return reply;
-
-}
-
-
-
 UniValue CallRPC(const std::string& strMethod, const UniValue& params, bool connectToMainchain)
 {
 
@@ -680,3 +389,410 @@ bool IsConfirmedBitcoinBlock(const uint256& hash, int nMinConfirmationDepth)
     }
     return true;
 }
+
+
+/* See http://archives.seul.org/libevent/users/Jan-2013/msg00039.html */
+static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
+{
+    char cert_str[256];
+    const char *host = (const char *) arg;
+    const char *res_str = "X509_verify_cert failed";
+    HostnameValidationResult res = Error;
+
+    /* This is the function that OpenSSL would call if we hadn't called
+     * SSL_CTX_set_cert_verify_callback().  Therefore, we are "wrapping"
+     * the default functionality, rather than replacing it. */
+    int ok_so_far = 0;
+
+    X509 *server_cert = NULL;
+
+    if (ignore_cert) {
+        return 1;
+    }
+
+    ok_so_far = X509_verify_cert(x509_ctx);
+
+    server_cert = X509_STORE_CTX_get_current_cert(x509_ctx);
+
+    if (ok_so_far) {
+        res = validate_hostname(host, server_cert);
+
+        switch (res) {
+        case MatchFound:
+            res_str = "MatchFound";
+            break;
+        case MatchNotFound:
+            res_str = "MatchNotFound";
+            break;
+        case NoSANPresent:
+            res_str = "NoSANPresent";
+            break;
+        case MalformedCertificate:
+            res_str = "MalformedCertificate";
+            break;
+        case Error:
+            res_str = "Error";
+            break;
+        default:
+            res_str = "WTF!";
+            break;
+        }
+    }
+
+    X509_NAME_oneline(X509_get_subject_name (server_cert),
+              cert_str, sizeof (cert_str));
+
+    if (res == MatchFound) {
+        printf("https server '%s' has this certificate, "
+               "which looks good to me:\n%s\n",
+               host, cert_str);
+        return 1;
+    } else {
+        printf("Got '%s' for hostname '%s' and certificate:\n%s\n",
+               res_str, host, cert_str);
+        return 0;
+    }
+}
+
+#ifdef _WIN32
+static int
+add_cert_for_store(X509_STORE *store, const char *name)
+{
+    HCERTSTORE sys_store = NULL;
+    PCCERT_CONTEXT ctx = NULL;
+    int r = 0;
+
+    sys_store = CertOpenSystemStore(0, name);
+    if (!sys_store) {
+        err("failed to open system certificate store");
+        return -1;
+    }
+    while ((ctx = CertEnumCertificatesInStore(sys_store, ctx))) {
+        X509 *x509 = d2i_X509(NULL, (unsigned char const **)&ctx->pbCertEncoded,
+            ctx->cbCertEncoded);
+        if (x509) {
+            X509_STORE_add_cert(store, x509);
+            X509_free(x509);
+        } else {
+            r = -1;
+            err_openssl("d2i_X509");
+            break;
+        }
+    }
+    CertCloseStore(sys_store, 0);
+    return r;
+}
+#endif
+
+UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, bool connectToMainchain) {
+    LogPrintf("CallRPC_https\n");
+
+
+    string url = GetArg(string("-mainchainrpcuri"), "");
+    string strpassword = "-mainchainrpcpassword";
+    string struser = "-mainchainrpcuser";
+
+    int r;
+    struct event_base *base = NULL;
+    struct evhttp_uri *http_uri = NULL;
+
+    const char *crt = NULL;
+    const char *scheme, *host, *path, *query;
+    char uri[256];
+    int port;
+    int retries = 0;
+    int timeout = -1;
+
+    SSL_CTX *ssl_ctx = NULL;
+    SSL *ssl = NULL;
+    struct bufferevent *bev;
+    struct evhttp_connection *evcon = NULL;
+    struct evhttp_request *req;
+    struct evkeyvalq *output_headers;
+    struct evbuffer *output_buffer;
+
+    int i;
+    int ret = 0;
+    enum { HTTP, HTTPS } type = HTTP;
+
+    LogPrintf("url: %s\n", url);
+    if (!url.length()) {
+        throw std::runtime_error("no url");
+    }
+
+#ifdef _WIN32
+    {
+        WORD wVersionRequested;
+        WSADATA wsaData;
+        int err;
+
+        wVersionRequested = MAKEWORD(2, 2);
+
+        err = WSAStartup(wVersionRequested, &wsaData);
+        if (err != 0) {
+            printf("WSAStartup failed with error: %d\n", err);
+            throw std::runtime_error("WSAStartup failed with error: %d\n", err);
+        }
+    }
+#endif // _WIN32
+    LogPrintf("Parsing uri\n");
+    http_uri = evhttp_uri_parse(url.c_str());
+    if (http_uri == NULL) {
+        throw std::runtime_error("malformed url");
+    }
+
+    scheme = evhttp_uri_get_scheme(http_uri);
+    if (scheme == NULL || (strcasecmp(scheme, "https") != 0 &&
+                      
+                           strcasecmp(scheme, "http") != 0)) {
+        throw std::runtime_error("url must be http or https");
+    }
+
+    host = evhttp_uri_get_host(http_uri);
+    if (host == NULL) {
+        throw std::runtime_error("url must have a host");
+    }
+
+    port = evhttp_uri_get_port(http_uri);
+    if (port == -1) {
+        port = (strcasecmp(scheme, "http") == 0) ? 80 : 443;
+    }
+
+    path = evhttp_uri_get_path(http_uri);
+    if (strlen(path) == 0) {
+        path = "/";
+    }
+
+    query = evhttp_uri_get_query(http_uri);
+    if (query == NULL) {
+        snprintf(uri, sizeof(uri) - 1, "%s", path);
+    } else {
+        snprintf(uri, sizeof(uri) - 1, "%s?%s", path, query);
+    }
+    uri[sizeof(uri) - 1] = '\0';
+
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
+    (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
+    // Initialize OpenSSL
+    SSL_library_init();
+    ERR_load_crypto_strings();
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+#endif
+
+    LogPrintf("ssl context\n");
+
+    /* Create a new OpenSSL context */
+    ssl_ctx = SSL_CTX_new(SSLv23_method());
+    if (!ssl_ctx) {
+        throw std::runtime_error("SSL_CTX_new");
+    }
+
+    if (crt == NULL) {
+        X509_STORE *store;
+        /* Attempt to use the system's trusted root certificates. */
+        store = SSL_CTX_get_cert_store(ssl_ctx);
+#ifdef _WIN32
+        if (add_cert_for_store(store, "CA") < 0 ||
+            add_cert_for_store(store, "AuthRoot") < 0 ||
+            add_cert_for_store(store, "ROOT") < 0) {
+            throw std::runtime_error("cert store error");
+        }
+#else // _WIN32
+        if (X509_STORE_set_default_paths(store) != 1) {
+            throw std::runtime_error("X509_STORE_set_default_paths");
+        }
+#endif // _WIN32
+    } else {
+        if (SSL_CTX_load_verify_locations(ssl_ctx, crt, NULL) != 1) {
+            throw std::runtime_error("SSL_CTX_load_verify_locations");
+        }
+    }
+    /* Ask OpenSSL to verify the server certificate.  Note that this
+     * does NOT include verifying that the hostname is correct.
+     * So, by itself, this means anyone with any legitimate
+     * CA-issued certificate for any website, can impersonate any
+     * other website in the world.  This is not good.  See "The
+     * Most Dangerous Code in the World" article at
+     * https://crypto.stanford.edu/~dabo/pubs/abstracts/ssl-client-bugs.html
+     */
+    SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
+    /* This is how we solve the problem mentioned in the previous
+     * comment.  We "wrap" OpenSSL's validation routine in our
+     * own routine, which also validates the hostname by calling
+     * the code provided by iSECPartners.  Note that even though
+     * the "Everything You've Always Wanted to Know About
+     * Certificate Validation With OpenSSL (But Were Afraid to
+     * Ask)" paper from iSECPartners says very explicitly not to
+     * call SSL_CTX_set_cert_verify_callback (at the bottom of
+     * page 2), what we're doing here is safe because our
+     * cert_verify_callback() calls X509_verify_cert(), which is
+     * OpenSSL's built-in routine which would have been called if
+     * we hadn't set the callback.  Therefore, we're just
+     * "wrapping" OpenSSL's routine, not replacing it. */
+    SSL_CTX_set_cert_verify_callback(ssl_ctx, cert_verify_callback,
+                      (void *) host);
+
+    LogPrintf("event base\n");
+    // Create event base
+    base = event_base_new();
+    if (!base) {
+        throw std::runtime_error("event_base_new()");
+    }
+
+    // Create OpenSSL bufferevent and stack evhttp on top of it
+    ssl = SSL_new(ssl_ctx);
+    if (ssl == NULL) {
+        throw std::runtime_error("SSL_new()");
+    }
+
+    #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    // Set hostname for SNI extension
+    SSL_set_tlsext_host_name(ssl, host);
+    #endif
+
+    if (strcasecmp(scheme, "http") == 0) {
+        bev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
+    } else {
+        type = HTTPS;
+        bev = bufferevent_openssl_socket_new(base, -1, ssl,
+            BUFFEREVENT_SSL_CONNECTING,
+            BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
+    }
+
+    if (bev == NULL) {
+        throw std::runtime_error("bufferevent_openssl_socket_new() failed");
+    }
+
+    LogPrintf("allow dirty shutdown\n");
+    bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
+
+    // For simplicity, we let DNS resolution block. Everything else should be
+    // asynchronous though.
+    evcon = evhttp_connection_base_bufferevent_new(base, NULL, bev,
+        host, port);
+    if (evcon == NULL) {
+        throw std::runtime_error("evhttp_connection_base_bufferevent_new() failed");
+    }
+
+    if (retries > 0) {
+        evhttp_connection_set_retries(evcon, retries);
+    }
+    if (timeout >= 0) {
+        evhttp_connection_set_timeout(evcon, timeout);
+    }
+
+    // Fire off the request
+    HTTPSReply response;
+    response.bev = bev;
+    req = evhttp_request_new(https_request_done, (void*)&response);
+    if (req == NULL) {
+        throw std::runtime_error("evhttp_request_new() failed");
+    }
+
+
+    LogPrintf("output headers\n");
+    output_headers = evhttp_request_get_output_headers(req);
+    evhttp_add_header(output_headers, "Host", host);
+    evhttp_add_header(output_headers, "Connection", "close");
+    evhttp_add_header(output_headers, "Content-Type", "application/json");
+
+    //Put request data in here
+//    if (data_file) {
+        /* NOTE: In production code, you'd probably want to use
+         * evbuffer_add_file() or evbuffer_add_file_segment(), to
+         * avoid needless copying. */
+//        FILE * f = fopen(data_file, "rb");
+//        char buf[1024];
+//        size_t s;
+//        size_t bytes = 0;
+
+//        if (!f) {
+//            throw std::runtime_error("no file");
+//            goto error;
+//        }
+
+//        output_buffer = evhttp_request_get_output_buffer(req);
+//        while ((s = fread(buf, 1, sizeof(buf), f)) > 0) {
+//            evbuffer_add(output_buffer, buf, s);
+//            bytes += s;
+//        }
+//        evutil_snprintf(buf, sizeof(buf)-1, "%lu", (unsigned long)bytes);
+//        evhttp_add_header(output_headers, "Content-Length", buf);
+//        fclose(f);
+//    }
+
+    LogPrintf("request data\n");
+    // Attach request data
+    std::string strRequest = JSONRPCRequestObj(strMethod, params, 1).write() + "\n";
+    output_buffer = evhttp_request_get_output_buffer(req);
+    assert(output_buffer);
+
+    LogPrintf("port: %d", port);
+    LogPrintf("POST request: %s",strRequest);
+
+    evbuffer_add(output_buffer, strRequest.data(), strRequest.size());
+    
+
+    r = evhttp_make_request(evcon, req, EVHTTP_REQ_POST, uri);
+    if (r != 0) {
+        throw std::runtime_error("evhttp_make_request() failed");
+    }
+
+    event_base_dispatch(base);
+
+    LogPrintf("response body: %s\n", response.body);
+
+    UniValue valReply(UniValue::VSTR);
+    if (!valReply.read(response.body)){
+            LogPrintf("failed to read respone body.\n", response.body);
+            throw std::runtime_error("couldn't parse reply from server");
+    }
+    LogPrintf("getting reply object\n");
+    const UniValue& reply = valReply.get_obj();
+    LogPrintf("got reply object\n");
+    if (reply.empty()){
+        LogPrintf("empty reply.\n");
+        throw std::runtime_error("expected reply to have result, error and id properties");
+    }
+
+
+    LogPrintf("cleaning up: %s", response.body);
+    //cleanup
+    if (evcon)
+        evhttp_connection_free(evcon);
+    if (http_uri)
+        evhttp_uri_free(http_uri);
+    if (base)
+        event_base_free(base);
+
+    if (ssl_ctx)
+        SSL_CTX_free(ssl_ctx);
+    if (type == HTTP && ssl)
+        SSL_free(ssl);
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
+    (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
+    EVP_cleanup();
+    ERR_free_strings();
+
+#if OPENSSL_VERSION_NUMBER < 0x10000000L
+    ERR_remove_state(0);
+#else
+    ERR_remove_thread_state(NULL);
+#endif
+
+    CRYPTO_cleanup_all_ex_data();
+
+    sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
+#endif /* (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
+    (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L) */
+
+#ifdef _WIN32
+    WSACleanup();
+#endif
+
+
+    LogPrintf("returning reply: %s", response.body);
+    return reply;
+}
+
