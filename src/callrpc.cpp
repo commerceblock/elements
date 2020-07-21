@@ -185,14 +185,11 @@ static void http_error_cb(enum evhttp_request_error err, void *ctx)
 #endif
 
 UniValue CallRPC_http(const std::string& strMethod, const UniValue& params, bool connectToMainchain) {
-    LogPrintf("CallRPC_http\n");
     std::string strhost = "-rpcconnect";
     std::string strport = "-rpcport";
     std::string struser = "-rpcuser";
     std::string strpassword = "-rpcpassword";
 
-    SSL_CTX *ssl_ctx = NULL;
-    SSL *ssl = NULL;
 
     int port = GetArg(strport, BaseParams().RPCPort());
 
@@ -260,13 +257,6 @@ UniValue CallRPC_http(const std::string& strMethod, const UniValue& params, bool
     std::string strRequest = JSONRPCRequestObj(strMethod, params, 1).write() + "\n";
     struct evbuffer* output_buffer = evhttp_request_get_output_buffer(req.get());
     assert(output_buffer);
-
-    LogPrintf("port: %d", port);
-    LogPrintf("POST request: %s",strRequest);
-    LogPrintf("Host: %s",host.c_str());
-    LogPrintf("Connection: %s","close");
-    LogPrintf("Authorization: %s", (std::string("Basic ") + EncodeBase64(strRPCUserColonPass)).c_str());
-
 
     evbuffer_add(output_buffer, strRequest.data(), strRequest.size());
 
@@ -484,8 +474,6 @@ add_cert_for_store(X509_STORE *store, const char *name)
 #endif
 
 UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, bool connectToMainchain) {
-    LogPrintf("CallRPC_https\n");
-
 
     string url = GetArg(string("-mainchainrpcuri"), "");
     string strpassword = "-mainchainrpcpassword";
@@ -514,7 +502,6 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     int ret = 0;
     enum { HTTP, HTTPS } type = HTTP;
 
-    LogPrintf("url: %s\n", url);
     if (!url.length()) {
         throw std::runtime_error("no url");
     }
@@ -534,7 +521,6 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
         }
     }
 #endif // _WIN32
-    LogPrintf("Parsing uri\n");
     http_uri = evhttp_uri_parse(url.c_str());
     if (http_uri == NULL) {
         throw std::runtime_error("malformed url");
@@ -578,8 +564,6 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 #endif
-
-    LogPrintf("ssl context\n");
 
     /* Create a new OpenSSL context */
     ssl_ctx = SSL_CTX_new(SSLv23_method());
@@ -632,7 +616,6 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     SSL_CTX_set_cert_verify_callback(ssl_ctx, cert_verify_callback,
                       (void *) host);
 
-    LogPrintf("event base\n");
     // Create event base
     base = event_base_new();
     if (!base) {
@@ -663,7 +646,6 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
         throw std::runtime_error("bufferevent_openssl_socket_new() failed");
     }
 
-    LogPrintf("allow dirty shutdown\n");
     bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
 
     // For simplicity, we let DNS resolution block. Everything else should be
@@ -690,45 +672,15 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     }
 
 
-    LogPrintf("output headers\n");
     output_headers = evhttp_request_get_output_headers(req);
     evhttp_add_header(output_headers, "Host", host);
     evhttp_add_header(output_headers, "Connection", "close");
     evhttp_add_header(output_headers, "Content-Type", "application/json");
 
-    //Put request data in here
-//    if (data_file) {
-        /* NOTE: In production code, you'd probably want to use
-         * evbuffer_add_file() or evbuffer_add_file_segment(), to
-         * avoid needless copying. */
-//        FILE * f = fopen(data_file, "rb");
-//        char buf[1024];
-//        size_t s;
-//        size_t bytes = 0;
-
-//        if (!f) {
-//            throw std::runtime_error("no file");
-//            goto error;
-//        }
-
-//        output_buffer = evhttp_request_get_output_buffer(req);
-//        while ((s = fread(buf, 1, sizeof(buf), f)) > 0) {
-//            evbuffer_add(output_buffer, buf, s);
-//            bytes += s;
-//        }
-//        evutil_snprintf(buf, sizeof(buf)-1, "%lu", (unsigned long)bytes);
-//        evhttp_add_header(output_headers, "Content-Length", buf);
-//        fclose(f);
-//    }
-
-    LogPrintf("request data\n");
     // Attach request data
     std::string strRequest = JSONRPCRequestObj(strMethod, params, 1).write() + "\n";
     output_buffer = evhttp_request_get_output_buffer(req);
     assert(output_buffer);
-
-    LogPrintf("port: %d", port);
-    LogPrintf("POST request: %s",strRequest);
 
     evbuffer_add(output_buffer, strRequest.data(), strRequest.size());
     
@@ -739,8 +691,6 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     }
 
     event_base_dispatch(base);
-
-    LogPrintf("response body: %s\n", response.body);
 
     stringstream ss;
     if (response.status == 0){
@@ -769,19 +719,14 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
 
     UniValue valReply(UniValue::VSTR);
     if (!valReply.read(response.body)){
-            LogPrintf("failed to read respone body.\n", response.body);
             throw std::runtime_error("couldn't parse reply from server");
     }
-    LogPrintf("getting reply object\n");
     const UniValue& reply = valReply.get_obj();
-    LogPrintf("got reply object\n");
     if (reply.empty()){
-        LogPrintf("empty reply.\n");
         throw std::runtime_error("expected reply to have result, error and id properties");
     }
 
 
-    LogPrintf("cleaning up: %s", response.body);
     //cleanup
     if (evcon)
         evhttp_connection_free(evcon);
@@ -816,7 +761,6 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
 #endif
 
 
-    LogPrintf("returning reply: %s", response.body);
     return reply;
 }
 
