@@ -557,6 +557,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-disabledoutput", strprintf(_("Hard-fork changes to disable outputs")));
     }
     strUsage += HelpMessageOpt("-validatepegin", strprintf(_("Validate pegin claims. All functionaries must run this. (default: %u)"), DEFAULT_VALIDATE_PEGIN));
+    strUsage += HelpMessageOpt("-mainchainrpcuri=<addr>", strprintf("The uri which the daemon will try to connect to validate peg-ins, if enabled. This is required for https connections. This setting overrides mainchainrpchost and mainchainrpcport, which are http only. (default: none)"));
     strUsage += HelpMessageOpt("-mainchainrpchost=<addr>", strprintf("The address which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
     strUsage += HelpMessageOpt("-mainchainrpcport=<port>", strprintf("The port which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
     strUsage += HelpMessageOpt("-mainchainrpcuser=<username>", strprintf("The rpc username that the daemon will use to connect to validate peg-ins, if enabled. (default: cookie auth)"));
