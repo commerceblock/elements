@@ -14,6 +14,8 @@
 #include <event2/event.h>
 #include <sstream>
 #include <string>
+#include <list>
+#include <tuple>
 
 // Get rid of OSX 10.7 and greater deprecation warnings.
 #if defined(__APPLE__) && defined(__clang__)
@@ -53,6 +55,11 @@ extern "C" {
 
 using stringstream = std::stringstream;
 using string = std::string;
+using std::list;
+//template <typename T> using list<T> = std::list<T>;
+using std::get;
+using osl_error = std::tuple<unsigned long, string>;
+using socket_error = std::tuple<int, string>;
 
 static int ignore_cert = 0;
 
@@ -69,11 +76,12 @@ struct HTTPReply
 /** Reply structure for request_done to fill in */
 struct HTTPSReply
 {
-    HTTPSReply(): status(0), error(-1) {}
+    HTTPSReply(): status(0), socket_error({-1,""}), bev(nullptr) {}
 
     int status;
-    int error;
     std::string body;
+    socket_error socket_error;
+    list<osl_error> osl_errors;
     struct bufferevent* bev;
 };
 
@@ -109,46 +117,37 @@ https_request_done(struct evhttp_request *req, void *ctx)
     int nread, ntotal(0);
 
     if (!req || !evhttp_request_get_response_code(req)) {
-        /* If req is NULL, it means an error occurred, but
-         * sadly we are mostly left guessing what the error
-         * might have been.  We'll do our best... */
+        if(req) reply->status=evhttp_request_get_response_code(req);
+
         struct bufferevent *bev = (struct bufferevent *) reply->bev;
         unsigned long oslerr;
         int printed_err = 0;
         int errcode = EVUTIL_SOCKET_ERROR();
-        fprintf(stderr, "some request failed - no idea which one though!\n");
-        /* Print out the OpenSSL error queue that libevent
-         * squirreled away for us, if any. */
+
         while ((oslerr = bufferevent_get_openssl_error(bev))) {
             ERR_error_string_n(oslerr, buffer, sizeof(buffer));
-            fprintf(stderr, "%s\n", buffer);
-            printed_err = 1;
+            reply->osl_errors.push_back(osl_error{oslerr, string(buffer)});
         }
-        /* If the OpenSSL error queue was empty, maybe it was a
-         * socket error; let's try printing that. */
-        if (! printed_err)
-            fprintf(stderr, "socket error = %s (%d)\n",
-                evutil_socket_error_to_string(errcode),
-                errcode);
+
+        if (! reply->osl_errors.size()){
+            reply->socket_error = {errcode, string(evutil_socket_error_to_string(errcode))};
+        }
         return;
     }
+
+    reply->status=evhttp_request_get_response_code(req);
  
-    reply->status = evhttp_request_get_response_code(req);
-
     stringstream ss;
-
     while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req),
             buffer, sizeof(buffer)))
            > 0) {
         /* These are just arbitrary chunks of 256 bytes.
          * They are not lines, so we can't treat them as such. */
-//        fwrit, nread, 1, stdout);
         ss << buffer;
         ntotal+=nread;
     }
     ss << std::endl;
     reply->body = ss.str().substr(0,ntotal+1);
-
 }
 
 static void http_request_done(struct evhttp_request *req, void *ctx)
@@ -742,6 +741,31 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     event_base_dispatch(base);
 
     LogPrintf("response body: %s\n", response.body);
+
+    stringstream ss;
+    if (response.status == 0){
+        ss << ("error: ");
+        if (response.osl_errors.size() > 0 ){
+            ss << response.osl_errors.size() << " osl errors: " << std::endl;
+            for (int nerr=0; auto& err : response.osl_errors) {
+                ss << "error " << nerr << ": " << get<1>(err) << ", code(" << get<0>(err) << ")" << std::endl;
+            }
+        } else {
+            ss << "socket error: " << get<1>(response.socket_error) << ", code(" << get<0>(response.socket_error) << ")" << std::endl;
+        }   
+
+        throw CConnectionFailed(ss.str());
+    }
+    else if (response.status == HTTP_UNAUTHORIZED)
+        if (connectToMainchain)
+            throw std::runtime_error("incorrect mainchainrpcuser or mainchainrpcpassword (authorization failed)");
+        else
+            throw std::runtime_error("incorrect rpcuser or rpcpassword (authorization failed)");
+    else if (response.status >= 400 && response.status != HTTP_BAD_REQUEST && response.status != HTTP_NOT_FOUND && response.status != HTTP_INTERNAL_SERVER_ERROR)
+        throw std::runtime_error(strprintf("server returned HTTP error %d", response.status));
+    else if (response.body.empty())
+        throw std::runtime_error("no response from server");
+
 
     UniValue valReply(UniValue::VSTR);
     if (!valReply.read(response.body)){
