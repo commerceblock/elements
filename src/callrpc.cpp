@@ -121,7 +121,6 @@ https_request_done(struct evhttp_request *req, void *ctx)
 
         struct bufferevent *bev = (struct bufferevent *) reply->bev;
         unsigned long oslerr;
-        int printed_err = 0;
         int errcode = EVUTIL_SOCKET_ERROR();
 
         while ((oslerr = bufferevent_get_openssl_error(bev))) {
@@ -498,8 +497,6 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     struct evkeyvalq *output_headers;
     struct evbuffer *output_buffer;
 
-    int i;
-    int ret = 0;
     enum { HTTP, HTTPS } type = HTTP;
 
     if (!url.length()) {
