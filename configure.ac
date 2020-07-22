@@ -799,7 +799,7 @@ if test x$use_pkgconfig = xyes; then
         BITCOIN_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
       fi
       if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
-#        PKG_CHECK_MODULES([EVENT], [libevent],, [AC_MSG_ERROR(libevent not found.)])
+        PKG_CHECK_MODULES([EVENT], [libevent],, [AC_MSG_ERROR(libevent not found.)])
 	PKG_CHECK_MODULES([EVENT_OPENSSL], [libevent_openssl],, [AC_MSG_ERROR(libevent_openssl not found.)])
         if test x$TARGET_OS != xwindows; then
           PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads],, [AC_MSG_ERROR(libevent_pthreads not found.)])
@@ -826,7 +826,7 @@ else
 
   if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
     AC_CHECK_HEADER([event2/event.h],, AC_MSG_ERROR(libevent headers missing),)
-#    AC_CHECK_LIB([event],[main],EVENT_LIBS=-levent,AC_MSG_ERROR(libevent missing))
+    AC_CHECK_LIB([event],[main],EVENT_LIBS=-levent,AC_MSG_ERROR(libevent missing))
     AC_CHECK_LIB([event_openssl],[main],EVENT_OPENSSL_LIBS=-levent_openssl,AC_MSG_ERROR(libevent_openssl missing))
     if test x$TARGET_OS != xwindows; then
       AC_CHECK_LIB([event_pthreads],[main],EVENT_PTHREADS_LIBS=-levent_pthreads,AC_MSG_ERROR(libevent_pthreads missing))
@@ -1110,7 +1110,7 @@ AC_SUBST(MINIUPNPC_CPPFLAGS)
 AC_SUBST(MINIUPNPC_LIBS)
 AC_SUBST(CRYPTO_LIBS)
 AC_SUBST(SSL_LIBS)
-#AC_SUBST(EVENT_LIBS)
+AC_SUBST(EVENT_LIBS)
 AC_SUBST(EVENT_OPENSSL_LIBS)
 AC_SUBST(EVENT_PTHREADS_LIBS)
 AC_SUBST(ZMQ_LIBS)

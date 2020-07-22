@@ -445,7 +445,7 @@ oceand_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-oceand_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_OPENSSL_LIBS) $(ZMQ_LIBS)
+oceand_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_OPENSSL_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
 
 # bitcoin-cli binary #
 ocean_cli_SOURCES = bitcoin-cli.cpp
@@ -463,7 +463,7 @@ ocean_cli_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-ocean_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_OPENSSL_LIBS)
+ocean_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_OPENSSL_LIBS) $(EVENT_LIBS)
 #
 
 # bitcoin-tx binary #
@@ -484,7 +484,7 @@ ocean_tx_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-ocean_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS) $(EVENT_OPENSSL_LIBS)
+ocean_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS) $(EVENT_OPENSSL_LIBS) $(EVENT_LIBS)
 #
 
 # bitcoinconsensus library #
