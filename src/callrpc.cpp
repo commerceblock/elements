@@ -75,11 +75,11 @@ struct HTTPReply
 /** Reply structure for request_done to fill in */
 struct HTTPSReply
 {
-    HTTPSReply(): status(0), socket_error({-1,""}), bev(nullptr) {}
+  HTTPSReply(): status(0), body(""), sock_err(socket_error(-1,"")) {}
 
     int status;
     std::string body;
-    socket_error socket_error;
+    socket_error sock_err;
     list<osl_error> osl_errors;
     struct bufferevent* bev;
 };
@@ -128,7 +128,7 @@ https_request_done(struct evhttp_request *req, void *ctx)
         }
 
         if (! reply->osl_errors.size()){
-            reply->socket_error = {errcode, string(evutil_socket_error_to_string(errcode))};
+            reply->sock_err = {errcode, string(evutil_socket_error_to_string(errcode))};
         }
         return;
     }
@@ -693,11 +693,12 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
         ss << ("error: ");
         if (response.osl_errors.size() > 0 ){
             ss << response.osl_errors.size() << " osl errors: " << std::endl;
-            for (int nerr=0; auto& err : response.osl_errors) {
+	    int nerr=0;
+            for (auto& err : response.osl_errors) {
                 ss << "error " << nerr << ": " << get<1>(err) << ", code(" << get<0>(err) << ")" << std::endl;
             }
         } else {
-            ss << "socket error: " << get<1>(response.socket_error) << ", code(" << get<0>(response.socket_error) << ")" << std::endl;
+            ss << "socket error: " << get<1>(response.sock_err) << ", code(" << get<0>(response.sock_err) << ")" << std::endl;
         }   
 
         throw CConnectionFailed(ss.str());
