@@ -44,6 +44,7 @@ UniValue JSONRPCReplyObj(const UniValue& result, const UniValue& error, const Un
     else
         reply.push_back(Pair("result", result));
     reply.push_back(Pair("error", error));
+    reply.push_back(Pair("error", error));
     reply.push_back(Pair("id", id));
     return reply;
 }
