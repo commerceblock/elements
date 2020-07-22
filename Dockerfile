@@ -1,4 +1,4 @@
-FROM commerceblock/base:a5032ff
+FROM commerceblock/base:1142fc1
 
 COPY . /usr/src/package
 
