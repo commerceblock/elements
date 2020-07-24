@@ -11,7 +11,7 @@ elif [ -f /run/secrets/ocean_pass ]; then
     creds=("--rpcpassword=$(cat /run/secrets/ocean_pass)")
 fi
 
-command="${creds[@]} ${params[@]}"
+command="${creds[@]}${params[@]}"
 
 if [[ "$1" = "oceand" ]]; then
     exec gosu bitcoin "$@" "${command}"
