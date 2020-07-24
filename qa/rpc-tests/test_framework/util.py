@@ -397,6 +397,8 @@ def stop_node(node, i):
 def stop_nodes(nodes):
     for i, node in enumerate(nodes):
         stop_node(node, i)
+    print("processes still running:")
+    print(bitcoind_processes.values())
     assert not bitcoind_processes.values() # All connections must be gone now
 
 def set_node_times(nodes, t):
