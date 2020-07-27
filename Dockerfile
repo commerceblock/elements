@@ -8,12 +8,11 @@ RUN set -ex \
     && ./autogen.sh \
     && ./configure --without-gui \
     && make clean \
-#    && make -j$(nproc) \
-    && make \
+    && make -j$(nproc) \
     && echo "Running tests" \
     && make check \
-//    && echo "Running Python QA tests" \
-//    && ./qa/pull-tester/rpc-tests.py \
+    && echo "Running Python QA tests" \
+    && ./qa/pull-tester/rpc-tests.py \
     && make install \
     && make clean \
     && cd /usr/src \

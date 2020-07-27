@@ -105,7 +105,6 @@ BITCOIN_CORE_H = \
   ecies_hex.h \
   ethaddress.h \
   global/common.h \
-  hostcheck.h \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
@@ -122,7 +121,6 @@ BITCOIN_CORE_H = \
   netbase.h \
   netmessagemaker.h \
   noui.h \
-  openssl_hostname_validation.h \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
@@ -311,11 +309,9 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/validation.h \
   hash.cpp \
   hash.h \
-  hostcheck.c \
   issuance.h \
   issuance.cpp \
   merkleblock.cpp \
-  openssl_hostname_validation.c \
   pow.cpp \
   prevector.h \
   primitives/block.cpp \
@@ -395,8 +391,6 @@ libbitcoin_util_a_SOURCES = \
   compat/glibc_sanity.cpp \
   compat/glibcxx_sanity.cpp \
   compat/strnlen.cpp \
-  hostcheck.c \
-  openssl_hostname_validation.c \
   random.cpp \
   rpc/protocol.cpp \
   support/cleanse.cpp \

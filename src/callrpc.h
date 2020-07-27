@@ -12,6 +12,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <future>
 
 //#include <univalue.h>
 #include "univalue/include/univalue.h"

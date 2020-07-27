@@ -65,6 +65,7 @@ void WaitForShutdown(boost::thread_group* threadGroup)
 //
 bool AppInit(int argc, char* argv[])
 {
+  
     boost::thread_group threadGroup;
     CScheduler scheduler;
 
