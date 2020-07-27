@@ -674,7 +674,10 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     evhttp_add_header(output_headers, "Content-Type", "application/json");
 
     // Attach request data
-    std::string strRequest = JSONRPCRequestObj(strMethod, params, 1).write() + "\n";
+    UniValue jsonRequest=JSONRPCRequestObj(strMethod, params, 1);
+    jsonRequest.push_front(Pair("jsonrpc","2.0"));
+    std::string strRequest = jsonRequest.write() + "\n";
+    //    std::string strRequest = JSONRPCRequestObj(strMethod, params, 1).write() + "\n";
     output_buffer = evhttp_request_get_output_buffer(req);
     assert(output_buffer);
 

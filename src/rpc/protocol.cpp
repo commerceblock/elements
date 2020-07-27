@@ -30,7 +30,7 @@ using namespace std;
 UniValue JSONRPCRequestObj(const string& strMethod, const UniValue& params, const UniValue& id)
 {
     UniValue request(UniValue::VOBJ);
-    request.push_back(Pair("jsonrpc", string("2.0")));
+    //    request.push_back(Pair("jsonrpc", string("2.0")));
     request.push_back(Pair("method", strMethod));
     request.push_back(Pair("params", params));
     request.push_back(Pair("id", id));
@@ -44,8 +44,10 @@ UniValue JSONRPCReplyObj(const UniValue& result, const UniValue& error, const Un
       reply.push_back(Pair("result", NullUniValue));
       reply.push_back(Pair("error", error));
     }
-    else
+    else{
         reply.push_back(Pair("result", result));
+	//	reply.push_back(Pair("error", NullUniValue));
+    }
     reply.push_back(Pair("id", id));
     reply.push_back(Pair("jsonrpc", string("2.0")));
     return reply;

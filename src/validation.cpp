@@ -2345,7 +2345,7 @@ bool BitcoindRPCCheck(const bool init)
     vblocksToReconsider = vblocksToReconsiderAgain;
     vblocksToReconsiderAgain.clear();
     pblocktree->WriteInvalidBlockQueue(vblocksToReconsider);
-
+    std::stringstream ss;
     //Next, check for working rpc
     if (GetBoolArg("-validatepegin", DEFAULT_VALIDATE_PEGIN)) {
         while (true) {
@@ -2356,7 +2356,9 @@ bool BitcoindRPCCheck(const bool init)
                 UniValue reply = CallRPC("eth_getBlockByNumber", params, true);
                 UniValue error = find_value(reply, "error");
                 if (!error.isNull()) {
-                    LogPrintf("ERROR: Geth RPC check returned 'error' response.\n");
+                    ss.str("ERROR: Geth RPC check returned 'error' response: ");
+                    ss << error.get_str() << endl;
+                    LogPrintf(ss.str());
                     return false;
                 }
                 UniValue result = reply["result"];

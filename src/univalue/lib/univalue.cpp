@@ -170,6 +170,15 @@ bool UniValue::setObject()
     return true;
 }
 
+bool UniValue::push_front(const UniValue& val_)
+{
+    if (typ != VARR)
+        return false;
+
+    values.insert(values.begin(),val_);
+    return true;
+}
+
 bool UniValue::push_back(const UniValue& val_)
 {
     if (typ != VARR)
@@ -196,6 +205,16 @@ bool UniValue::pushKV(const std::string& key, const UniValue& val_)
 
     keys.push_back(key);
     values.push_back(val_);
+    return true;
+}
+
+bool UniValue::pushKV_front(const std::string& key, const UniValue& val_)
+{
+    if (typ != VOBJ)
+        return false;
+
+    keys.insert(keys.begin(),key);
+    values.insert(values.begin(),val_);
     return true;
 }
 
