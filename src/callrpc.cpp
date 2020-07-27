@@ -188,6 +188,7 @@ UniValue CallRPC_http(const std::string& strMethod, const UniValue& params, bool
     std::string struser = "-rpcuser";
     std::string strpassword = "-rpcpassword";
 
+
     int port = GetArg(strport, BaseParams().RPCPort());
 
     if (connectToMainchain) {
@@ -198,13 +199,18 @@ UniValue CallRPC_http(const std::string& strMethod, const UniValue& params, bool
         port = GetArg(strport, BaseParams().MainchainRPCPort());
     }
 
+    
+
     std::string host = GetArg(strhost, DEFAULT_RPCCONNECT);
+   
     // Obtain event base
     raii_event_base base = obtain_event_base();
 
     // Synchronously look up hostname
     raii_evhttp_connection evcon = obtain_evhttp_connection_base(base.get(), host, port);
     evhttp_connection_set_timeout(evcon.get(), GetArg("-rpcclienttimeout", DEFAULT_HTTP_CLIENT_TIMEOUT));
+
+
 
     HTTPReply response;
     raii_evhttp_request req = obtain_evhttp_request(http_request_done, (void*)&response);
@@ -233,18 +239,21 @@ UniValue CallRPC_http(const std::string& strMethod, const UniValue& params, bool
 
     struct evkeyvalq* output_headers = evhttp_request_get_output_headers(req.get());
     assert(output_headers);
+    
     evhttp_add_header(output_headers, "Host", host.c_str());
     evhttp_add_header(output_headers, "Connection", "close");
+    evhttp_add_header(output_headers, "Authorization", (std::string("Basic ") + EncodeBase64(strRPCUserColonPass)).c_str());
     if (connectToMainchain) {
         // Add json content header required by geth rpc api
         evhttp_add_header(output_headers, "Content-Type", "application/json");
     }
-    evhttp_add_header(output_headers, "Authorization", (std::string("Basic ") + EncodeBase64(strRPCUserColonPass)).c_str());
+
 
     // Attach request data
     std::string strRequest = JSONRPCRequestObj(strMethod, params, 1).write() + "\n";
     struct evbuffer* output_buffer = evhttp_request_get_output_buffer(req.get());
     assert(output_buffer);
+
     evbuffer_add(output_buffer, strRequest.data(), strRequest.size());
 
     int r = evhttp_make_request(evcon.get(), req.get(), EVHTTP_REQ_POST, "/");
@@ -663,9 +672,7 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     evhttp_add_header(output_headers, "Content-Type", "application/json");
 
     // Attach request data
-    UniValue jsonRequest=JSONRPCRequestObj(strMethod, params, 1);
-    jsonRequest.push_back(Pair("jsonrpc","2.0"));
-    std::string strRequest = jsonRequest.write() + "\n";
+    std::string strRequest = JSONRPCRequestObj(strMethod, params, 1).write() + "\n";
     output_buffer = evhttp_request_get_output_buffer(req);
     assert(output_buffer);
 
