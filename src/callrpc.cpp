@@ -327,19 +327,28 @@ UniValue GetEthTransaction(const uint256& hash)
 
 bool IsConfirmedEthBlock(const int64_t& nHeight, int nMinConfirmationDepth)
 {
+    std::stringstream ss;
     try {
         UniValue params(UniValue::VARR);
         UniValue reply = CallRPC("eth_blockNumber", params, true);
-        if (!find_value(reply, "error").isNull())
+        if (!find_value(reply, "error").isNull()){
+            LogPrintf("eth_blockNumber returned Null\n");
             return false;
+        }
         UniValue result = find_value(reply, "result");
-        if (!result.isStr())
+        if (!result.isStr()){
+            LogPrintf("Result is not a string\n");
             return false;
+        }
         auto nLatestHeight = std::strtoll(result.get_str().c_str(), NULL, 16);
         if (nLatestHeight == 0) { // still syncing
             UniValue reply = CallRPC("eth_syncing", params, true);
-            if (!find_value(reply, "error").isNull())
+            if (!find_value(reply, "error").isNull()){
+                ss.str("eth_syncing returned an error: ");
+                ss << find_value(reply, "error").get_str() << std::endl;
+                LogPrintf(ss.str());
                 return false;
+            }
             UniValue result = find_value(reply, "result");
             nLatestHeight = std::strtoll(find_value(result, "highestBlock").get_str().c_str(), NULL, 16);
         }
