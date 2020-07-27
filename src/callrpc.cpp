@@ -243,11 +243,6 @@ UniValue CallRPC_http(const std::string& strMethod, const UniValue& params, bool
     evhttp_add_header(output_headers, "Host", host.c_str());
     evhttp_add_header(output_headers, "Connection", "close");
     evhttp_add_header(output_headers, "Authorization", (std::string("Basic ") + EncodeBase64(strRPCUserColonPass)).c_str());
-    if (connectToMainchain) {
-        // Add json content header required by geth rpc api
-        evhttp_add_header(output_headers, "Content-Type", "application/json");
-    }
-
 
     // Attach request data
     std::string strRequest = JSONRPCRequestObj(strMethod, params, 1).write() + "\n";
