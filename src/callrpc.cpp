@@ -472,13 +472,11 @@ add_cert_for_store(X509_STORE *store, const char *name)
 #endif
 
 UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, bool connectToMainchain) {
-
     string url = GetArg(string("-mainchainrpcuri"), "");
     string strpassword = "-mainchainrpcpassword";
     string struser = "-mainchainrpcuser";
 
     int r;
-    struct event_base *base = NULL;
     struct evhttp_uri *http_uri = NULL;
 
     const char *crt = NULL;
@@ -613,10 +611,12 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
                       (void *) host);
 
     // Create event base
-    base = event_base_new();
+    struct event_base *base = event_base_new();
     if (!base) {
         throw std::runtime_error("event_base_new()");
     }
+  
+
 
     // Create OpenSSL bufferevent and stack evhttp on top of it
     ssl = SSL_new(ssl_ctx);
@@ -726,7 +726,6 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
         throw std::runtime_error("expected reply to have result, error and id properties");
     }
 
-
     //cleanup
     if (evcon)
         evhttp_connection_free(evcon);
@@ -734,11 +733,17 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
         evhttp_uri_free(http_uri);
     if (base)
         event_base_free(base);
-
     if (ssl_ctx)
         SSL_CTX_free(ssl_ctx);
     if (type == HTTP && ssl)
         SSL_free(ssl);
+
+    cleanup();
+    return reply;
+}
+
+void cleanup() {
+  
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
     (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
     EVP_cleanup();
@@ -760,7 +765,5 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, boo
     WSACleanup();
 #endif
 
-
-    return reply;
 }
 
