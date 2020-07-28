@@ -4,8 +4,11 @@ COPY . /usr/src/package
 
 # Build Ocean
 RUN set -ex \
-    && git clone --branch v0.8.1 https://github.com/jpbarrette/curlpp.git \
-    && cd curlpp \
+    && yum -y install wget \
+    && wget https://github.com/jpbarrette/curlpp/archive/v0.8.1.tar.gz \
+    && echo "97e3819bdcffc3e4047b6ac57ca14e04af85380bd93afe314bee9dd5c7f46a0a v0.8.1.tar.gz" | sha256sum -c \
+    && tar xvfz v0.8.1.tar.gz \
+    && cd curlpp-0.8.1 \
     && mkdir build \
     && cd build \
     && cmake .. \
