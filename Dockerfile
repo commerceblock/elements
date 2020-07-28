@@ -4,6 +4,15 @@ COPY . /usr/src/package
 
 # Build Ocean
 RUN set -ex \
+    && git clone --branch v0.8.1 https://github.com/jpbarrette/curlpp.git \
+    && cd curlpp \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make \
+    && make install \
+    && export CURLPP_LIBS=`curlpp-config --libs` \
+    && export CURLPP_CFLAGS=`curlpp-config --cflags` \
     && cd /usr/src/package \
     && ./autogen.sh \
     && ./configure --without-gui \
