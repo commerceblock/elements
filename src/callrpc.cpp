@@ -346,10 +346,11 @@ bool IsConfirmedBitcoinBlock(const uint256& hash, int nMinConfirmationDepth)
 
 UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, 
     bool connectToMainchain) {
+
     cURLpp::Easy request;
     string url = GetArg(string("-mainchainrpcuri"), "");
     request.setOpt(new cURLpp::Options::Url(url));
-    request.setOpt(new curlpp::options::Verbose(true));
+    request.setOpt(new curlpp::options::Verbose(false));
 
     std::list<std::string> header;
     //evhttp_add_header(output_headers, "Host", host);
