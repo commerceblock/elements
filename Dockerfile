@@ -16,6 +16,7 @@ RUN set -ex \
     && make install \
     && export CURLPP_LIBS=`curlpp-config --libs` \
     && export CURLPP_CFLAGS=`curlpp-config --cflags` \
+    && export LD_LIBRARY_PATH=/usr/local/lib64 \
     && cd /usr/src/package \
     && ./autogen.sh \
     && ./configure --without-gui \
