@@ -105,7 +105,6 @@ BITCOIN_CORE_H = \
   ecies_hex.h \
   ethaddress.h \
   global/common.h \
-  hostcheck.h \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
@@ -122,7 +121,6 @@ BITCOIN_CORE_H = \
   netbase.h \
   netmessagemaker.h \
   noui.h \
-  openssl_hostname_validation.h \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
@@ -189,7 +187,7 @@ obj/build.h: FORCE
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
 # server: shared between bitcoind and bitcoin-qt
-libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_OPENSSL_CFLAGS) $(EVENT_PTHREADS_CFLAGS) 
+libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_PTHREADS_CFLAGS) $(CURLPP_CFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
@@ -311,11 +309,9 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/validation.h \
   hash.cpp \
   hash.h \
-  hostcheck.c \
   issuance.h \
   issuance.cpp \
   merkleblock.cpp \
-  openssl_hostname_validation.c \
   pow.cpp \
   prevector.h \
   primitives/block.cpp \
@@ -384,7 +380,7 @@ libbitcoin_common_a_SOURCES = \
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc
 # backward-compatibility objects and their sanity checks are linked.
-libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_OPENSSL_CFLAGS)
+libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(CURLPP_CFLAGS)
 libbitcoin_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_util_a_SOURCES = \
   support/lockedpool.cpp \
@@ -395,8 +391,6 @@ libbitcoin_util_a_SOURCES = \
   compat/glibc_sanity.cpp \
   compat/glibcxx_sanity.cpp \
   compat/strnlen.cpp \
-  hostcheck.c \
-  openssl_hostname_validation.c \
   random.cpp \
   rpc/protocol.cpp \
   support/cleanse.cpp \
@@ -445,7 +439,7 @@ oceand_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-oceand_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_OPENSSL_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
+oceand_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(CURLPP_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
 
 # bitcoin-cli binary #
 ocean_cli_SOURCES = bitcoin-cli.cpp
@@ -463,7 +457,7 @@ ocean_cli_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-ocean_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_OPENSSL_LIBS) $(EVENT_LIBS)
+ocean_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS) $(CURLPP_LIBS)
 #
 
 # bitcoin-tx binary #
@@ -484,7 +478,7 @@ ocean_tx_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-ocean_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS) $(EVENT_OPENSSL_LIBS) $(EVENT_LIBS)
+ocean_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS) $(CURLPP_LIBS)
 #
 
 # bitcoinconsensus library #

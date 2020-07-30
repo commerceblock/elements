@@ -23,6 +23,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <stdio.h>
 
@@ -64,6 +65,7 @@ void WaitForShutdown(boost::thread_group* threadGroup)
 //
 bool AppInit(int argc, char* argv[])
 {
+  
     boost::thread_group threadGroup;
     CScheduler scheduler;
 
@@ -120,9 +122,13 @@ bool AppInit(int argc, char* argv[])
 
         // Command-line RPC
         bool fCommandLine = false;
-        for (int i = 1; i < argc; i++)
-            if (!IsSwitchChar(argv[i][0]) && !boost::algorithm::istarts_with(argv[i], "bitcoin:"))
+        for (int i = 1; i < argc; i++){
+            //Remove whitespace
+            std::string arg = std::string(argv[i]);
+            boost::trim(arg);
+            if (!IsSwitchChar(arg[0]) && !boost::algorithm::istarts_with(arg, "bitcoin:"))
                 fCommandLine = true;
+        }
 
         if (fCommandLine)
         {

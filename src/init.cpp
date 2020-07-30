@@ -8,6 +8,7 @@
 #endif
 
 #include "init.h"
+#include "curlpp/cURLpp.hpp"
 #include "policy/whitelistEncrypted.h"
 #include "addrman.h"
 #include "amount.h"
@@ -268,6 +269,7 @@ void Shutdown()
 #endif
     globalVerifyHandle.reset();
     ECC_Stop();
+    cURLpp::terminate();
     LogPrintf("%s: done\n", __func__);
 }
 
@@ -759,6 +761,7 @@ bool InitSanityCheck(void)
 
 bool AppInitServers(boost::thread_group& threadGroup)
 {
+    cURLpp::initialize();
     RPCServer::OnStarted(&OnRPCStarted);
     RPCServer::OnStopped(&OnRPCStopped);
     RPCServer::OnPreCommand(&OnRPCPreCommand);
