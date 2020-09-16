@@ -159,6 +159,16 @@ protected:
                 consensus.coinbase_change.insert(std::make_pair(height,cbdest));
             }
         }
+        if (mapMultiArgs.count("-contractchange")) {
+            BOOST_FOREACH(std::string conch, mapMultiArgs.at("-contractchange"))
+            {
+                int delim = conch.find(':');
+                uint256 contract;
+                contract.SetHex(conch.substr(0,delim));
+                int height = std::stoi(conch.substr(delim+1));
+                consensus.contract_change.insert(std::make_pair(height,contract));
+            }
+        }
         if (mapMultiArgs.count("-signblockscriptchange")) {
             BOOST_FOREACH(std::string sbsc, mapMultiArgs.at("-signblockscriptchange"))
             {
