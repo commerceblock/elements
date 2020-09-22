@@ -1839,7 +1839,7 @@ bool CheckValidTweakedAddress(const pubKeyPair& p){
 }
 
 bool CheckValidTweakedAddress(const CTxDestination& keyID, const CPubKey& pubKey){
-    uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+    uint256 contract = GetContractHash("",0);
 
     CTxDestination dest = keyID;
     CPubKey tmpPubKey = pubKey;
@@ -1856,9 +1856,8 @@ bool CheckValidTweakedAddress(const CTxDestination& keyID, const CPubKey& pubKey
 
 //Used for multisig P2SH checking that has been created with tweaked addresses
 bool CheckValidTweakedAddress(const CTxDestination& keyID, const std::vector<CPubKey>& pubKeys, const uint8_t& nMultisig){
-
     std::vector<CPubKey> tweakedPubKeys = pubKeys;
-    uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+    uint256 contract = GetContractHash("",0);
 
     if (!contract.IsNull()){
         for (size_t it = 0; it < tweakedPubKeys.size(); ++it){

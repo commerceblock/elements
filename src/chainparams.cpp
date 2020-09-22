@@ -68,7 +68,7 @@ static CBlock CreateGenesisBlock(const Consensus::Params& params, const std::str
     genesis.hashPrevBlock.SetNull();
     genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
     if (GetBoolArg("-embedcontract", DEFAULT_EMBED_CONTRACT)) {
-        genesis.hashContract = GetContractHash(networkID);
+        genesis.hashContract = GetContractHash(networkID,0);
     }
     if (GetBoolArg("-embedmapping", DEFAULT_EMBED_MAPPING)) {
         // no mapping exists at/prior to the genesis
@@ -159,6 +159,13 @@ protected:
                 consensus.coinbase_change.insert(std::make_pair(height,cbdest));
             }
         }
+        if (mapMultiArgs.count("-contractchange")) {
+            BOOST_FOREACH(std::string conch, mapMultiArgs.at("-contractchange"))
+            {
+                int height = std::stoi(conch);
+                consensus.contract_change.insert(height);
+            }
+        }
         if (mapMultiArgs.count("-signblockscriptchange")) {
             BOOST_FOREACH(std::string sbsc, mapMultiArgs.at("-signblockscriptchange"))
             {
@@ -168,6 +175,7 @@ protected:
                 consensus.signblockscript_change.insert(std::make_pair(height,sbs));
             }
         }
+
         if (mapMultiArgs.count("-freezelistassetchange")) {
             BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-freezelistassetchange"))
             {

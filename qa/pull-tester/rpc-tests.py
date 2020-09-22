@@ -121,6 +121,7 @@ testScripts = [
     'hardfork.py',
     'hardfork_disable.py',
     'hardfork_policy.py',
+    'contractfork.py',
     # Accounts not supported
     #'wallet-accounts.py',
     # TODO fix mininode

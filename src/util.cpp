@@ -15,6 +15,11 @@
 #include "sync.h"
 #include "utilstrencodings.h"
 #include "utiltime.h"
+#include "chainparams.h"
+#include "consensus/params.h"
+#include "consensus/consensus.h"
+
+
 
 #include <stdarg.h>
 #include <stdexcept>
@@ -131,7 +136,7 @@ const unordered_set<string> availableArgs = {
 "-choosedatadir","-lang","-min","-rootcertificates","-splash","-resetguisettings","-uiplatform","-rpcssl","-benchmark","-socks","-debugnet","-walletprematurewitness","-prematurewitness","-promiscuousmempoolflags","-con_fpowallowmindifficultyblocks",
 "-con_fpownoretargeting","-con_nsubsidyhalvinginterval","-con_bip34height","-con_bip65height","-con_bip66height","-con_npowtargettimespan","-con_npowtargetspacing","-con_nrulechangeactivationthreshold","-con_nminerconfirmationwindow","-con_powlimit",
 "-con_parentpowlimit","-con_bip34hash","-con_nminimumchainwork","-con_defaultassumevalid","-parentgenesisblockhash","-ndefaultport","-npruneafterheight","-fdefaultconsistencychecks","-frequirestandard","-fmineblocksondemand","-ct_bits","-ct_exponent",
-"-anyonecanspendaremine","-fminingrequirespeers","-con_mandatorycoinbase","-recoverwhitelistkeys","-coinbasechange","-signblockscriptchange","-freezelistassetchange","-burnlistassetchange","-whitelistassetchange","-challengeassetchange","-issuanceassetchange","-disabledoutput"};
+"-anyonecanspendaremine","-fminingrequirespeers","-con_mandatorycoinbase","-recoverwhitelistkeys","-coinbasechange","-signblockscriptchange","-freezelistassetchange","-burnlistassetchange","-whitelistassetchange","-challengeassetchange","-issuanceassetchange","-disabledoutput","-contractchange"};
 bool fDebug = false;
 bool fPrintToConsole = false;
 bool fPrintToAll = false;
@@ -905,9 +910,24 @@ std::string GetFileFromDataDir(const char* fileName)
     return fileStr;
 }
 
-std::string GetContract()
+std::string GetContract(const std::string& network, uint32_t nHeight)
 {
-    const auto contractPath = CONTRACT_FILE_PATH + BaseParams().DataDir() + "/latest.txt";
+    auto contractPath = CONTRACT_FILE_PATH + BaseParams().DataDir() + "/latest.txt";
+    uint32_t version = 1;
+    if(Params().GetConsensus().contract_change.size() > 0) {
+        uint32_t count = 0;
+        for(auto iter = Params().GetConsensus().contract_change.rbegin(); iter != Params().GetConsensus().contract_change.rend(); ++iter) {
+            if(nHeight < *iter && nHeight >= count) {
+                break;
+            }
+            version++;
+            count = *iter;
+        }
+    }
+    if(version <= Params().GetConsensus().contract_change.size()) {
+        std::string suffix = std::to_string(version);
+        contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/old" + suffix + ".txt";
+    }
     return GetFileFromDataDir(contractPath.c_str());
 }
 
@@ -916,17 +936,47 @@ std::string GetContract()
  * Contract is stored in the datadir in a dedicated dir for each network name
  * Add network optional argument in case BaseParams() has not been defined yet
  */
-uint256 GetContractHash(const std::string& network)
+uint256 GetContractHash(const std::string& network, uint32_t nHeight)
 {
-    const auto contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/latest.txt";
-    const std::string contract = GetFileFromDataDir(contractPath.c_str());
+    uint256 contracthash;
+    auto contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/latest.txt";
+
+    if(nHeight == 0) {
+        auto initPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/old1.txt";
+        std::string contract = GetFileFromDataDir(initPath.c_str());
+        if(contract != "") {
+            contractPath = initPath;
+        }
+    } else {
+        uint32_t version = 1;
+        if(Params().GetConsensus().contract_change.size() > 0) {
+            uint32_t count = 0;
+            for(auto iter = Params().GetConsensus().contract_change.rbegin(); iter != Params().GetConsensus().contract_change.rend(); ++iter) {
+                if(nHeight < *iter && nHeight >= count) {
+                    break;
+                }
+                version++;
+                count = *iter;
+            }
+        }
+        if(version <= Params().GetConsensus().contract_change.size()) {
+            std::string suffix = std::to_string(version);
+            contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/old" + suffix + ".txt";
+        }
+    }
+
+    std::string contract = GetFileFromDataDir(contractPath.c_str());
     if (contract == "")
     {
-        return uint256S("");
+        contracthash = uint256S("");
+    } else {
+        std::vector<unsigned char> terms(contract.begin(), contract.end());
+        contracthash = Hash(terms.begin(), terms.end());
     }
-    std::vector<unsigned char> terms(contract.begin(), contract.end());
-    return Hash(terms.begin(), terms.end());
+    return contracthash;
 }
+
+
 
 uint256 GetMappingHash()
 {

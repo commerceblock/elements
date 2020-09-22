@@ -233,7 +233,8 @@ void SetPolicy(uint32_t nHeight) {
 
 bool IsContractInTx(CTransaction const &tx) {
   txnouttype whichType;
-  uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+  uint32_t nHeight = chainActive.Height();
+  uint256 contract = GetContractHash("",nHeight);
 
   for (CTxOut const &txout : tx.vout) {
     opcodetype opcode;

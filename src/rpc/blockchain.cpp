@@ -2377,8 +2377,7 @@ UniValue getcontracthash(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
     }
 
-    CBlockIndex* pblockindex = chainActive[nHeight];
-    return pblockindex->hashContract.ToString();
+    return GetContractHash("",nHeight).ToString();
 }
 
 UniValue getcontract(const JSONRPCRequest& request)
@@ -2397,7 +2396,7 @@ UniValue getcontract(const JSONRPCRequest& request)
                 );
 
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("contract", GetContract()));
+    ret.push_back(Pair("contract", GetContract("",chainActive.Height())));
     return ret;
 }
 

@@ -548,6 +548,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-permissioncoinsdestination", strprintf(_("The destination of the tokens for permitting request creation. (default: %d)"), 0));
         strUsage += HelpMessageOpt("-issuancecoinsdestination", strprintf(_("The destination of the issued tokens. (default: %d)"), 0));
         strUsage += HelpMessageOpt("-coinbasechange", strprintf(_("Hard-fork changes to the coinbase payment address (script:blockheight)")));
+        strUsage += HelpMessageOpt("-contractchange", strprintf(_("Contract change (blockheight)")));
         strUsage += HelpMessageOpt("-signblockscriptchange", strprintf(_("Hard-fork changes to the signblockscriptchange (script:blockheight)")));
         strUsage += HelpMessageOpt("-freezelistassetchange", strprintf(_("Hard-fork changes to the freezelist asset (asset:blockheight)")));
         strUsage += HelpMessageOpt("-burnlistassetchange", strprintf(_("Hard-fork changes to the burnlist asset (asset:blockheight)")));
