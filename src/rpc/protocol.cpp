@@ -40,7 +40,7 @@ UniValue JSONRPCReplyObj(const UniValue& result, const UniValue& error, const Un
 {
     UniValue reply(UniValue::VOBJ);
     if (!error.isNull())
-        reply.push_back(Pair("result", NullUniValue));
+      reply.push_back(Pair("result", NullUniValue));
     else
         reply.push_back(Pair("result", result));
     reply.push_back(Pair("error", error));

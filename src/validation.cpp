@@ -2254,10 +2254,18 @@ void ThreadScriptCheck() {
 bool IsValidEthPegin(const UniValue& tx, const CAmount& nAmount, const CPubKey& pubKey, std::string& strFailReason)
 {
     try {
+        std::stringstream ss;
         auto txLogs = find_value(tx, "logs");
+        if (txLogs.isNull()){
+            strFailReason = "Eth Tx logs empty";
+            return false;
+        }
         const auto ercTransferHash = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
         // Find ERC-20 Transfer
         for (size_t i=0; i<txLogs.size(); ++i) {
+            ss.str("Topic hash: ");
+            ss << find_value(txLogs[i], "topics")[0].get_str() << std::endl;
+            LogPrintf(ss.str());
             if (find_value(txLogs[i], "topics")[0].get_str() == ercTransferHash) {
                 // Check that the correct CBT ERC-20 contract is paid to
                 uint160 ethContract;
@@ -2306,10 +2314,18 @@ bool IsValidEthPegin(const UniValue& tx, const CAmount& nAmount, const CPubKey& 
 bool IsConfirmedEthPegin(const UniValue& tx, std::string& strFailReason)
 {
     try {
+        std::stringstream ss;
         auto txLogs = find_value(tx, "logs");
+        if (txLogs.isNull()){
+            strFailReason = "Eth Tx logs empty";
+            return false;
+        }
         const auto ercTransferHash = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
         // Find ERC-20 Transfer
         for (size_t i=0; i<txLogs.size(); ++i) {
+            ss.str("Topic hash: ");
+            ss << find_value(txLogs[i], "topics")[0].get_str() << std::endl;
+            LogPrintf(ss.str());
             if (find_value(txLogs[i], "topics")[0].get_str() == ercTransferHash) {
                 // Check tx number of confirmations
                 if (!IsConfirmedEthBlock(std::strtoll(find_value(txLogs[i], "blockNumber").get_str().c_str(), NULL, 16),
@@ -2344,7 +2360,7 @@ bool BitcoindRPCCheck(const bool init)
     vblocksToReconsider = vblocksToReconsiderAgain;
     vblocksToReconsiderAgain.clear();
     pblocktree->WriteInvalidBlockQueue(vblocksToReconsider);
-
+    std::stringstream ss;
     //Next, check for working rpc
     if (GetBoolArg("-validatepegin", DEFAULT_VALIDATE_PEGIN)) {
         while (true) {
@@ -2355,7 +2371,9 @@ bool BitcoindRPCCheck(const bool init)
                 UniValue reply = CallRPC("eth_getBlockByNumber", params, true);
                 UniValue error = find_value(reply, "error");
                 if (!error.isNull()) {
-                    LogPrintf("ERROR: Geth RPC check returned 'error' response.\n");
+                    ss.str("ERROR: Geth RPC check returned 'error' response: ");
+                    ss << error.get_str() << endl;
+                    LogPrintf(ss.str());
                     return false;
                 }
                 UniValue result = reply["result"];
@@ -2765,6 +2783,10 @@ bool IsValidEthPeginWitness(const CScriptWitness& pegin_witness, const COutPoint
     // Finally, validate peg-in via rpc call
     if (check_tx && GetBoolArg("-validatepegin", DEFAULT_VALIDATE_PEGIN)) {
         const auto &tx = GetEthTransaction(txid);
+        if (tx.isNull()){
+            strFailReason = "Failed to get eth transaction";
+            return false;
+        }
         claim_pubkey.Decompress(); // eth addresses require full pubkey
         return IsValidEthPegin(tx, value, claim_pubkey, strFailReason) && IsConfirmedEthPegin(tx, strFailReason);
     }

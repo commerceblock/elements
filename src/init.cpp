@@ -8,6 +8,7 @@
 #endif
 
 #include "init.h"
+#include "curlpp/cURLpp.hpp"
 #include "policy/whitelistEncrypted.h"
 #include "addrman.h"
 #include "amount.h"
@@ -268,6 +269,7 @@ void Shutdown()
 #endif
     globalVerifyHandle.reset();
     ECC_Stop();
+    cURLpp::terminate();
     LogPrintf("%s: done\n", __func__);
 }
 
@@ -558,6 +560,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-disabledoutput", strprintf(_("Hard-fork changes to disable outputs")));
     }
     strUsage += HelpMessageOpt("-validatepegin", strprintf(_("Validate pegin claims. All functionaries must run this. (default: %u)"), DEFAULT_VALIDATE_PEGIN));
+    strUsage += HelpMessageOpt("-mainchainrpcuri=<addr>", strprintf("The uri which the daemon will try to connect to validate peg-ins, if enabled. This is required for https connections. This setting overrides mainchainrpchost and mainchainrpcport, which are http only. (default: none)"));
     strUsage += HelpMessageOpt("-mainchainrpchost=<addr>", strprintf("The address which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
     strUsage += HelpMessageOpt("-mainchainrpcport=<port>", strprintf("The port which the daemon will try to connect to validate peg-ins, if enabled. (default: cookie auth)"));
     strUsage += HelpMessageOpt("-mainchainrpcuser=<username>", strprintf("The rpc username that the daemon will use to connect to validate peg-ins, if enabled. (default: cookie auth)"));
@@ -759,6 +762,7 @@ bool InitSanityCheck(void)
 
 bool AppInitServers(boost::thread_group& threadGroup)
 {
+    cURLpp::initialize();
     RPCServer::OnStarted(&OnRPCStarted);
     RPCServer::OnStopped(&OnRPCStopped);
     RPCServer::OnPreCommand(&OnRPCPreCommand);

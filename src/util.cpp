@@ -85,6 +85,7 @@
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/predicate.hpp> // for startswith() and endswith()
+#include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/foreach.hpp>
@@ -128,7 +129,7 @@ const unordered_set<string> availableArgs = {
 "-bytespersigop","-registeraddress","-registeraddresssize","-datacarrier","-datacarriersize","-attestationhash","-blockmaxweight","-blockmaxsize","-blockprioritysize","-blockmintxfee","-blockversion","-embedcontract","-embedmapping","-issuecontrolscript",
 "-recordinflation","-contractintx","-contractinkycfile","-server","-rest","-rpcbind","-rpccookiefile","-rpcuser","-rpcauth","-rpcport","-rpcallowip","-rpcthreads","-rpcworkqueue","-rpcservertimeout","-fedpegscript","-signblockscript",
 "-fedpegaddress","-parentcontract","-peginconfirmationdepth","-initialfreecoins","-policycoins","-genesistimestamp","-initialfreecoinsdestination","-freezelistcoinsdestination","-burnlistcoinsdestination","-whitelistcoinsdestination",
-"-challengecoinsdestination","-permissioncoinsdestination","-issuancecoinsdestination","-validatepegin","-mainchainrpchost","-rpcpassword","-mainchainrpcport","-mainchainrpcuser","-mainchainrpcpassword","-mainchainrpccookiefile",
+"-challengecoinsdestination","-permissioncoinsdestination","-issuancecoinsdestination","-validatepegin","-mainchainrpcuri","-mainchainrpchost","-rpcpassword","-mainchainrpcport","-mainchainrpcuser","-mainchainrpcpassword","-mainchainrpccookiefile",
 "-listen","-debugnet","-socks","-tor","-benchmark","-whitelistalwaysrelay","-blockminsize","-freezelistcoinsdestination","-burnlistcoinsdestination","-whitelistcoinsdestination","-challengecoinsdestination","-permissioncoinsdestination"
 "-issuancecoinsdestination","-whitelist","-reindex","-rescan","-pkhwhitelist-encrypt","-pkhwhitelist-scan","-chain","-regtest","-testnet","-rpcconnect","-rpcwait","-rpcclienttimeout","-stdin","-h","-help","-version","-rpcssl","-named","-create","-json","-txid",
 "-disablewallet","-wallet","-salvagewallet","-walletnotify","-limitancestorcount","-limitdescendantcount","-walletrejectlongchains","-limitancestorsize","-limitdescendantsize","-keypool","-disablect","-fallbackfee","-mintxfee","-paytxfee","-sendfreetransactions",
@@ -459,6 +460,7 @@ void ParseParameters(int argc, const char* const argv[])
     for (int i = 1; i < argc; i++)
     {
         std::string str(argv[i]);
+        boost::trim(str);
         std::string strValue;
         size_t is_index = str.find('=');
         if (is_index != std::string::npos)

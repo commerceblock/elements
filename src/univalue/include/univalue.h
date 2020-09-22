@@ -92,9 +92,16 @@ public:
         std::string s(val_);
         return push_back(s);
     }
+    bool push_front(const UniValue& val);
+    bool push_front(const std::string& val_) {
+        UniValue tmpVal(VSTR, val_);
+        return push_front(tmpVal);
+    }
+
     bool push_backV(const std::vector<UniValue>& vec);
 
     bool pushKV(const std::string& key, const UniValue& val);
+    bool pushKV_front(const std::string& key, const UniValue& val);
     bool pushKV(const std::string& key, const std::string& val_) {
         UniValue tmpVal(VSTR, val_);
         return pushKV(key, tmpVal);
@@ -155,6 +162,9 @@ public:
     enum VType type() const { return getType(); }
     bool push_back(std::pair<std::string,UniValue> pear) {
         return pushKV(pear.first, pear.second);
+    }
+    bool push_front(std::pair<std::string,UniValue> pear) {
+        return pushKV_front(pear.first, pear.second);
     }
     friend const UniValue& find_value( const UniValue& obj, const std::string& name);
 };
