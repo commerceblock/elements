@@ -15,11 +15,7 @@
 #include "sync.h"
 #include "utilstrencodings.h"
 #include "utiltime.h"
-#include "chainparams.h"
-#include "consensus/params.h"
-#include "consensus/consensus.h"
-
-
+#include "validation.h"
 
 #include <stdarg.h>
 #include <stdexcept>
