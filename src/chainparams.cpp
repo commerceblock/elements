@@ -120,6 +120,86 @@ void CChainParams::UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nSta
     consensus.vDeployments[d].nTimeout = nTimeout;
 }
 
+std::string GetContract(const std::string& network, uint32_t nHeight)
+{
+    auto contractPath = CONTRACT_FILE_PATH + BaseParams().DataDir() + "/latest.txt";
+    uint32_t version = 1;
+    if(Params().GetConsensus().contract_change.size() > 0) {
+        uint32_t count = 0;
+        for(auto iter = Params().GetConsensus().contract_change.rbegin(); iter != Params().GetConsensus().contract_change.rend(); ++iter) {
+            if(nHeight < *iter && nHeight >= count) {
+                break;
+            }
+            version++;
+            count = *iter;
+        }
+    }
+    if(version <= Params().GetConsensus().contract_change.size()) {
+        std::string suffix = std::to_string(version);
+        contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/old" + suffix + ".txt";
+    }
+    return GetFileFromDataDir(contractPath.c_str());
+}
+
+/**
+ * Get Hash of terms and conditions Contract
+ * Contract is stored in the datadir in a dedicated dir for each network name
+ * Add network optional argument in case BaseParams() has not been defined yet
+ */
+uint256 GetContractHash(const std::string& network, uint32_t nHeight)
+{
+    uint256 contracthash;
+    auto contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/latest.txt";
+
+    if(nHeight == 0) {
+        auto initPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/old1.txt";
+        std::string contract = GetFileFromDataDir(initPath.c_str());
+        if(contract != "") {
+            contractPath = initPath;
+        }
+    } else {
+        uint32_t version = 1;
+        if(Params().GetConsensus().contract_change.size() > 0) {
+            uint32_t count = 0;
+            for(auto iter = Params().GetConsensus().contract_change.rbegin(); iter != Params().GetConsensus().contract_change.rend(); ++iter) {
+                if(nHeight < *iter && nHeight >= count) {
+                    break;
+                }
+                version++;
+                count = *iter;
+            }
+        }
+        if(version <= Params().GetConsensus().contract_change.size()) {
+            std::string suffix = std::to_string(version);
+            contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/old" + suffix + ".txt";
+        }
+    }
+
+    std::string contract = GetFileFromDataDir(contractPath.c_str());
+    if (contract == "")
+    {
+        contracthash = uint256S("");
+    } else {
+        std::vector<unsigned char> terms(contract.begin(), contract.end());
+        contracthash = Hash(terms.begin(), terms.end());
+    }
+    return contracthash;
+}
+
+
+uint256 GetMappingHash()
+{
+    const auto mappingPath = MAPPING_FILE_PATH + BaseParams().DataDir() + "/latest.json";
+    const std::string mapping = GetFileFromDataDir(mappingPath.c_str());
+    if (mapping == "")
+    {
+        return uint256S("");
+    }
+    std::vector<unsigned char> object(mapping.begin(), mapping.end());
+    return Hash(object.begin(), object.end());
+}
+
+
 /**
  * Custom chain params
  */

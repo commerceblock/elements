@@ -135,9 +135,6 @@ void OpenAuditLog();
 void ShrinkDebugFile();
 void runCommand(const std::string& strCommand);
 std::string GetFileFromDataDir(const char* fileName);
-std::string GetContract(const std::string& network, uint32_t nHeight);
-uint256 GetContractHash(const std::string& network, uint32_t nHeight);
-uint256 GetMappingHash();
 
 inline bool IsSwitchChar(char c)
 {
