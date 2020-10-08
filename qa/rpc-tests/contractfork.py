@@ -44,10 +44,6 @@ class ContractForkTest (BitcoinTestFramework):
 
         assert(contracthash == "55f1a7f85f8fdc9d1cae38d30afe24f153bc6c97a6b73f27c6885ef6d0d400f7")
 
-        contract = self.nodes[1].getcontract()
-
-        assert(contract["contract"] == "These are the old terms and conditions\nApprove to use the CBT network\n")
-
         self.nodes[0].generate(5)
         self.sync_all()
 
