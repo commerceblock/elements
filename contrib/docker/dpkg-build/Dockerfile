@@ -1,8 +1,8 @@
 FROM commerceblock/debbase:latest
 
 ARG token
-ENV CURLPP_LIBS -L/usr/local/lib64 -lcurl -lcurlpp \
-    CURLPP_CFLAGS -Iinclude
+ENV CURLPP_LIBS -L/usr/local/lib64 -lcurl -lcurlpp
+ENV CURLPP_CFLAGS -Iinclude
 
 RUN set -ex \
     && apt install -y jq \
