@@ -135,9 +135,24 @@ std::string GetContract(const std::string& network, uint32_t nHeight)
 uint256 GetContractHash(const std::string& network, uint32_t nHeight)
 {
     uint256 contracthash;
-
-    auto it = Params().GetConsensus().contract_change.upper_bound(nHeight); 
-    contracthash = (*it).second;
+    if(nHeight == 0) {
+        auto contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/old1.txt";
+        std::string contract = GetFileFromDataDir(contractPath.c_str());
+        if(contract == "") {
+            contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/latest.txt";
+            contract = GetFileFromDataDir(contractPath.c_str());
+        }
+        if (contract == "")
+        {
+                    contracthash = uint256S("");
+        } else {
+            std::vector<unsigned char> terms(contract.begin(), contract.end());
+            contracthash = Hash(terms.begin(), terms.end());
+        }
+    } else {
+        auto it = Params().GetConsensus().contract_change.upper_bound(nHeight); 
+        contracthash = (*it).second;
+    }
 
     return contracthash;
 }
