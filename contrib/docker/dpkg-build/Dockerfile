@@ -1,11 +1,11 @@
 FROM commerceblock/debbase:latest
 
 ARG token
-ENV CURLPP_LIBS -L/usr/local/lib64 -lcurl -lcurlpp
-ENV CURLPP_CFLAGS -Iinclude
+ENV CURLPP_LIBS="-lcurl -lcurlpp -Wl,-Bsymbolic-functions -Wl,-z,relro"
+ENV CURLPP_CFLAGS="-Iinclude -I/usr/include/x86_64-linux-gnu"
 
 RUN set -ex \
-    && apt install -y jq libcurl4-openssl-dev \
+    && apt update && apt install -y jq \
     && export repo="repos/commerceblock/ocean/releases" \
     && export release_url="https://api.github.com/${repo}/latest" \
     && export id=$(curl -sH "Authorization: token ${token}" ${release_url} | jq .id) \
@@ -15,9 +15,7 @@ RUN set -ex \
     && git pull \
     && git checkout ${tag_name} \
     && ./autogen.sh \
-    && ./configure --enable-glibc-back-compat \
-        --prefix=`pwd`/depends/x86_64-pc-linux-gnu \
-        LDFLAGS="-static-libstdc++" \
+    && ./configure --without-gui \
     && make -j$(nproc) \
     && mkdir -p ocean-${tag_name}/usr/local/bin \
     && cp src/oceand ocean-${tag_name}/usr/local/bin/ \
