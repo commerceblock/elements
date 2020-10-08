@@ -5,7 +5,7 @@ ENV CURLPP_LIBS -L/usr/local/lib64 -lcurl -lcurlpp
 ENV CURLPP_CFLAGS -Iinclude
 
 RUN set -ex \
-    && apt install -y jq \
+    && apt install -y jq libcurl4-openssl-dev \
     && export repo="repos/commerceblock/ocean/releases" \
     && export release_url="https://api.github.com/${repo}/latest" \
     && export id=$(curl -sH "Authorization: token ${token}" ${release_url} | jq .id) \
