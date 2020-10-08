@@ -122,7 +122,7 @@ CPubKey CWallet::GenerateNewKey(bool bEncryption)
 
 
     if (!Params().ContractInTx() && Params().EmbedContract() &! bEncryption) {
-        uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash(); // for BIP-175
+        uint256 contract = GetContractHash("",0); // for BIP-175
         if(!contract.IsNull()){
             // use the active block contract hash to generate keys - if this is not available use the local contract
             pubKeyPreTweak.AddTweakToPubKey((unsigned char*)contract.begin()); //tweak pubkey for reverse testing
@@ -3544,7 +3544,8 @@ std::vector<CWalletTx> CWallet::CreateTransaction(vector<CRecipient>& vecSend, C
 
         //add contract hash to transaction if option selected
         if (Params().ContractInTx()) {
-            uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+            uint32_t nHeight = chainActive.Height();
+            uint256 contract = GetContractHash("",nHeight);
             CScript scriptPubKey;
             scriptPubKey << OP_RETURN;
             scriptPubKey << std::vector<unsigned char>(contract.begin(), contract.end());

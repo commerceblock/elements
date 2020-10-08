@@ -136,7 +136,8 @@ void CWhiteListEncrypted::add_derived(const CBitcoinAddress& address,  const CPu
 
   std::vector<CPubKey> pubkeyVec;
   CPubKey tweakedPubKey(pubKey);
-  uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+  uint32_t nHeight = chainActive.Height();
+  uint256 contract = GetContractHash("",0);
   if (!contract.IsNull() && !Params().ContractInTx())
     tweakedPubKey.AddTweakToPubKey((unsigned char*)contract.begin());
   pubkeyVec.push_back(tweakedPubKey);
@@ -226,7 +227,8 @@ void CWhiteListEncrypted::add_multisig_whitelist(const CBitcoinAddress& address,
     _kycMap[keyId]=kycKeyId;
 
     std::vector<CPubKey> pubkeyVec;
-    uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+    uint32_t nHeight = chainActive.Height();
+    uint256 contract = GetContractHash("",0);
     for(unsigned int i = 0; i < pubKeys.size(); ++i) {
         CPubKey tweakedPubKey(pubKeys[i]);
         if (!contract.IsNull())

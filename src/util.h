@@ -14,6 +14,9 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include "chainparams.h"
+#include "consensus/params.h"
+#include "consensus/consensus.h"
 #include "compat.h"
 #include "tinyformat.h"
 #include "utiltime.h"
@@ -135,9 +138,6 @@ void OpenAuditLog();
 void ShrinkDebugFile();
 void runCommand(const std::string& strCommand);
 std::string GetFileFromDataDir(const char* fileName);
-std::string GetContract();
-uint256 GetContractHash(const std::string& network = "");
-uint256 GetMappingHash();
 
 inline bool IsSwitchChar(char c)
 {

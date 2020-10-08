@@ -463,7 +463,7 @@ UniValue validatederivedkeys(const JSONRPCRequest& request)
         if (!pubKey.IsFullyValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid public key");
 
-        uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+        uint256 contract = GetContractHash("",0);
         if (Params().EmbedContract() &! contract.IsNull() && !Params().ContractInTx())
             pubKey.AddTweakToPubKey((unsigned char*)contract.begin());
         CKeyID keyId;
@@ -766,7 +766,8 @@ UniValue createkycfile(const JSONRPCRequest& request)
 
     //Contract hash
     if(Params().ContractInKYCFile()){
-        uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+        uint32_t nHeight = chainActive.Height();
+        uint256 contract = GetContractHash("",nHeight);
         if(!contract.IsNull()){
             ss << "contracthash: " << contract.ToString() << "\n";
         }
@@ -819,7 +820,8 @@ UniValue createkycfile(const JSONRPCRequest& request)
         }
     }
 
-    uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+    uint32_t nHeight = chainActive.Height();
+    uint256 contract = GetContractHash("",0);
 
     // add the base58check encoded tweaked script id, untweaked pubkey hex list and n of Multisig to a stringstream
     for(unsigned int i = 0; i < multisigList.size(); ++i) {
@@ -1016,7 +1018,8 @@ UniValue dumpkycfile(const JSONRPCRequest& request)
     //Contract hash
     uint256 contract;
     if(Params().EmbedContract()){
-        contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+        uint32_t nHeight = chainActive.Height();
+        contract = GetContractHash("",nHeight);
     } else {
         contract.SetNull();
     }

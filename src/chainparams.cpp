@@ -14,6 +14,7 @@
 #include "crypto/sha256.h"
 
 #include <assert.h>
+#include <limits>
 
 #include <boost/assign/list_of.hpp>
 
@@ -68,7 +69,7 @@ static CBlock CreateGenesisBlock(const Consensus::Params& params, const std::str
     genesis.hashPrevBlock.SetNull();
     genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
     if (GetBoolArg("-embedcontract", DEFAULT_EMBED_CONTRACT)) {
-        genesis.hashContract = GetContractHash(networkID);
+        genesis.hashContract = GetContractHash(networkID,0);
     }
     if (GetBoolArg("-embedmapping", DEFAULT_EMBED_MAPPING)) {
         // no mapping exists at/prior to the genesis
@@ -120,6 +121,56 @@ void CChainParams::UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nSta
     consensus.vDeployments[d].nTimeout = nTimeout;
 }
 
+std::string GetContract(const std::string& network, uint32_t nHeight)
+{
+    auto contractPath = CONTRACT_FILE_PATH + BaseParams().DataDir() + "/latest.txt";
+    return GetFileFromDataDir(contractPath.c_str());
+}
+
+/**
+ * Get Hash of terms and conditions Contract
+ * Contract is stored in the datadir in a dedicated dir for each network name
+ * Add network optional argument in case BaseParams() has not been defined yet
+ */
+uint256 GetContractHash(const std::string& network, uint32_t nHeight)
+{
+    uint256 contracthash;
+    if(nHeight == 0) {
+        auto contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/old1.txt";
+        std::string contract = GetFileFromDataDir(contractPath.c_str());
+        if(contract == "") {
+            contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/latest.txt";
+            contract = GetFileFromDataDir(contractPath.c_str());
+        }
+        if (contract == "")
+        {
+                    contracthash = uint256S("");
+        } else {
+            std::vector<unsigned char> terms(contract.begin(), contract.end());
+            contracthash = Hash(terms.begin(), terms.end());
+        }
+    } else {
+        auto it = Params().GetConsensus().contract_change.upper_bound(nHeight); 
+        contracthash = (*it).second;
+    }
+
+    return contracthash;
+}
+
+
+uint256 GetMappingHash()
+{
+    const auto mappingPath = MAPPING_FILE_PATH + BaseParams().DataDir() + "/latest.json";
+    const std::string mapping = GetFileFromDataDir(mappingPath.c_str());
+    if (mapping == "")
+    {
+        return uint256S("");
+    }
+    std::vector<unsigned char> object(mapping.begin(), mapping.end());
+    return Hash(object.begin(), object.end());
+}
+
+
 /**
  * Custom chain params
  */
@@ -159,6 +210,51 @@ protected:
                 consensus.coinbase_change.insert(std::make_pair(height,cbdest));
             }
         }
+        if (mapMultiArgs.count("-contractchange")) {
+            uint256 contracthash;
+            uint32_t version = 1;
+            BOOST_FOREACH(std::string conch, mapMultiArgs.at("-contractchange"))
+            {
+                std::string suffix = std::to_string(version);
+                auto contractPath = CONTRACT_FILE_PATH + (BaseParams().DataDir()) + "/old" + suffix + ".txt";
+                std::string contract = GetFileFromDataDir(contractPath.c_str());
+                if (contract == "")
+                {
+                    contracthash = uint256S("");
+                } else {
+                    std::vector<unsigned char> terms(contract.begin(), contract.end());
+                    contracthash = Hash(terms.begin(), terms.end());
+                }
+                uint32_t height = std::stoi(conch);
+                consensus.contract_change.insert(std::make_pair(height,contracthash));
+            }
+
+            auto contractPath = CONTRACT_FILE_PATH + (BaseParams().DataDir()) + "/latest.txt";            
+            std::string contract = GetFileFromDataDir(contractPath.c_str());
+            if (contract == "")
+            {
+                contracthash = uint256S("");
+            } else {
+                std::vector<unsigned char> terms(contract.begin(), contract.end());
+                contracthash = Hash(terms.begin(), terms.end());
+            }
+            uint32_t height = std::numeric_limits<uint32_t>::max();
+            consensus.contract_change.insert(std::make_pair(height,contracthash));
+        } else {
+            uint256 contracthash;
+            auto contractPath = CONTRACT_FILE_PATH + (BaseParams().DataDir()) + "/latest.txt";            
+            std::string contract = GetFileFromDataDir(contractPath.c_str());
+            if (contract == "")
+            {
+                contracthash = uint256S("");
+            } else {
+                std::vector<unsigned char> terms(contract.begin(), contract.end());
+                contracthash = Hash(terms.begin(), terms.end());
+            }
+            uint32_t height = std::numeric_limits<uint32_t>::max();
+            consensus.contract_change.insert(std::make_pair(height,contracthash));
+        }
+
         if (mapMultiArgs.count("-signblockscriptchange")) {
             BOOST_FOREACH(std::string sbsc, mapMultiArgs.at("-signblockscriptchange"))
             {
@@ -168,6 +264,7 @@ protected:
                 consensus.signblockscript_change.insert(std::make_pair(height,sbs));
             }
         }
+
         if (mapMultiArgs.count("-freezelistassetchange")) {
             BOOST_FOREACH(std::string assetch, mapMultiArgs.at("-freezelistassetchange"))
             {

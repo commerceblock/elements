@@ -81,6 +81,7 @@ struct Params {
     uint256 defaultAssumeValid;
     uint32_t pegin_min_depth;
     CScript mandatory_coinbase_destination;
+    std::map<uint32_t, uint256> contract_change;
     std::map<uint32_t, CScript> coinbase_change;
     std::map<uint32_t, CScript> signblockscript_change;
     std::map<uint32_t, CAsset> freezelistasset_change;

@@ -149,7 +149,8 @@ bool CRegisterAddressScript::Append(const CTxDestination& dest){
     CTxDestination d = dest;
 
     if (!Params().ContractInTx()){
-        uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+        uint32_t nHeight = chainActive.Height();
+        uint256 contract = GetContractHash("",nHeight);
         if (!contract.IsNull())
             return false;
     }

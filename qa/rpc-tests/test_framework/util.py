@@ -204,6 +204,9 @@ def initialize_datadir(dirname, n):
     with open(os.path.join(testdir, "latest.txt"), 'w', encoding='utf8') as f:
         f.write("These are the terms and conditions\n")
         f.write("Approve to use the CBT network\n")
+    with open(os.path.join(testdir, "old1.txt"), 'w', encoding='utf8') as f:
+        f.write("These are the old terms and conditions\n")
+        f.write("Approve to use the CBT network\n")
     return datadir
 
 def rpc_auth_pair(n):

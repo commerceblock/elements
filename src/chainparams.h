@@ -169,4 +169,8 @@ void SelectParams(const std::string& chain);
  */
 void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout);
 
+std::string GetContract(const std::string& network, uint32_t nHeight);
+uint256 GetContractHash(const std::string& network, uint32_t nHeight);
+uint256 GetMappingHash();
+
 #endif // BITCOIN_CHAINPARAMS_H

@@ -172,8 +172,8 @@ bool CKYCFile::parseContractHash(const std::vector<std::string> vstr, const std:
     if(_fContractHash_parsed)
         return true;
     _fContractHash_parsed = true;
-
-    uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+    uint32_t nHeight = chainActive.Height();
+    uint256 contract = GetContractHash("",nHeight);
     if(!contract.ToString().compare(vstr[1])){
         _fContractHash=true;
     }
@@ -330,7 +330,8 @@ bool CKYCFile::is_empty(){
 }
 
 bool CKYCFile::getOnboardingScript(CScript& script, bool fBlacklist, int nVersion){
-    uint256 contract = chainActive.Tip() ? chainActive.Tip()->hashContract : GetContractHash();
+    uint32_t nHeight = chainActive.Height();
+    uint256 contract = GetContractHash("",nHeight);
     if(!contract.IsNull() && Params().ContractInKYCFile()){
         if(!_fContractHash_parsed) 
             throw std::invalid_argument(std::string(std::string(__func__) +  

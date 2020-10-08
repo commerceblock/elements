@@ -15,6 +15,7 @@
 #include "sync.h"
 #include "utilstrencodings.h"
 #include "utiltime.h"
+#include "validation.h"
 
 #include <stdarg.h>
 #include <stdexcept>
@@ -132,7 +133,7 @@ const unordered_set<string> availableArgs = {
 "-choosedatadir","-lang","-min","-rootcertificates","-splash","-resetguisettings","-uiplatform","-rpcssl","-benchmark","-socks","-debugnet","-walletprematurewitness","-prematurewitness","-promiscuousmempoolflags","-con_fpowallowmindifficultyblocks",
 "-con_fpownoretargeting","-con_nsubsidyhalvinginterval","-con_bip34height","-con_bip65height","-con_bip66height","-con_npowtargettimespan","-con_npowtargetspacing","-con_nrulechangeactivationthreshold","-con_nminerconfirmationwindow","-con_powlimit",
 "-con_parentpowlimit","-con_bip34hash","-con_nminimumchainwork","-con_defaultassumevalid","-parentgenesisblockhash","-ndefaultport","-npruneafterheight","-fdefaultconsistencychecks","-frequirestandard","-fmineblocksondemand","-ct_bits","-ct_exponent",
-"-anyonecanspendaremine","-fminingrequirespeers","-con_mandatorycoinbase","-recoverwhitelistkeys","-coinbasechange","-signblockscriptchange","-freezelistassetchange","-burnlistassetchange","-whitelistassetchange","-challengeassetchange","-issuanceassetchange","-disabledoutput"};
+"-anyonecanspendaremine","-fminingrequirespeers","-con_mandatorycoinbase","-recoverwhitelistkeys","-coinbasechange","-signblockscriptchange","-freezelistassetchange","-burnlistassetchange","-whitelistassetchange","-challengeassetchange","-issuanceassetchange","-disabledoutput","-contractchange"};
 bool fDebug = false;
 bool fPrintToConsole = false;
 bool fPrintToAll = false;
@@ -905,41 +906,6 @@ std::string GetFileFromDataDir(const char* fileName)
         file.close();
     }
     return fileStr;
-}
-
-std::string GetContract()
-{
-    const auto contractPath = CONTRACT_FILE_PATH + BaseParams().DataDir() + "/latest.txt";
-    return GetFileFromDataDir(contractPath.c_str());
-}
-
-/**
- * Get Hash of terms and conditions Contract
- * Contract is stored in the datadir in a dedicated dir for each network name
- * Add network optional argument in case BaseParams() has not been defined yet
- */
-uint256 GetContractHash(const std::string& network)
-{
-    const auto contractPath = CONTRACT_FILE_PATH + (network != "" ? network : BaseParams().DataDir()) + "/latest.txt";
-    const std::string contract = GetFileFromDataDir(contractPath.c_str());
-    if (contract == "")
-    {
-        return uint256S("");
-    }
-    std::vector<unsigned char> terms(contract.begin(), contract.end());
-    return Hash(terms.begin(), terms.end());
-}
-
-uint256 GetMappingHash()
-{
-    const auto mappingPath = MAPPING_FILE_PATH + BaseParams().DataDir() + "/latest.json";
-    const std::string mapping = GetFileFromDataDir(mappingPath.c_str());
-    if (mapping == "")
-    {
-        return uint256S("");
-    }
-    std::vector<unsigned char> object(mapping.begin(), mapping.end());
-    return Hash(object.begin(), object.end());
 }
 
 void RenameThread(const char* name)
