@@ -15,7 +15,7 @@ RUN set -ex \
     && git pull \
     && git checkout ${tag_name} \
     && ./autogen.sh \
-    && ./configure --without-gui \
+    && ./configure --without-gui --with-curlpp=no \
     && make -j$(nproc) \
     && mkdir -p ocean-${tag_name}/usr/local/bin \
     && cp src/oceand ocean-${tag_name}/usr/local/bin/ \

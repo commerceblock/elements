@@ -18,7 +18,7 @@ RUN set -ex \
     && make \
     && cd .. \
     && ./autogen.sh \
-    && ./configure --enable-glibc-back-compat \
+    && ./configure --enable-glibc-back-compat --with-curlpp=yes \
         --prefix=`pwd`/depends/x86_64-pc-linux-gnu LDFLAGS="-static-libstdc++" \
     && make \
     && tar -cvf ocean.tar --directory src oceand ocean-cli ocean-tx \
