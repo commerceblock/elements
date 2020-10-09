@@ -6,9 +6,10 @@
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
 #endif
-
 #include "init.h"
+#if ENABLE_CURLPP
 #include "curlpp/cURLpp.hpp"
+#endif // #if ENABLE_CURLP
 #include "policy/whitelistEncrypted.h"
 #include "addrman.h"
 #include "amount.h"
@@ -269,7 +270,9 @@ void Shutdown()
 #endif
     globalVerifyHandle.reset();
     ECC_Stop();
+    #if ENABLE_CURLPP
     cURLpp::terminate();
+    #endif //  #if ENABLE_CURLPP
     LogPrintf("%s: done\n", __func__);
 }
 
@@ -762,7 +765,9 @@ bool InitSanityCheck(void)
 
 bool AppInitServers(boost::thread_group& threadGroup)
 {
+    #if ENABLE_CURLPP
     cURLpp::initialize();
+    #endif  // #if ENABLE_CURLPP
     RPCServer::OnStarted(&OnRPCStarted);
     RPCServer::OnStopped(&OnRPCStopped);
     RPCServer::OnPreCommand(&OnRPCPreCommand);
@@ -980,6 +985,11 @@ bool AppInitParameterInteraction()
         if (GetBoolArg("-nodebug", false) || find(categories.begin(), categories.end(), std::string("0")) != categories.end())
             fDebug = false;
     }
+    //Check for mainchainrpcuri is curlpp diabled
+    #if ENABLE_CURLPP == 0
+    if (IsArgSet("-mainchainrpcuri"))
+        return InitError(_("Unsupported argument -mainchainrpcuri found. Ocean must be built with curlpp enabled to use this argument"));
+    #endif // #if ENABLE_CURLPP
 
     // Check for -debugnet
     if (GetBoolArg("-debugnet", false))

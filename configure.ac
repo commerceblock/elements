@@ -811,7 +811,9 @@ if test x$use_pkgconfig = xyes; then
 		    [AC_DEFINE([ENABLE_CURLPP],[1],[Define to 1 to enable curlpp functions])],
 		    [AC_DEFINE([ENABLE_CURLPP],[0],[Define to 1 to enable curlpp functions])
 		     AC_MSG_ERROR(curlpp not found.)])
-	fi
+	else
+          AC_DEFINE_UNQUOTED([ENABLE_CURLPP],[0],[Define to 1 to enable curlpp functions])
+      	fi
         if test x$TARGET_OS != xwindows; then
           PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads],, [AC_MSG_ERROR(libevent_pthreads not found.)])
         fi
@@ -1048,6 +1050,7 @@ if test x$bitcoin_enable_qt != xno; then
 fi
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "x$use_zmq" = "xyes"])
+AM_CONDITIONAL([ENABLE_CURLPP], [test "x$use_curlpp" = "xyes"])
 
 AC_MSG_CHECKING([whether to build test_bitcoin])
 if test x$use_tests = xyes; then
@@ -1125,6 +1128,7 @@ AC_SUBST(CRYPTO_LIBS)
 AC_SUBST(SSL_LIBS)
 AC_SUBST(EVENT_LIBS)
 AC_SUBST(EVENT_PTHREADS_LIBS)
+AC_SUBST(CURLPP_LIBS)
 AC_SUBST(ZMQ_LIBS)
 AC_SUBST(PROTOBUF_LIBS)
 AC_SUBST(QR_LIBS)
