@@ -97,6 +97,12 @@ AC_ARG_ENABLE([wallet],
   [enable_wallet=$enableval],
   [enable_wallet=yes])
 
+AC_ARG_WITH([curlpp],
+  [AS_HELP_STRING([--with-curlpp],
+  [use curlpp (required for Infura interface, default=no)])],
+  [use_curlpp=$withval],
+  [use_curlpp=no])
+
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
   [enable UPNP (default is yes if libminiupnpc is found)])],
@@ -799,11 +805,15 @@ if test x$use_pkgconfig = xyes; then
         BITCOIN_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
       fi
       if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
-        PKG_CHECK_MODULES([EVENT], [libevent],, [AC_MSG_ERROR(libevent not found.)])
-	PKG_CHECK_MODULES([CURLPP], [curlpp],, [AC_MSG_ERROR(curlpp not found.)])
-        if test x$TARGET_OS != xwindows; then
-          PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads],, [AC_MSG_ERROR(libevent_pthreads not found.)])
-        fi
+      	 PKG_CHECK_MODULES([EVENT], [libevent],, [AC_MSG_ERROR(libevent not found.)])
+	 if test x$use_curlpp != xno; then
+	    PKG_CHECK_MODULES([CURLPP], [curlpp],, [AC_MSG_ERROR(curlpp not found.)])
+	 else
+	    AC_DEFINE_UNQUOTED([ENABLE_CURLPP],[0],[Define to 1 to enable curlpp functions])
+      	 fi
+         if test x$TARGET_OS != xwindows; then
+            PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads],, [AC_MSG_ERROR(libevent_pthreads not found.)])
+         fi
       fi
 
       if test "x$use_zmq" = "xyes"; then
@@ -827,7 +837,9 @@ else
   if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
     AC_CHECK_HEADER([event2/event.h],, AC_MSG_ERROR(libevent headers missing),)
     AC_CHECK_LIB([event],[main],EVENT_LIBS=-levent,AC_MSG_ERROR(libevent missing))
-    AC_CHECK_LIB([curlpp],[main],CURLPP_LIBS=-lcurlpp,AC_MSG_ERROR(libcurlpp missing))
+    if test x$use_curlpp != xno; then
+       AC_CHECK_LIB([curlpp],[main],CURLPP_LIBS=-lcurlpp,AC_MSG_ERROR(libcurlpp missing))
+    fi
     if test x$TARGET_OS != xwindows; then
       AC_CHECK_LIB([event_pthreads],[main],EVENT_PTHREADS_LIBS=-levent_pthreads,AC_MSG_ERROR(libevent_pthreads missing))
     fi
@@ -1035,6 +1047,7 @@ if test x$bitcoin_enable_qt != xno; then
 fi
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "x$use_zmq" = "xyes"])
+AM_CONDITIONAL([ENABLE_CURLPP], [test "x$use_curlpp" = "xyes"])
 
 AC_MSG_CHECKING([whether to build test_bitcoin])
 if test x$use_tests = xyes; then
@@ -1180,6 +1193,7 @@ if test x$bitcoin_enable_qt != xno; then
     echo "    qt version  = $bitcoin_qt_got_major_vers"
     echo "    with qr     = $use_qr"
 fi
+echo "  with curlpp   = $use_curlpp" 
 echo "  with zmq      = $use_zmq"
 echo "  with test     = $use_tests"
 echo "  with bench    = $use_bench"
@@ -1197,3 +1211,4 @@ echo "  CXX           = $CXX"
 echo "  CXXFLAGS      = $CXXFLAGS"
 echo "  LDFLAGS       = $LDFLAGS"
 echo
+

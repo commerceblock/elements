@@ -17,7 +17,7 @@ RUN set -ex \
     && export GITHUB_RELEASE_TAG=$gittag \
     && git checkout $gittag \
     && ./autogen.sh \
-    && ./configure --enable-glibc-back-compat \
+    && ./configure --enable-glibc-back-compat --with-curlpp=yes \
         --prefix=`pwd`/depends/x86_64-pc-linux-gnu \
         LDFLAGS="-static-libstdc++" \
         CC="/opt/rh/devtoolset-7/root/usr/bin/gcc" \
