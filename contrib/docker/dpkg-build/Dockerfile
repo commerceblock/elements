@@ -1,4 +1,4 @@
-FROM commerceblock/debbase:latest
+FROM commerceblock/debbase:old
 
 ARG token
 
@@ -13,7 +13,9 @@ RUN set -ex \
     && git pull \
     && git checkout ${tag_name} \
     && ./autogen.sh \
-    && ./configure --without-gui --with-curlpp=no \
+    && ./configure --with-curlpp=no --enable-glibc-back-compat \
+        --prefix=`pwd`/depends/x86_64-pc-linux-gnu \
+        LDFLAGS="-static-libstdc++" \
     && make -j$(nproc) \
     && mkdir -p ocean-${tag_name}/usr/local/bin \
     && cp src/oceand ocean-${tag_name}/usr/local/bin/ \
