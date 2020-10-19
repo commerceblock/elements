@@ -1,8 +1,6 @@
-FROM commerceblock/debbase:latest
+FROM commerceblock/debbase:old
 
 ARG token
-ENV CURLPP_LIBS="-lcurl -lcurlpp -Wl,-Bsymbolic-functions -Wl,-z,relro"
-ENV CURLPP_CFLAGS="-Iinclude -I/usr/include/x86_64-linux-gnu"
 
 RUN set -ex \
     && apt update && apt install -y jq \
@@ -15,7 +13,9 @@ RUN set -ex \
     && git pull \
     && git checkout ${tag_name} \
     && ./autogen.sh \
-    && ./configure --without-gui \
+    && ./configure --with-curlpp=no --enable-glibc-back-compat \
+        --prefix=`pwd`/depends/x86_64-pc-linux-gnu \
+        LDFLAGS="-static-libstdc++" \
     && make -j$(nproc) \
     && mkdir -p ocean-${tag_name}/usr/local/bin \
     && cp src/oceand ocean-${tag_name}/usr/local/bin/ \
