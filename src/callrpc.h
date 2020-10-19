@@ -36,7 +36,9 @@ public:
 
 UniValue CallRPC(const std::string& strMethod, const UniValue& params, bool connectToMainchain=false);
 UniValue CallRPC_http(const std::string& strMethod, const UniValue& params, bool connectToMainchain=false);
+#if ENABLE_CURLPP
 UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, bool connectToMainchain=false);
+#endif // #if ENABLE_CURLPP
 UniValue GetEthTransaction(const uint256& hash);
 bool IsConfirmedEthBlock(const int64_t& nHeight, int nMinConfirmationDepth);
 bool IsConfirmedBitcoinBlock(const uint256& hash, int nMinConfirmationDepth);

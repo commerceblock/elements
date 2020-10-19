@@ -1,5 +1,7 @@
+#if ENABLE_CURLPP
 #include "curlpp/Easy.hpp"
 #include "curlpp/Options.hpp"
+#endif //#if ENABLE_CURLPP
 #include "chainparamsbase.h"
 #include "callrpc.h"
 #include "util.h"
@@ -251,11 +253,13 @@ UniValue CallRPC(const std::string& strMethod, const UniValue& params, bool conn
 {
 
     std::string uri;
+    #if ENABLE_CURLPP
     if (connectToMainchain){
         if (GetArg("-mainchainrpcuri", "").length()) {
             return CallRPC_https(strMethod, params, connectToMainchain);
         }
     }
+    #endif // #if ENABLE_CURLPP
     return CallRPC_http(strMethod, params, connectToMainchain);
 }
 
@@ -343,7 +347,7 @@ bool IsConfirmedBitcoinBlock(const uint256& hash, int nMinConfirmationDepth)
     return true;
 }
 
-
+#if ENABLE_CURLPP
 UniValue CallRPC_https(const std::string& strMethod, const UniValue& params, 
     bool connectToMainchain) {
 
@@ -382,6 +386,7 @@ UniValue CallRPC_https(const std::string& strMethod, const UniValue& params,
 
     return reply;
 }
+#endif //#if ENABLE_CURLPP
 
 
 
