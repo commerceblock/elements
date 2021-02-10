@@ -1149,8 +1149,8 @@ UniValue createrawpolicytx(const JSONRPCRequest& request)
             if (!bcaddress.SetString(address.getValStr()))
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-            CKeyID keyId;
-            if (!bcaddress.GetKeyID(keyId))
+            CTxDestination keyId;
+            if (!bcaddress.Get(keyId))
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
 
             std::string hexaddress = HexStr(keyId.begin(), keyId.end());
