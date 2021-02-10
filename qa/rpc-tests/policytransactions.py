@@ -266,6 +266,49 @@ class PolicyTransactionTest (BitcoinTestFramework):
         #check that the freezelist has been updated
         assert_equal(self.nodes[0].queryburnlist(burnaddress1), False)
 
+        # test P2SH addresses
+
+        #get a new address and public and private key for each node
+        address_node1 = self.nodes[0].getnewaddress()
+        val_addr_node1 = self.nodes[0].validateaddress(address_node1)
+        privkey_node1 = self.nodes[0].dumpprivkey(address_node1)
+
+        address_node2 =self.nodes[1].getnewaddress()
+        val_addr_node2 = self.nodes[1].validateaddress(address_node2)
+        privkey_node2 =self.nodes[1].dumpprivkey(address_node2)
+
+        address_node3 =self.nodes[2].getnewaddress()
+        val_addr_node3 = self.nodes[2].validateaddress(address_node3)
+        privkey_node3 =self.nodes[2].dumpprivkey(address_node3)
+
+        #create 2 of 3 multisig P2SH script and address
+        multisig = self.nodes[0].createmultisig(2,[val_addr_node1["pubkey"],val_addr_node2["pubkey"],val_addr_node3["pubkey"]])
+
+        assert_equal(self.nodes[0].queryfreezelist(multisig["address"]), False)
+
+        #generate the tx to freeze the P2SH address
+        inputs = []
+        vin = {}
+        vin["txid"] = fltxid
+        vin["vout"] = 1
+        inputs.append(vin)
+        outputs = []
+        outp = {}
+        outp["pubkey"] = policypubkey
+        outp["value"] = flvalue
+        outp["address"] = multisig["address"]
+        outputs.append(outp)
+        frztx = self.nodes[0].createrawpolicytx(inputs,outputs,0,flasset)
+        frztx_signed = self.nodes[0].signrawtransaction(frztx)
+        assert(frztx_signed["complete"])
+        frztx_send = self.nodes[0].sendrawtransaction(frztx_signed["hex"])
+
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+        #check that the freezelist has been updated
+        assert_equal(self.nodes[0].queryfreezelist(multisig["address"]), True)
+
         return
 
 if __name__ == '__main__':

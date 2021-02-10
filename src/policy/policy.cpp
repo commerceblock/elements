@@ -339,7 +339,7 @@ bool IsRedemptionListed(CTransaction const &tx) {
         // skip op_return
         if (whichType == TX_NULL_DATA) continue;
         // return false if not P2PKH
-        if (whichType == TX_PUBKEYHASH) {
+        if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH) {
             CKeyID keyId;
             keyId = CKeyID(uint160(vSolutions[0]));
             // Search in whitelist for the presence of each output address.
@@ -364,7 +364,7 @@ bool IsFreezelisted(CTransaction const &tx, CCoinsViewCache const &mapInputs) {
         CScript const &prevScript = prev.scriptPubKey;
         if (!Solver(prevScript, whichType, vSolutions))
             return false;
-        if (whichType == TX_PUBKEYHASH) {
+        if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH) {
             CKeyID keyId = CKeyID(uint160(vSolutions[0]));
             // search in freezelist for the presence of keyid
             if (!addressFreezelist.find(keyId)) return false;
@@ -388,7 +388,7 @@ bool IsBurnlisted(const CTransaction& tx, const CCoinsViewCache& mapInputs)
     const CScript& prevScript = prev.scriptPubKey;
     if (!Solver(prevScript, whichType, vSolutions))
         return false;
-    if (whichType == TX_PUBKEYHASH) {
+    if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH) {
         CKeyID keyId;
         keyId = CKeyID(uint160(vSolutions[0]));
         // search in freezelist for the presence of keyid

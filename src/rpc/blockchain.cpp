@@ -2076,19 +2076,24 @@ UniValue addtofreezelist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-  CKeyID keyId;
-  if (!address.GetKeyID(keyId))
-    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId;
+    if (!address.Get(keyId))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
 
+    CKeyID keyId2;
+    std::vector<unsigned char> ex_addr;
+    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
+    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
+    std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
+    keyId2 = CKeyID(uint160(extracted_addr));
   //insert address into sorted freezelist vector (if it doesn't already exist in the list)
-  addressFreezelist.add_sorted(keyId);
+  addressFreezelist.add_sorted(keyId2);
 
   return NullUniValue;
 }
 
 UniValue queryfreezelist(const JSONRPCRequest& request)
 {
-
   if (request.fHelp || request.params.size() != 1)
     throw runtime_error(
             "queryfreezelist \"address\" \n"
@@ -2100,15 +2105,22 @@ UniValue queryfreezelist(const JSONRPCRequest& request)
             + HelpExampleRpc("queryfreezelist", "\"2dncVuBznaXPDNv8YXCKmpfvoDPNZ288MhB\"")
                         );
 
-  CBitcoinAddress address;
-  if (!address.SetString(request.params[0].get_str()))
+    CBitcoinAddress address;
+    if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-  CKeyID keyId;
-  if (!address.GetKeyID(keyId))
-    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId;
+    if (!address.Get(keyId))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
 
-  return addressFreezelist.find(keyId);
+    CKeyID keyId2;
+    std::vector<unsigned char> ex_addr;
+    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
+    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
+    std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
+    keyId2 = CKeyID(uint160(extracted_addr));
+
+    return addressFreezelist.find(keyId2);
 }
 
 UniValue removefromfreezelist(const JSONRPCRequest& request)
@@ -2129,11 +2141,18 @@ UniValue removefromfreezelist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-  CKeyID keyId;
-  if (!address.GetKeyID(keyId))
-    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId;
+    if (!address.Get(keyId))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
 
-  addressFreezelist.remove(keyId);
+    CKeyID keyId2;
+    std::vector<unsigned char> ex_addr;
+    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
+    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
+    std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
+    keyId2 = CKeyID(uint160(extracted_addr));
+
+  addressFreezelist.remove(keyId2);
 
   return NullUniValue;
 }
@@ -2171,12 +2190,19 @@ UniValue addtoburnlist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-  CKeyID keyId;
-  if (!address.GetKeyID(keyId))
-    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId;
+    if (!address.Get(keyId))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+
+    CKeyID keyId2;
+    std::vector<unsigned char> ex_addr;
+    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
+    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
+    std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
+    keyId2 = CKeyID(uint160(extracted_addr));
 
   //insert address into sorted freezelist vector (if it doesn't already exist in the list)
-  addressBurnlist.add_sorted(keyId);
+  addressBurnlist.add_sorted(keyId2);
 
 return NullUniValue;
 }
@@ -2199,11 +2225,18 @@ UniValue queryburnlist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-  CKeyID keyId;
-  if (!address.GetKeyID(keyId))
-    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId;
+    if (!address.Get(keyId))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
 
-  return addressBurnlist.find(keyId);
+    CKeyID keyId2;
+    std::vector<unsigned char> ex_addr;
+    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
+    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
+    std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
+    keyId2 = CKeyID(uint160(extracted_addr));
+
+  return addressBurnlist.find(keyId2);
 }
 
 UniValue removefromburnlist(const JSONRPCRequest& request)
@@ -2224,11 +2257,18 @@ UniValue removefromburnlist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-  CKeyID keyId;
-  if (!address.GetKeyID(keyId))
-    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId;
+    if (!address.Get(keyId))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
 
-  addressBurnlist.remove(keyId);
+    CKeyID keyId2;
+    std::vector<unsigned char> ex_addr;
+    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
+    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
+    std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
+    keyId2 = CKeyID(uint160(extracted_addr));
+
+  addressBurnlist.remove(keyId2);
 
   return NullUniValue;
 }
