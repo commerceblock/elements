@@ -2076,18 +2076,12 @@ UniValue addtofreezelist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-    CTxDestination keyId;
-    if (!address.Get(keyId))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId = address.Get();
 
     CKeyID keyId2;
     std::vector<unsigned char> ex_addr;
-    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
-    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
     std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
     keyId2 = CKeyID(uint160(extracted_addr));
-  //insert address into sorted freezelist vector (if it doesn't already exist in the list)
-  addressFreezelist.add_sorted(keyId2);
 
   return NullUniValue;
 }
@@ -2109,14 +2103,10 @@ UniValue queryfreezelist(const JSONRPCRequest& request)
     if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-    CTxDestination keyId;
-    if (!address.Get(keyId))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId = address.Get();
 
     CKeyID keyId2;
     std::vector<unsigned char> ex_addr;
-    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
-    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
     std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
     keyId2 = CKeyID(uint160(extracted_addr));
 
@@ -2141,14 +2131,10 @@ UniValue removefromfreezelist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-    CTxDestination keyId;
-    if (!address.Get(keyId))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId = address.Get();
 
     CKeyID keyId2;
     std::vector<unsigned char> ex_addr;
-    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
-    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
     std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
     keyId2 = CKeyID(uint160(extracted_addr));
 
@@ -2190,14 +2176,10 @@ UniValue addtoburnlist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-    CTxDestination keyId;
-    if (!address.Get(keyId))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId = address.Get();
 
     CKeyID keyId2;
     std::vector<unsigned char> ex_addr;
-    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
-    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
     std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
     keyId2 = CKeyID(uint160(extracted_addr));
 
@@ -2225,14 +2207,10 @@ UniValue queryburnlist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-    CTxDestination keyId;
-    if (!address.Get(keyId))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId = address.Get();
 
     CKeyID keyId2;
     std::vector<unsigned char> ex_addr;
-    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
-    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
     std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
     keyId2 = CKeyID(uint160(extracted_addr));
 
@@ -2257,14 +2235,10 @@ UniValue removefromburnlist(const JSONRPCRequest& request)
   if (!address.SetString(request.params[0].get_str()))
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
 
-    CTxDestination keyId;
-    if (!address.Get(keyId))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid key id");
+    CTxDestination keyId = address.Get();
 
     CKeyID keyId2;
     std::vector<unsigned char> ex_addr;
-    std::vector<unsigned char>::const_iterator first = vSolutions[2].begin() + 13;
-    std::vector<unsigned char>::const_iterator last = vSolutions[2].begin() + 33;
     std::vector<unsigned char> extracted_addr(keyId.begin(),keyId.end());
     keyId2 = CKeyID(uint160(extracted_addr));
 
